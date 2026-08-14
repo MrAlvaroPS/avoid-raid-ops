@@ -13,13 +13,13 @@ import {
   attachWorkflowRun,
   recompileCorpusModel,
 } from '../../../server/corpus/service.mjs';
-import { assertCorpusStorage, corpusGet } from '../../../server/corpus/storage.mjs';
+import { assertCorpusStorage, corpusGet, corpusStorageErrorInfo } from '../../../server/corpus/storage.mjs';
 import { aggregateKey, jobKey } from '../../../server/corpus/keys.mjs';
 import { aggregateSummary } from '../../../server/corpus/aggregate.mjs';
 import { applyEncounterPolicyV375, modelDiagnosticsV375 } from '../../../server/corpus/model-policy-v375.mjs';
 import { startTargetedDeepV373 } from '../../../server/corpus/targeted-deep-v373.mjs';
 
-const ENGINE_VERSION = '3.7.5';
+const ENGINE_VERSION = '3.7.6';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -62,7 +62,12 @@ async function decorateStatus(input, status) {
 
 async function policyModel(input) {
   const {raw,aggregate} = await policyContext(input);
-  return applyEncounterPolicyV375(raw, aggregate);
+  const model=applyEncounterPolicyV375(raw, aggregate);
+  if(model){
+    model.engineVersion=ENGINE_VERSION;
+    if(model.validation) model.validation.publicationMode='manual-review-hold-v3.7.6';
+  }
+  return model;
 }
 
 async function launchWorkflow(input) {
@@ -115,6 +120,7 @@ export default defineHandler(async (event) => {
           ...health,
           engineVersion: ENGINE_VERSION,
           policyVersion: 'relation-provenance-v2',
+          intelligenceName:'Iris',
           storage,
         });
       }
@@ -164,7 +170,15 @@ export default defineHandler(async (event) => {
     return json({ ok:false, error:`Unsupported corpus action: ${action}` }, 400);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const storageError = /blob|storage|OIDC|BLOB_READ_WRITE_TOKEN/i.test(message);
-    return json({ ok:false, error:message }, storageError ? 503 : 500);
+    const storage = corpusStorageErrorInfo(error);
+    const storageError = Boolean(storage) || /blob|storage|OIDC|BLOB_READ_WRITE_TOKEN/i.test(message);
+    return json({
+      ok:false,
+      error:message,
+      ...(storage?{
+        code:'CORPUS_BLOB_READ_BLOCKED',
+        storage:{...storage,actionRequired:'Check Vercel Storage → Blob → Usage/limits before retrying corpus actions.'},
+      }:{}),
+    }, Number(error?.httpStatus) || (storageError ? 503 : 500));
   }
 });

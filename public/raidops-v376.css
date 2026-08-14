@@ -1,0 +1,57 @@
+/* AvoiD Raid Ops v3.7.6 — readability pass + Iris storage state. Additive only. */
+
+/* Global readability pass: raise dense operational copy without changing layout hierarchy. */
+.sidebar .division{font-size:10px!important;line-height:1.35}
+.sidebar nav button{font-size:12px!important}
+.sidebar .wcl span,.sidebar .wcl small,.sidebar .wcl button{font-size:10px!important;line-height:1.45}
+.sidebar .wcl b{font-size:11px!important}
+.sidebar .profile b{font-size:12px!important}
+.sidebar .profile small{font-size:10px!important;line-height:1.4}
+.topbar .breadcrumbs,.topbar .selectors button{font-size:10.5px!important}
+.page-head label{font-size:10px!important}
+.panel-title i{font-size:10px!important}
+.panel-title h3{font-size:15px!important}
+.panel-title p{font-size:10px!important;line-height:1.45}
+.panel-title button{font-size:10px!important}
+.badge{font-size:9.5px!important}
+.stat label{font-size:9.5px!important}
+.stat small{font-size:10px!important;line-height:1.4}
+.page-banner p,.prototype-note p,.insight-box p,.diag p,.coaching p{font-size:11px!important;line-height:1.55}
+footer{font-size:10px!important}
+.app [class*="-table"]{font-size:11px}
+.app [class*="-table"] small{font-size:9.5px!important;line-height:1.4}
+
+/* Encounter Corpus — +1.5–2px over the v3.7.5 microcopy. */
+.encounter-intelligence-v375 .ei3-kicker{font-size:9.3px!important}
+.encounter-intelligence-v375 .ei3-identity h3{font-size:15.5px!important}
+.encounter-intelligence-v375 .ei3-score-line>b{font-size:29px!important}
+.encounter-intelligence-v375 .ei3-score-line>em{font-size:9.3px!important}
+.encounter-intelligence-v375 .ei3-metric>span:first-child{font-size:9px!important}
+.encounter-intelligence-v375 .ei3-metric>b{font-size:13px!important}
+.encounter-intelligence-v375 .ei3-tip{font-size:10px!important}
+.encounter-intelligence-v375 .ei3-next-copy>b{font-size:12px!important}
+.encounter-intelligence-v375 .ei3-next-copy p{font-size:10px!important;line-height:1.55}
+.encounter-intelligence-v375 .ei3-btn{font-size:9px!important}
+.encounter-intelligence-v375 .ei3-details>summary{font-size:9px!important}
+.encounter-intelligence-v375 .ei3-diagnostics p,.encounter-intelligence-v375 .ei3-needs li{font-size:9.5px!important;line-height:1.55}
+.encounter-intelligence-v375 .ei3-detail-grid .ei3-metric>span:first-child{font-size:8.8px!important}
+.encounter-intelligence-v375 .ei3-detail-grid .ei3-metric>b{font-size:12.5px!important}
+
+/* Iris identity. */
+.corpus-workbench .panel-title>div>i.iris-mark{width:auto!important;min-width:34px;padding:0 7px;font-size:10px!important;letter-spacing:.12em;color:#91c8aa;border-color:rgba(145,200,170,.26)}
+.sidebar .profile.iris-profile i{font-size:11px!important}
+
+/* Storage lock: compact and explicit, no fake retry loop. */
+.iris-storage-alert{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin:0 12px 12px;padding:11px 13px;border:1px solid rgba(230,175,94,.24);background:rgba(230,175,94,.055)}
+.iris-storage-alert>div{min-width:0}
+.iris-storage-alert b{display:block;margin-bottom:3px;font-size:11px;letter-spacing:.07em;color:#dfb36f}
+.iris-storage-alert p{margin:0;font-size:10px;line-height:1.5;color:#a9b0b5}
+.iris-storage-alert small{display:block;margin-top:4px;font-size:9px;color:#7f898f}
+.iris-storage-alert em{font-style:normal;font-size:9px;letter-spacing:.08em;color:#dfb36f;white-space:nowrap}
+.encounter-intelligence-v375.iris-storage-blocked .ei3-btn[data-action="recompile"],
+.encounter-intelligence-v375.iris-storage-blocked .ei3-btn[data-action="improve"]{opacity:.42;pointer-events:none}
+
+@media(max-width:900px){
+  .iris-storage-alert{flex-direction:column;gap:7px}
+  .encounter-intelligence-v375 .ei3-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
