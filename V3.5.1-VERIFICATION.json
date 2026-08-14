@@ -1,0 +1,19 @@
+{
+  "version": "3.5.1",
+  "generatedAt": "2026-08-14T13:05:43.897515+00:00",
+  "syntax": "PASS",
+  "syntaxFiles": 110,
+  "unitTests": {
+    "status": "PASS",
+    "passed": 68,
+    "failed": 0
+  },
+  "golden": "PASS",
+  "architecture": "PASS",
+  "reconstruction": "PASS",
+  "dataTruth": "PASS",
+  "wclQueryContract": "STATIC_SCHEMA_VERIFIED_AND_LIVE_NETLIFY_TEST_REQUIRED",
+  "storagePreflight": "AVAILABLE_AT_ACTION_HEALTH",
+  "sourceBuild": "NOT_RUN_DEPENDENCIES_UNAVAILABLE_IN_SANDBOX",
+  "liveCorpus": "NOT_RUN_WCL_CREDENTIALS_NETLIFY_ONLY"
+}

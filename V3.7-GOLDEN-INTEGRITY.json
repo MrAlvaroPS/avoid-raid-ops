@@ -1,0 +1,102 @@
+{
+  "generatedAt": 1786723666090,
+  "allMatch": true,
+  "checks": [
+    {
+      "file": "golden-master/index.html",
+      "sha256": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+      "expected": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+      "match": true
+    },
+    {
+      "file": "golden-master/404.html",
+      "sha256": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+      "expected": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+      "match": true
+    },
+    {
+      "file": "golden-master/main.css",
+      "sha256": "1a1f4f7fda871efdb3ae20818a940700d97eb842d3280c461f353756ee5c554f",
+      "expected": "1a1f4f7fda871efdb3ae20818a940700d97eb842d3280c461f353756ee5c554f",
+      "match": true
+    },
+    {
+      "file": "golden-master/main.js",
+      "sha256": "bb41d261ebba577919da8dcbe4827ffdefce4bbc2e700debbee4b36489161ecb",
+      "expected": "bb41d261ebba577919da8dcbe4827ffdefce4bbc2e700debbee4b36489161ecb",
+      "match": true
+    },
+    {
+      "file": "golden-master/favicon.svg",
+      "sha256": "708713d4fe8b8371cc6db250e09d6f406f9c78181f83fc7f3dd9b77b002db873",
+      "expected": "708713d4fe8b8371cc6db250e09d6f406f9c78181f83fc7f3dd9b77b002db873",
+      "match": true
+    },
+    {
+      "file": "golden-master/og.png",
+      "sha256": "7a9764bd661aa716432173d0d620fb6fea97fbe8d5df76b1b3b59cdd4d17f778",
+      "expected": "7a9764bd661aa716432173d0d620fb6fea97fbe8d5df76b1b3b59cdd4d17f778",
+      "match": true
+    },
+    {
+      "file": "public/main.js",
+      "sha256": "bb41d261ebba577919da8dcbe4827ffdefce4bbc2e700debbee4b36489161ecb",
+      "golden": "bb41d261ebba577919da8dcbe4827ffdefce4bbc2e700debbee4b36489161ecb",
+      "match": true
+    },
+    {
+      "file": "deploy-preview/public/main.js",
+      "sha256": "bb41d261ebba577919da8dcbe4827ffdefce4bbc2e700debbee4b36489161ecb",
+      "golden": "bb41d261ebba577919da8dcbe4827ffdefce4bbc2e700debbee4b36489161ecb",
+      "match": true
+    },
+    {
+      "file": "public/main.css",
+      "sha256": "1a1f4f7fda871efdb3ae20818a940700d97eb842d3280c461f353756ee5c554f",
+      "golden": "1a1f4f7fda871efdb3ae20818a940700d97eb842d3280c461f353756ee5c554f",
+      "match": true
+    },
+    {
+      "file": "deploy-preview/public/main.css",
+      "sha256": "1a1f4f7fda871efdb3ae20818a940700d97eb842d3280c461f353756ee5c554f",
+      "golden": "1a1f4f7fda871efdb3ae20818a940700d97eb842d3280c461f353756ee5c554f",
+      "match": true
+    },
+    {
+      "file": "public/404.html",
+      "sha256": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+      "golden": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+      "match": true
+    },
+    {
+      "file": "deploy-preview/public/404.html",
+      "sha256": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+      "golden": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+      "match": true
+    },
+    {
+      "file": "public/favicon.svg",
+      "sha256": "708713d4fe8b8371cc6db250e09d6f406f9c78181f83fc7f3dd9b77b002db873",
+      "golden": "708713d4fe8b8371cc6db250e09d6f406f9c78181f83fc7f3dd9b77b002db873",
+      "match": true
+    },
+    {
+      "file": "deploy-preview/public/favicon.svg",
+      "sha256": "708713d4fe8b8371cc6db250e09d6f406f9c78181f83fc7f3dd9b77b002db873",
+      "golden": "708713d4fe8b8371cc6db250e09d6f406f9c78181f83fc7f3dd9b77b002db873",
+      "match": true
+    },
+    {
+      "file": "public/og.png",
+      "sha256": "7a9764bd661aa716432173d0d620fb6fea97fbe8d5df76b1b3b59cdd4d17f778",
+      "golden": "7a9764bd661aa716432173d0d620fb6fea97fbe8d5df76b1b3b59cdd4d17f778",
+      "match": true
+    },
+    {
+      "file": "deploy-preview/public/og.png",
+      "sha256": "7a9764bd661aa716432173d0d620fb6fea97fbe8d5df76b1b3b59cdd4d17f778",
+      "golden": "7a9764bd661aa716432173d0d620fb6fea97fbe8d5df76b1b3b59cdd4d17f778",
+      "match": true
+    }
+  ]
+}

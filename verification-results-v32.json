@@ -1,0 +1,25 @@
+{
+  "version": "0.3.2",
+  "golden": true,
+  "unitTests": {
+    "passed": 18,
+    "failed": 0
+  },
+  "syntax": {
+    "passed": 76,
+    "failed": 0
+  },
+  "architecture": true,
+  "reconstruction": true,
+  "browserSmoke": {
+    "screens": 9,
+    "rosterRows": 20,
+    "expandableDetail": true,
+    "errors": 0,
+    "pendingReliabilityRendersAsDash": true
+  },
+  "controlledVisualDeltas": [
+    "raidops-v32.css readability override",
+    "Composition Roster Intelligence panel"
+  ]
+}

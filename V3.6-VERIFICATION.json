@@ -1,0 +1,22 @@
+{
+  "version": "3.6.0",
+  "generatedAt": "2026-08-14T13:54:45.163979+00:00",
+  "syntax": "PASS",
+  "syntaxFiles": 114,
+  "unitTests": {
+    "status": "PASS",
+    "passed": 75,
+    "failed": 0
+  },
+  "golden": "PASS",
+  "architecture": "PASS",
+  "reconstruction": "PASS",
+  "dataTruth": "PASS",
+  "hostedResearch": {
+    "workflow": "STATIC_VERIFIED",
+    "privateBlob": "STATIC_VERIFIED_LIVE_HEALTH_REQUIRED",
+    "browserIndependentExecution": "LIVE_VERCEL_TEST_REQUIRED"
+  },
+  "sourceBuild": "NOT_RUN_DEPENDENCY_INSTALL_TIMED_OUT_IN_SANDBOX",
+  "liveCorpus": "NOT_RUN_WCL_AND_VERCEL_STORAGE_CREDENTIALS_NOT_AVAILABLE_IN_SANDBOX"
+}

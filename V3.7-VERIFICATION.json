@@ -1,0 +1,23 @@
+{
+  "generatedAt": 1786723723296,
+  "version": "3.7.0",
+  "verify": "pass",
+  "unitTests": {
+    "passed": 87,
+    "total": 87
+  },
+  "dataTruth": {
+    "passedScreens": 9,
+    "totalScreens": 9
+  },
+  "vercelSyntax": "pass",
+  "syntax": {
+    "passed": 138,
+    "total": 138
+  },
+  "goldenIntegrity": "pass",
+  "productionBuild": {
+    "status": "not-run",
+    "reason": "npm install timed out in sandbox network before dependencies were installed; Vercel remains integration build check"
+  }
+}

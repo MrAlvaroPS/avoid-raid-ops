@@ -1,0 +1,502 @@
+{
+  "total": 99,
+  "passed": 99,
+  "failed": 0,
+  "results": [
+    {
+      "file": "golden-master/main.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "deploy-preview/public/main.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "deploy-preview/public/wcl-runtime.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "netlify/functions/wcl-status.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "netlify/functions/wcl-report.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "netlify/functions/wcl-history.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "netlify/functions/wcl-telemetry.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/vite.config.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/main.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/hooks/useRaidOpsData.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/api/raidOpsClient.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/data/goldenMocks.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/app/AppShell.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/features/progress/Progress.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/features/mechanics/Mechanics.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/features/command-center/CommandCenter.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/features/damage-healing/DamageHealing.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/features/defensive-audit/DefensiveAudit.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/features/composition/RosterIntelligence.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/features/composition/Composition.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/features/pull-lab/PullLab.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/features/players/Players.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/features/live/Live.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/components/ui/MiniBar.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/components/ui/Badge.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/components/ui/PanelTitle.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/components/ui/StatCard.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/components/charts/LineChart.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/components/charts/RaidChart.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "apps/web/src/components/charts/PullCurve.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/$0.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/F0.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/qp.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/I0.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/Gp.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/O.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/J0.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/P0.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/Xf.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/K0.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/q.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/wf.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/H.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/Ii.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/l1.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/k0.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tools/extracted-golden/W0.compiled.js",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tests/unit/pull-intelligence.test.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tests/unit/runtime-adapter.test.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tests/unit/enrichment.test.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tests/unit/normalizers.test.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "tests/unit/query-strategy.test.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/ingestion/live-ingestor.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/ingestion/pull-ingestor.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/ingestion/report-ingestor.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/services/report-service.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/services/telemetry-service.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/services/history-service.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/services/live-status-service.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/storage/repository.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/api/http.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/enrichment/wowhead.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/config/runtime.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/legacy-v2/history-engine.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/legacy-v2/status-engine.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/legacy-v2/report-engine.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/legacy-v2/shared.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/legacy-v2/telemetry-engine.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/engines/history-engine.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/engines/status-engine.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/engines/report-engine.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/engines/telemetry-engine.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/storage/adapters/postgres.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/storage/adapters/netlify-blobs.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/queries/status.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/queries/history.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/queries/core-details.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/queries/telemetry.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/queries/report.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/queries/tables.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/queries/events.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/queries/pull-summaries.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/client/graphql-client.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/normalization/primitives.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/normalization/players.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/normalization/tables.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/normalization/events.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/normalization/player-profiles.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/normalization/fights.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/wcl/auth/token-cache.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/analysis/mechanics/observed-abilities.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/analysis/deaths/early-deaths.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/analysis/deaths/death-events.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/analysis/pulls/pull-intelligence.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/analysis/composition/roles.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/analysis/throughput/summary.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/analysis/progression/phase-conversion.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/analysis/progression/raid-sessions.mjs",
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "file": "server/analysis/progression/breakthrough.mjs",
+      "ok": true,
+      "stderr": ""
+    }
+  ]
+}

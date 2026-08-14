@@ -1,0 +1,17 @@
+{
+  "version": "3.5.0",
+  "generatedAt": "2026-08-14T10:37:34.209477+00:00",
+  "syntax": "PASS",
+  "unitTests": {
+    "status": "PASS",
+    "passed": 61,
+    "failed": 0
+  },
+  "golden": "PASS",
+  "architecture": "PASS",
+  "reconstruction": "PASS",
+  "dataTruth": "PASS",
+  "corpusLocalCheckpoint": "PASS",
+  "sourceBuild": "NOT_RUN_DEPENDENCIES_UNAVAILABLE",
+  "liveCorpus": "NOT_RUN_WCL_CREDENTIALS_NETLIFY_ONLY"
+}

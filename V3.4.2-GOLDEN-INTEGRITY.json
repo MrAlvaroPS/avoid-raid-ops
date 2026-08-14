@@ -1,0 +1,50 @@
+{
+  "index.html": {
+    "goldenSha256": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+    "manifestSha256": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+    "goldenMatchesManifest": true,
+    "deploySha256": "59c8b01928e122456112ceaade78d88eee0e2ad6ae64a4a68b96608b95c681dd",
+    "deployMatchesGolden": false,
+    "note": "deploy index intentionally adds Data Truth/runtime assets"
+  },
+  "404.html": {
+    "goldenSha256": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+    "manifestSha256": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+    "goldenMatchesManifest": true,
+    "deploySha256": "9ef463f330e0949cba49f900cfcc949cbf7d53eb78382fab80db3b57087d26b6",
+    "deployMatchesGolden": true,
+    "note": null
+  },
+  "main.css": {
+    "goldenSha256": "1a1f4f7fda871efdb3ae20818a940700d97eb842d3280c461f353756ee5c554f",
+    "manifestSha256": "1a1f4f7fda871efdb3ae20818a940700d97eb842d3280c461f353756ee5c554f",
+    "goldenMatchesManifest": true,
+    "deploySha256": "1a1f4f7fda871efdb3ae20818a940700d97eb842d3280c461f353756ee5c554f",
+    "deployMatchesGolden": true,
+    "note": null
+  },
+  "main.js": {
+    "goldenSha256": "bb41d261ebba577919da8dcbe4827ffdefce4bbc2e700debbee4b36489161ecb",
+    "manifestSha256": "bb41d261ebba577919da8dcbe4827ffdefce4bbc2e700debbee4b36489161ecb",
+    "goldenMatchesManifest": true,
+    "deploySha256": "bb41d261ebba577919da8dcbe4827ffdefce4bbc2e700debbee4b36489161ecb",
+    "deployMatchesGolden": true,
+    "note": null
+  },
+  "favicon.svg": {
+    "goldenSha256": "708713d4fe8b8371cc6db250e09d6f406f9c78181f83fc7f3dd9b77b002db873",
+    "manifestSha256": "708713d4fe8b8371cc6db250e09d6f406f9c78181f83fc7f3dd9b77b002db873",
+    "goldenMatchesManifest": true,
+    "deploySha256": "708713d4fe8b8371cc6db250e09d6f406f9c78181f83fc7f3dd9b77b002db873",
+    "deployMatchesGolden": true,
+    "note": null
+  },
+  "og.png": {
+    "goldenSha256": "7a9764bd661aa716432173d0d620fb6fea97fbe8d5df76b1b3b59cdd4d17f778",
+    "manifestSha256": "7a9764bd661aa716432173d0d620fb6fea97fbe8d5df76b1b3b59cdd4d17f778",
+    "goldenMatchesManifest": true,
+    "deploySha256": "7a9764bd661aa716432173d0d620fb6fea97fbe8d5df76b1b3b59cdd4d17f778",
+    "deployMatchesGolden": true,
+    "note": null
+  }
+}

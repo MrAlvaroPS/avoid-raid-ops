@@ -1,0 +1,17 @@
+{
+  "version": "3.4.2",
+  "unitTests": {
+    "passed": 55,
+    "failed": 0
+  },
+  "dataTruthScreens": 9,
+  "syntaxCheckedFiles": 85,
+  "goldenVerification": "pass",
+  "architectureVerification": "pass",
+  "reconstructionVerification": "pass",
+  "dataTruthVerification": "pass",
+  "projectFileCount": 203,
+  "netlifyPublish": "deploy-preview/public",
+  "netlifyFunctions": "netlify/functions",
+  "sourceUiPublish": "apps/web/dist (gated)"
+}
