@@ -16,10 +16,10 @@ import {
 import { assertCorpusStorage, corpusGet } from '../../../server/corpus/storage.mjs';
 import { aggregateKey, jobKey } from '../../../server/corpus/keys.mjs';
 import { aggregateSummary } from '../../../server/corpus/aggregate.mjs';
-import { applyEncounterPolicyV374, modelDiagnosticsV374 } from '../../../server/corpus/model-policy-v374.mjs';
+import { applyEncounterPolicyV375, modelDiagnosticsV375 } from '../../../server/corpus/model-policy-v375.mjs';
 import { startTargetedDeepV373 } from '../../../server/corpus/targeted-deep-v373.mjs';
 
-const ENGINE_VERSION = '3.7.4';
+const ENGINE_VERSION = '3.7.5';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -56,13 +56,13 @@ async function decorateStatus(input, status) {
     deepTargetReports: Number(job?.deepTargetReports || 0) || null,
     targetReports: Number(job?.targetReports || 0) || null,
     aggregate: aggregate ? aggregateSummary(aggregate) : status.aggregate,
-    model: raw ? modelDiagnosticsV374(raw, aggregate) : (status.model || null),
+    model: raw ? modelDiagnosticsV375(raw, aggregate) : (status.model || null),
   };
 }
 
 async function policyModel(input) {
   const {raw,aggregate} = await policyContext(input);
-  return applyEncounterPolicyV374(raw, aggregate);
+  return applyEncounterPolicyV375(raw, aggregate);
 }
 
 async function launchWorkflow(input) {
@@ -114,7 +114,7 @@ export default defineHandler(async (event) => {
           workflow: { enabled: true, durable: true },
           ...health,
           engineVersion: ENGINE_VERSION,
-          policyVersion: 'encounter-origin-v4',
+          policyVersion: 'relation-provenance-v2',
           storage,
         });
       }
