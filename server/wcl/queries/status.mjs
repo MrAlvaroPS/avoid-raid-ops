@@ -1,0 +1,1 @@
+export const LIVE_STATUS_QUERY=`query AvoidLiveStatus($code:String!){reportData{report(code:$code,allowUnlisted:true){code endTime revision segments exportedSegments fights(killType:Encounters){id encounterID name startTime endTime inProgress kill fightPercentage bossPercentage lastPhaseAsAbsoluteIndex wipeCalledTime}}}}`;

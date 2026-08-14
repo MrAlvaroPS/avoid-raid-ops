@@ -1,0 +1,2 @@
+export type MechanicRule = { key:string; label:string; triggerAbilityIds:number[]; damageAbilityIds?:number[]; debuffAbilityIds?:number[]; type:"interrupt"|"dispel"|"soak"|"spread"|"avoid"|"defensive"|"position"; phase?:number; severity:1|2|3|4|5; avoidability:"avoidable"|"mitigatable"|"unavoidable"; failurePredicate:string; };
+export type EncounterRulePack = { encounterId:number; partition:number; enrageMs?:number; mechanics:MechanicRule[]; cooldowns:unknown[]; consumables:unknown[]; };

@@ -1,0 +1,1 @@
+export function jsonResponse(status,body,cache="no-store"){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":cache}});}

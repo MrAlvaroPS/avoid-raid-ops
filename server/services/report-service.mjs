@@ -1,0 +1,4 @@
+import { getReportDashboard } from '../engines/report-engine.mjs';
+import { runtimeConfig } from '../config/runtime.mjs';
+import { jsonResponse } from '../api/http.mjs';
+export default async req=>{if(req.method!=='GET')return jsonResponse(405,{ok:false,error:'Method not allowed'});const u=new URL(req.url),reportCode=u.searchParams.get('report')||runtimeConfig.defaultReportCode,guildId=Number(u.searchParams.get('guild')||runtimeConfig.guildId),encounterId=u.searchParams.get('encounter');try{const data=await getReportDashboard({reportCode,guildId,encounterId});if(!data)return jsonResponse(404,{ok:false,error:'Report not found',reportCode});return jsonResponse(200,{ok:true,...data},'public, max-age=15, s-maxage=15, stale-while-revalidate=30')}catch(e){return jsonResponse(500,{ok:false,error:e instanceof Error?e.message:String(e),reportCode,guildId})}};
