@@ -1,0 +1,7 @@
+/* AvoiD Raid Ops v3.7.4 — live status without reintroducing dashboard clutter. */
+.corpus-workbench.ei4-active .corpus-progress,.corpus-workbench.ei4-active .corpus-message{display:none!important}
+.ei4-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.encounter-intelligence-v374 .ei3-next-copy p{max-width:760px}
+.encounter-intelligence-v374 .ei3-score-line>em{white-space:nowrap}
+@media(max-width:900px){.ei4-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ei4-metrics .ei3-metric:nth-child(2){border-right:0}.ei4-metrics .ei3-metric:nth-child(-n+2){border-bottom:1px solid rgba(255,255,255,.035)}}
+@media(max-width:560px){.ei4-metrics{grid-template-columns:1fr}.ei4-metrics .ei3-metric{border-right:0!important;border-bottom:1px solid rgba(255,255,255,.035)!important}.ei4-metrics .ei3-metric:last-child{border-bottom:0!important}}
