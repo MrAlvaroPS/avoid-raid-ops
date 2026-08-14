@@ -19,7 +19,10 @@ export const CORPUS_DEFAULTS = Object.freeze({
   minIndependentSourcesToPublish: 50,
   minValidationSourcesToPublish: 12,
   minValidationMeanToPublish: 0.66,
-  minLearnedPctToPublish: 82,
+  // v3.7.1 safety hold: the legacy compiler persists candidates, while the
+  // encounter-origin policy is applied by the corpus API. Keep auto-publish
+  // disabled until the policy layer moves into the persisted compiler path.
+  minLearnedPctToPublish: 101,
   minSemanticCoverageToPublish: 0.70,
   minSignalCoverageToPublish: 0.75,
   maxCriticalUnresolvedToPublish: 0,
