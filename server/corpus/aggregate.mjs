@@ -1,6 +1,6 @@
 const TABLE_KINDS=['Casts','Damage','Debuffs','Buffs','Interrupts','Deaths'];
 const emptyRelations=()=>({castToEnemyAura:{},castToDamage:{}});
-const emptySplit=()=>({wideReports:0,deepReports:0,killReports:0,wipeReports:0,killPulls:0,wipePulls:0,deepKillPulls:0,deepWipePulls:0,abilities:{},statePairs:{},relations:emptyRelations(),completeness:{},sourceReports:{},deepSourceReports:{}});
+const emptySplit=()=>({wideReports:0,deepReports:0,killReports:0,wipeReports:0,killPulls:0,wipePulls:0,deepKillPulls:0,deepWipePulls:0,abilities:{},statePairs:{},relations:emptyRelations(),completeness:{},sourceReports:{},deepSourceReports:{},originEvidence:{}});
 
 export function hashString(value){let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
 
@@ -22,6 +22,20 @@ export function createAggregate({encounterId,difficulty=5,partition=0,encounter=
 }
 
 function incrementSource(target,key){if(!key)return;target[key]=(Number(target[key])||0)+1;}
+
+// Origin provenance belongs to the Deep evidence itself, not to a particular workflow path.
+// Keeping the merge here means targeted Deep, normal enrichment and 0-WCL recompiles all
+// reconstruct the same evidence from persisted Deep profiles.
+export function mergeOriginEvidence(split,profile={}){
+  if(!split||!profile?.originEvidence)return split;
+  split.originEvidence ||= {};
+  for(const [id,row] of Object.entries(profile.originEvidence||{})){
+    const dst=split.originEvidence[id]||(split.originEvidence[id]={friendlySourceEvents:0,encounterOrUnknownSourceEvents:0,unknownSourceEvents:0,reportsWithEvidence:0,events:0});
+    const friendly=Number(row?.friendlySourceEvents)||0,encounter=Number(row?.encounterOrUnknownSourceEvents)||0,unknown=Number(row?.unknownSourceEvents)||0,events=Number(row?.events)||friendly+encounter+unknown;
+    dst.friendlySourceEvents+=friendly;dst.encounterOrUnknownSourceEvents+=encounter;dst.unknownSourceEvents+=unknown;dst.events+=events;if(events>0)dst.reportsWithEvidence++;
+  }
+  return split;
+}
 
 function abilityBucket(split,id,meta={}){
   const key=String(id);if(!split.abilities[key]){
@@ -98,6 +112,7 @@ export function mergeDeepProfile(aggregate,profile,{validationFraction=aggregate
   const auraOk=Boolean(completeness.debuffs)&&Boolean(completeness.buffs);
   if(auraOk)for(const pair of profile.statePairs||[]){const key=pair.key;if(!split.statePairs[key])split.statePairs[key]={key,dimension:pair.dimension,values:pair.values,tokens:pair.tokens,applications:0,conflicts:0,reports:0,players:0,fights:0,valueCounts:{}};const x=split.statePairs[key];x.applications+=Number(pair.applications)||0;x.conflicts+=Number(pair.conflicts)||0;x.reports++;x.players+=Number(pair.players)||0;x.fights+=Number(pair.fights)||0;for(const [value,count] of Object.entries(pair.valueCounts||{}))x.valueCounts[value]=(Number(x.valueCounts[value])||0)+(Number(count)||0);}
   mergeRelations(split,profile.relations||{},completeness);
+  mergeOriginEvidence(split,profile);
   return splitName;
 }
 
