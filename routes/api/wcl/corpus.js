@@ -14,11 +14,12 @@ import {
   recompileCorpusModel,
 } from '../../../server/corpus/service.mjs';
 import { assertCorpusStorage, corpusGet } from '../../../server/corpus/storage.mjs';
-import { aggregateKey } from '../../../server/corpus/keys.mjs';
-import { applyEncounterPolicyV373, modelDiagnosticsV373 } from '../../../server/corpus/model-policy-v373.mjs';
+import { aggregateKey, jobKey } from '../../../server/corpus/keys.mjs';
+import { aggregateSummary } from '../../../server/corpus/aggregate.mjs';
+import { applyEncounterPolicyV374, modelDiagnosticsV374 } from '../../../server/corpus/model-policy-v374.mjs';
 import { startTargetedDeepV373 } from '../../../server/corpus/targeted-deep-v373.mjs';
 
-const ENGINE_VERSION = '3.7.3';
+const ENGINE_VERSION = '3.7.4';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -36,26 +37,32 @@ function requestInput(request, body = {}) {
 
 async function policyContext(input) {
   const raw = await loadAnyEncounterModel(input);
-  if (!raw) return { raw:null, aggregate:null };
+  if (!raw) return { raw:null, aggregate:null, args:null, job:null };
   const partition = Number(raw.resolvedPartition ?? raw.partition ?? input.partition ?? 0);
   const args = { encounterId:Number(raw.encounterId || input.encounterId), difficulty:Number(raw.difficulty || input.difficulty || 5), partition };
-  const aggregate = partition > 0 ? await corpusGet(aggregateKey(args)).catch(() => null) : null;
-  return { raw, aggregate };
+  const [aggregate,job] = partition > 0 ? await Promise.all([
+    corpusGet(aggregateKey(args)).catch(() => null),
+    corpusGet(jobKey(args)).catch(() => null),
+  ]) : [null,null];
+  return { raw, aggregate, args, job };
 }
 
 async function decorateStatus(input, status) {
   if (!status) return status;
-  const {raw,aggregate} = await policyContext(input);
+  const {raw,aggregate,job} = await policyContext(input);
   return {
     ...status,
     engineVersion: ENGINE_VERSION,
-    model: raw ? modelDiagnosticsV373(raw, aggregate) : (status.model || null),
+    deepTargetReports: Number(job?.deepTargetReports || 0) || null,
+    targetReports: Number(job?.targetReports || 0) || null,
+    aggregate: aggregate ? aggregateSummary(aggregate) : status.aggregate,
+    model: raw ? modelDiagnosticsV374(raw, aggregate) : (status.model || null),
   };
 }
 
 async function policyModel(input) {
   const {raw,aggregate} = await policyContext(input);
-  return applyEncounterPolicyV373(raw, aggregate);
+  return applyEncounterPolicyV374(raw, aggregate);
 }
 
 async function launchWorkflow(input) {
@@ -107,7 +114,7 @@ export default defineHandler(async (event) => {
           workflow: { enabled: true, durable: true },
           ...health,
           engineVersion: ENGINE_VERSION,
-          policyVersion: 'encounter-origin-v3',
+          policyVersion: 'encounter-origin-v4',
           storage,
         });
       }
