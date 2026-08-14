@@ -15,9 +15,10 @@ import {
 } from '../../../server/corpus/service.mjs';
 import { assertCorpusStorage, corpusGet } from '../../../server/corpus/storage.mjs';
 import { aggregateKey } from '../../../server/corpus/keys.mjs';
-import { applyEncounterPolicyV371, modelDiagnosticsV371 } from '../../../server/corpus/model-policy-v371.mjs';
+import { applyEncounterPolicyV372, modelDiagnosticsV372 } from '../../../server/corpus/model-policy-v372.mjs';
+import { startTargetedDeepV372 } from '../../../server/corpus/targeted-deep-v372.mjs';
 
-const ENGINE_VERSION = '3.7.1';
+const ENGINE_VERSION = '3.7.2';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -48,13 +49,13 @@ async function decorateStatus(input, status) {
   return {
     ...status,
     engineVersion: ENGINE_VERSION,
-    model: raw ? modelDiagnosticsV371(raw, aggregate) : (status.model || null),
+    model: raw ? modelDiagnosticsV372(raw, aggregate) : (status.model || null),
   };
 }
 
 async function policyModel(input) {
   const {raw,aggregate} = await policyContext(input);
-  return applyEncounterPolicyV371(raw, aggregate);
+  return applyEncounterPolicyV372(raw, aggregate);
 }
 
 async function launchWorkflow(input) {
@@ -64,6 +65,28 @@ async function launchWorkflow(input) {
   const run = await start(corpusBuildWorkflow, [workflowInput]);
   status = await attachWorkflowRun(workflowInput, executionToken, run.runId);
   return { status, workflowRunId: run.runId };
+}
+
+async function improveModel(input) {
+  const model = await policyModel(input);
+  if (!model) throw new Error('No encounter model is available to improve');
+  const rec = model.learning?.enrichmentRecommendation || {};
+  if (rec.mode === 'targeted-deep') {
+    await startTargetedDeepV372({
+      ...input,
+      addDeepPulls: Number(rec.suggestedAdditionalDeepPulls) || 0,
+      addDeepReports: Number(rec.suggestedAdditionalDeepReports) || 0,
+      focusAbilityIds: model.learning?.enrichmentFocusAbilityIds || [],
+    });
+    return launchWorkflow({ ...input, mode:'targeted-deep' });
+  }
+  await startCorpus({
+    ...input,
+    mode:'enrich',
+    addPulls:Number(rec.suggestedAdditionalWidePulls) || 500,
+    addDeepPulls:Number(rec.suggestedAdditionalDeepPulls) || 100,
+  });
+  return launchWorkflow({ ...input, mode:'enrich' });
 }
 
 export default defineHandler(async (event) => {
@@ -84,6 +107,7 @@ export default defineHandler(async (event) => {
           workflow: { enabled: true, durable: true },
           ...health,
           engineVersion: ENGINE_VERSION,
+          policyVersion: 'encounter-origin-v2',
           storage,
         });
       }
@@ -105,6 +129,15 @@ export default defineHandler(async (event) => {
       const mode = action === 'enrich' ? 'enrich' : 'initial';
       await startCorpus({ ...input, mode });
       const launched = await launchWorkflow({ ...input, mode });
+      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId }, 202);
+    }
+    if (action === 'improve') {
+      const launched = await improveModel(input);
+      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, plan:(await policyModel(input))?.learning?.enrichmentRecommendation || null }, 202);
+    }
+    if (action === 'targeted-deep') {
+      await startTargetedDeepV372(input);
+      const launched = await launchWorkflow({ ...input, mode:'targeted-deep' });
       return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId }, 202);
     }
     if (action === 'pause') return json({ ok:true, status:await decorateStatus(input, await pauseCorpus(input)) });
