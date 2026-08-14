@@ -1,0 +1,77 @@
+/* AvoiD Raid Ops v3.7.8 — Progress control room. Additive Golden Master layer. */
+
+.progress-commandbar{display:flex;align-items:center;gap:5px;margin:-5px 0 12px;padding:6px 7px;border:1px solid #202831;background:#0b1014;border-radius:5px}
+.progress-commandbar>span{margin-right:4px;color:#59656f;font-size:7px;font-weight:900;letter-spacing:.9px}
+.progress-commandbar button{padding:6px 8px;border:1px solid transparent;background:transparent;color:#69757e;font-size:7px;font-weight:900;letter-spacing:.4px;cursor:pointer}
+.progress-commandbar button:hover{color:#a5b0b5;background:#11171c}
+.progress-commandbar button.active{border-color:#58e3af28;background:#58e3af0c;color:var(--green)}
+.progress-commandbar em{margin-left:auto;color:#59656f;font-size:7px;font-style:normal}
+
+.pullcurve[data-progress-runtime="3.7.8"] svg{overflow:visible}
+.pullcurve .progress-main-line{fill:none;stroke:var(--green);stroke-width:.9;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 5px #58e3af55)}
+.pullcurve .progress-median-line{fill:none;stroke:var(--blue);stroke-width:.55;stroke-dasharray:2 1.4;vector-effect:non-scaling-stroke;opacity:.85}
+.pullcurve .progress-selected-line{stroke:#dffaf0;stroke-width:.35;stroke-dasharray:1.2 1.4;vector-effect:non-scaling-stroke;opacity:.42}
+.pullcurve circle.progress-point{fill:#101b17;stroke:var(--green);stroke-width:.4;cursor:pointer;vector-effect:non-scaling-stroke;transition:r .15s ease,filter .15s ease,fill .15s ease}
+.pullcurve circle.progress-point:hover{r:1.35;filter:drop-shadow(0 0 5px #58e3af99)}
+.pullcurve circle.progress-point.pb{fill:#2a2111;stroke:var(--gold);stroke-width:.65;filter:drop-shadow(0 0 4px #efb75f55)}
+.pullcurve circle.progress-point.selected{fill:#f4fffb;stroke:var(--green);stroke-width:.85;filter:drop-shadow(0 0 7px #58e3afaa)}
+
+.progress-pull-inspector{margin-top:14px;padding-top:12px;border-top:1px solid #1e272e}
+.progress-inspector-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+.progress-inspector-head>div:first-child>span{display:block;color:var(--green);font-size:6px;font-weight:950;letter-spacing:1px}
+.progress-inspector-head>div:first-child>b{display:block;margin-top:3px;color:#dce6e2;font-size:12px}
+.progress-inspector-head>div:first-child>small{display:block;margin-top:2px;color:#66727b;font-size:7px}
+.progress-inspector-nav{display:flex;gap:5px}
+.progress-inspector-nav button{padding:7px 9px;border:1px solid #263039;background:#0d1216;color:#77838c;border-radius:4px;font-size:7px;font-weight:900;cursor:pointer}
+.progress-inspector-nav button:hover:not(:disabled){border-color:#58e3af2f;color:var(--green);background:#58e3af08}
+.progress-inspector-nav button:disabled{opacity:.28;cursor:default}
+.progress-inspector-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid #202831;border-radius:5px;background:#0c1115;overflow:hidden}
+.progress-inspector-metric{min-width:0;padding:9px 10px;border-right:1px solid #202831}
+.progress-inspector-metric:last-child{border-right:0}
+.progress-inspector-metric label{display:block;color:#59656f;font-size:5.8px;font-weight:900;letter-spacing:.65px;white-space:nowrap}
+.progress-inspector-metric b{display:block;margin-top:4px;color:#d7dede;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.progress-inspector-metric small{display:block;margin-top:2px;color:#56616b;font-size:6px;line-height:1.35;overflow:hidden;text-overflow:ellipsis}
+
+.matrix .progress-matrix-pull,.matrix .progress-stage{border:0;font:inherit;cursor:pointer}
+.matrix .progress-matrix-pull{height:19px;background:transparent;color:#69757e;text-align:left;font-size:6px;font-weight:900;letter-spacing:.3px;padding:0}
+.matrix .progress-matrix-pull:hover,.matrix .progress-matrix-pull.selected{color:var(--green)}
+.matrix .progress-stage{height:19px;border-radius:3px;background:#161d22;box-shadow:inset 0 0 0 1px #202831;transition:filter .15s ease,transform .15s ease}
+.matrix .progress-stage:hover{filter:brightness(1.22);transform:translateY(-1px)}
+.matrix .progress-stage.passed{background:linear-gradient(90deg,#1d6c52,#2fad82);box-shadow:none}
+.matrix .progress-stage.terminal{background:linear-gradient(90deg,#5f4b25,#8b7030);box-shadow:none}
+.matrix .progress-stage.unreached{background:#14191e;opacity:.46}
+
+.progress-rl-panel{margin-top:12px;border-color:#28352f;background:linear-gradient(145deg,#101719,#0c1014)}
+.progress-rl-panel .panel-title{margin-bottom:12px}
+.progress-rl-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.progress-rl-card{min-height:108px;padding:12px 13px;border:1px solid #222b32;background:#0c1115;border-left:2px solid #56616b;border-radius:5px}
+.progress-rl-card.good{border-left-color:var(--green);background:linear-gradient(110deg,#58e3af08,#0c1115 55%)}
+.progress-rl-card.bad{border-left-color:var(--red);background:linear-gradient(110deg,#ff665f07,#0c1115 55%)}
+.progress-rl-card.target{border-left-color:var(--gold);background:linear-gradient(110deg,#efb75f08,#0c1115 55%)}
+.progress-rl-card label{display:block;color:#59656f;font-size:6px;font-weight:950;letter-spacing:1px}
+.progress-rl-card.good label{color:var(--green)}
+.progress-rl-card.bad label{color:#ff8a84}
+.progress-rl-card.target label{color:var(--gold)}
+.progress-rl-card b{display:block;margin-top:6px;color:#d9e0de;font-size:10px}
+.progress-rl-card p{margin:4px 0 0;color:#68747b;font-size:7.5px;line-height:1.5}
+.progress-rl-card small{display:block;margin-top:8px;color:#59656f;font-size:6px;line-height:1.4}
+
+@media(max-width:1200px){
+  .progress-inspector-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .progress-inspector-metric:nth-child(3){border-right:0}
+  .progress-inspector-metric:nth-child(-n+3){border-bottom:1px solid #202831}
+}
+@media(max-width:900px){
+  .progress-rl-grid{grid-template-columns:1fr}
+  .progress-commandbar{flex-wrap:wrap}
+  .progress-commandbar em{width:100%;margin:2px 0 0}
+}
+@media(max-width:620px){
+  .progress-inspector-head{align-items:flex-start;flex-direction:column}
+  .progress-inspector-grid{grid-template-columns:1fr 1fr}
+  .progress-inspector-metric{border-bottom:1px solid #202831}
+  .progress-inspector-metric:nth-child(2n){border-right:0}
+  .progress-inspector-metric:nth-last-child(-n+2){border-bottom:0}
+  .matrix{min-width:620px}
+  .progress-commandbar button{padding:6px 7px}
+}
