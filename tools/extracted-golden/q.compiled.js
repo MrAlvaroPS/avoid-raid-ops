@@ -1,0 +1,1 @@
+function q({id:l,title:a,sub:e,action:t}){return(0,u.jsxs)("div",{className:"panel-title",children:[(0,u.jsxs)("div",{children:[(0,u.jsx)("i",{children:l}),(0,u.jsxs)("span",{children:[(0,u.jsx)("h3",{children:a}),e&&(0,u.jsx)("p",{children:e})]})]}),t&&(0,u.jsxs)("button",{children:[t," \u2192"]})]})}

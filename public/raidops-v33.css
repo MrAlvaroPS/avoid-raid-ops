@@ -1,0 +1,39 @@
+/* AvoiD Raid Ops v3.2 — readability + Composition roster intelligence.
+   This stylesheet intentionally layers on top of the immutable Golden Master.
+   Golden main.css is never edited. */
+
+/* Data readability: preserve density and hierarchy, but make telemetry readable on desktop. */
+.stat label{font-size:9px;letter-spacing:.7px}.stat b{font-size:21px}.stat em{font-size:10px}.stat small{font-size:10px;line-height:1.4}
+.panel-title>div>i{font-size:9px}.panel-title h3{font-size:13px}.panel-title p{font-size:10px;line-height:1.45}.panel-title>button{font-size:9px}
+.banner-stat label{font-size:9px}.banner-stat small{font-size:10px}.page-banner p{font-size:12px;line-height:1.45}
+.signal span b{font-size:11px}.signal span p,.insight-box p{font-size:10px;line-height:1.45}.change label{font-size:9px}.change span>b{font-size:11px}.change p{font-size:10px;line-height:1.45}.change>strong{font-size:11px}
+.pull-labels,.legend-row,.bench-legend,.timeline-events,.chart-footer{font-size:9px}.night-table span{font-size:10px}.night-table b{font-size:11px}.night-table em{font-size:10px}
+.compare-table .ct-head,.mechanic-table .mt-head,.audit-table .at-head,.reliability-table>div:first-child{font-size:9px}.compare-table>div>span,.mechanic-table>button,.audit-table span{font-size:10px}.compare-table>div>b,.compare-table>div>em{font-size:10.5px}.compare-table>div>small,.audit-table span small{font-size:9px}
+.benchbar label{font-size:9px}.benchbar b{font-size:10.5px}.benchbar small{font-size:9.5px}.diag>b{font-size:11px}.diag p{font-size:10px;line-height:1.45}
+.assignment-list span b{font-size:10px}.assignment-list span small{font-size:9px}.assignment-list strong{font-size:10px}.audit-controls button{font-size:9px}.audit-player>i{font-size:9px}
+.player-list>button span b{font-size:11px}.player-list>button span small{font-size:9px;line-height:1.4}.player-list>button strong{font-size:13px}.player-list>button em{font-size:10px}.player-identity span p{font-size:10px}.player-identity>b small{font-size:8px}
+.reliability-table span b{font-size:10px}.reliability-table span small{font-size:9px}.role-comp label{font-size:9px}.role-comp b{font-size:10.5px}.role-comp small{font-size:9.5px}.spec-grid>div>span,.spec-grid b,.spec-grid small{font-size:10px}
+.live-command p{font-size:11px}.stream-meta{font-size:9px}.rail-head{font-size:9px}.pull-rail button span b{font-size:10.5px}.pull-rail button span small{font-size:9px}.pull-rail button>i{font-size:8px}.pull-headline p{font-size:10px}.execution-score span{font-size:8.5px}.brief-label b{font-size:10px}.brief-label small{font-size:8.5px}.brief-copy p{font-size:10px}.live-signals span b{font-size:10px}.live-signals span small{font-size:9px}.next-title p{font-size:10px}.next-pull li b{font-size:10px}.next-pull li small{font-size:9px}.prototype-note p{font-size:9px;line-height:1.4}
+
+/* Composition > Roster Intelligence */
+.roster-intelligence-panel{margin-top:12px;overflow:hidden}.roster-intel-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:#1d252d;border:1px solid #1d252d;border-radius:6px;overflow:hidden;margin:13px 0}.roster-intel-summary>div{background:#0d1115;padding:12px 13px;min-width:0}.roster-intel-summary label{display:block;color:#59656f;font-size:9px;font-weight:900;letter-spacing:.7px;margin-bottom:6px}.roster-intel-summary b{display:block;color:#c6ced2;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.composition-roster-table{width:100%}.crt-head,.crt-main{display:grid;grid-template-columns:1.35fr 1.15fr .55fr .45fr .8fr .85fr .8fr .65fr;gap:10px;align-items:center}.crt-head{padding:0 10px 9px;color:#56616c;font-size:9px;font-weight:900;letter-spacing:.65px}.crt-row{border-top:1px solid #1d252d}.crt-main{width:100%;min-height:66px;padding:9px 10px;border:0;background:transparent;color:#89959d;text-align:left;cursor:pointer}.crt-main:hover,.crt-row.expanded .crt-main{background:linear-gradient(90deg,#58e3af08,transparent)}.crt-player{display:flex;align-items:center;gap:9px;min-width:0}.crt-player>i{width:29px;height:29px;flex:0 0 29px;border-radius:5px;background:#202a31;color:#c5cdd1;display:grid;place-items:center;font-size:10px;font-style:normal;font-weight:900}.crt-main span b,.crt-main>b{display:block;color:#c2cace;font-size:10.5px}.crt-main span small{display:block;color:#64717a;font-size:9px;margin-top:3px;line-height:1.3}.crt-role{justify-self:start;border:1px solid #2a353d;border-radius:4px;padding:4px 6px;font-size:8.5px;font-weight:900;letter-spacing:.5px}.crt-role.tank{color:#6eb7ff}.crt-role.heal{color:#58e3af}.crt-role.dps{color:#d1a8ff}.crt-reliability b{font-size:14px;color:var(--green)}.crt-reliability small{font-size:8px!important}.crt-detail{display:grid;grid-template-columns:1fr 1fr;gap:15px;padding:14px 45px 17px;background:#0a0e12;border-top:1px dashed #253039}.crt-detail h4{margin:0 0 9px;color:#77838b;font-size:9px;letter-spacing:.7px}.crt-chips{display:flex;flex-wrap:wrap;gap:6px}.crt-chips>span{border:1px solid #25313a;background:#10161b;color:#88949c;border-radius:4px;padding:6px 8px;font-size:9px;line-height:1.25}.crt-chips.talents>span{border-color:#2a332f}.crt-chips p{margin:0;color:#64717a;font-size:9.5px;line-height:1.5}
+
+@media(max-width:1050px){.roster-intel-summary{grid-template-columns:repeat(3,1fr)}.composition-roster-table{overflow-x:auto}.crt-head,.crt-main{min-width:940px}.crt-detail{min-width:940px}}
+@media(max-width:620px){.stat label{font-size:9px}.stat small{font-size:9.5px}.panel-title p{font-size:9.5px}.roster-intel-summary{grid-template-columns:repeat(2,1fr)}.crt-detail{grid-template-columns:1fr;padding-left:20px}}
+
+/* v3.3 Data Truth additions — Golden main.css remains untouched. */
+.wowhead-link{color:#b9c4ca;text-decoration:none;border-bottom:1px dotted #4b5b65;transition:color .15s,border-color .15s}.wowhead-link:hover{color:#58e3af;border-color:#58e3af}.wowhead-link img{vertical-align:middle;margin-right:5px;border-radius:3px}
+.crt-chips>.crt-data-chip{display:inline-grid;grid-template-columns:auto;gap:3px;align-items:center;padding:7px 9px}.crt-data-chip>small{font-size:7.5px!important;letter-spacing:.45px;text-transform:uppercase;color:#596771!important;margin:0!important}.crt-data-chip>em{font-style:normal;font-size:8px;color:#6c7981}.build-fingerprint{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#66747d!important;font-size:8.5px!important;margin:-3px 0 9px!important}.talent-chip{min-width:135px}.gear-chip{min-width:145px}
+.delta-list p.pending{opacity:.68}.data-truth-pending{opacity:.45}
+[data-data-truth="pending"] .linechart{opacity:.18}
+.roster-intelligence-panel .panel-title p{max-width:760px}
+
+
+/* Data Truth boot gate: Golden mock content is never exposed while API layers load. */
+html.raidops-booting #root{visibility:hidden!important}
+.raidops-boot-screen{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#07090c;color:#d8e0e8;font-family:inherit;letter-spacing:.08em}
+.raidops-boot-screen b{font-size:14px;color:#65e6b4;letter-spacing:.18em}
+.raidops-boot-screen span{font-size:12px;font-weight:700}
+.raidops-boot-screen small{font-size:10px;color:#72808d;letter-spacing:.04em}
+.raidops-boot-screen.error b{color:#ff6b6b}

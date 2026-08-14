@@ -1,0 +1,1 @@
+function O({children:l,tone:a="info"}){return(0,u.jsx)("span",{className:`badge ${a}`,children:l})}

@@ -1,0 +1,1 @@
+function H({label:l,value:a,delta:e,meta:t,tone:n="good"}){return(0,u.jsxs)("div",{className:"stat",children:[(0,u.jsx)("label",{children:l}),(0,u.jsxs)("div",{children:[(0,u.jsx)("b",{children:a}),e&&(0,u.jsx)("em",{className:n,children:e})]}),t&&(0,u.jsx)("small",{children:t})]})}
