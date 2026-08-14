@@ -13,8 +13,11 @@ import {
   attachWorkflowRun,
   recompileCorpusModel,
 } from '../../../server/corpus/service.mjs';
-import { assertCorpusStorage } from '../../../server/corpus/storage.mjs';
+import { assertCorpusStorage, corpusGet } from '../../../server/corpus/storage.mjs';
+import { aggregateKey } from '../../../server/corpus/keys.mjs';
+import { applyEncounterPolicyV371, modelDiagnosticsV371 } from '../../../server/corpus/model-policy-v371.mjs';
 
+const ENGINE_VERSION = '3.7.1';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -28,6 +31,30 @@ function requestInput(request, body = {}) {
     partition: Number(body.partition ?? url.searchParams.get('partition') ?? 0) || 0,
     ...body,
   };
+}
+
+async function policyContext(input) {
+  const raw = await loadAnyEncounterModel(input);
+  if (!raw) return { raw:null, aggregate:null };
+  const partition = Number(raw.resolvedPartition ?? raw.partition ?? input.partition ?? 0);
+  const args = { encounterId:Number(raw.encounterId || input.encounterId), difficulty:Number(raw.difficulty || input.difficulty || 5), partition };
+  const aggregate = partition > 0 ? await corpusGet(aggregateKey(args)).catch(() => null) : null;
+  return { raw, aggregate };
+}
+
+async function decorateStatus(input, status) {
+  if (!status) return status;
+  const {raw,aggregate} = await policyContext(input);
+  return {
+    ...status,
+    engineVersion: ENGINE_VERSION,
+    model: raw ? modelDiagnosticsV371(raw, aggregate) : (status.model || null),
+  };
+}
+
+async function policyModel(input) {
+  const {raw,aggregate} = await policyContext(input);
+  return applyEncounterPolicyV371(raw, aggregate);
 }
 
 async function launchWorkflow(input) {
@@ -56,15 +83,16 @@ export default defineHandler(async (event) => {
           corpusBuilder: 'vercel-workflow',
           workflow: { enabled: true, durable: true },
           ...health,
+          engineVersion: ENGINE_VERSION,
           storage,
         });
       }
       if (!input.encounterId) return json({ ok:false, error:'encounter is required' }, 400);
       if (actionFromQuery === 'model') {
-        const model = await loadAnyEncounterModel(input);
+        const model = await policyModel(input);
         return json({ ok:Boolean(model), model }, model ? 200 : 404);
       }
-      return json({ ok:true, status:await getCorpusStatus(input) });
+      return json({ ok:true, status:await decorateStatus(input, await getCorpusStatus(input)) });
     }
 
     if (request.method !== 'POST') return json({ ok:false, error:'Method not allowed' }, 405);
@@ -75,21 +103,23 @@ export default defineHandler(async (event) => {
 
     if (action === 'start' || action === 'enrich') {
       const mode = action === 'enrich' ? 'enrich' : 'initial';
-      let status = await startCorpus({ ...input, mode });
+      await startCorpus({ ...input, mode });
       const launched = await launchWorkflow({ ...input, mode });
-      status = launched.status;
-      return json({ ok:true, status, workflowRunId:launched.workflowRunId }, 202);
+      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId }, 202);
     }
-    if (action === 'pause') return json({ ok:true, status:await pauseCorpus(input) });
+    if (action === 'pause') return json({ ok:true, status:await decorateStatus(input, await pauseCorpus(input)) });
     if (action === 'resume') {
       await resumeCorpus(input);
       const launched = await launchWorkflow(input);
-      return json({ ok:true, status:launched.status, workflowRunId:launched.workflowRunId }, 202);
+      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId }, 202);
     }
-    if (action === 'recompile') return json({ ok:true, status:await recompileCorpusModel(input) });
+    if (action === 'recompile') {
+      const status = await recompileCorpusModel(input);
+      return json({ ok:true, status:await decorateStatus(input, status), model:await policyModel(input) });
+    }
     if (action === 'reset') return json({ ok:true, ...(await resetCorpus(input)) });
-    if (action === 'model') return json({ ok:true, model:await loadAnyEncounterModel(input) });
-    if (action === 'status') return json({ ok:true, status:await getCorpusStatus(input) });
+    if (action === 'model') return json({ ok:true, model:await policyModel(input) });
+    if (action === 'status') return json({ ok:true, status:await decorateStatus(input, await getCorpusStatus(input)) });
 
     return json({ ok:false, error:`Unsupported corpus action: ${action}` }, 400);
   } catch (error) {
