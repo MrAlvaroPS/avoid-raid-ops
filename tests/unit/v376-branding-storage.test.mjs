@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
-test('v3.7.6 exposes Iris, Onie and the deployed release marker', async () => {
+test('v3.7.6 introduced Iris, Onie and its release asset', async () => {
   const [runtime,index] = await Promise.all([
     read('public/iris-runtime-v376.js'),
     read('index.html'),
@@ -14,7 +14,8 @@ test('v3.7.6 exposes Iris, Onie and the deployed release marker', async () => {
   assert.match(runtime, /const RAID_LEADER='Onie'/);
   assert.match(runtime, /corpusScope:'encounter\+difficulty\+partition'/);
   assert.match(index, /raidops-v376\.css\?v=3\.7\.6/);
-  assert.match(index, /iris-runtime-v376\.js\?v=3\.7\.6/);
+  // Newer releases may replace the active runtime while keeping v3.7.6 as a regression asset.
+  assert.match(index, /iris-runtime-v37(?:6|7)\.js\?v=3\.7\.(?:6|7)/);
 });
 
 test('Blob 403 is classified without claiming corpus deletion', async () => {
