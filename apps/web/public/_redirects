@@ -1,0 +1,7 @@
+/api/wcl/report      /.netlify/functions/wcl-report      200!
+/api/wcl/telemetry   /.netlify/functions/wcl-telemetry   200!
+/api/wcl/history     /.netlify/functions/wcl-history     200!
+/api/wcl/status      /.netlify/functions/wcl-status      200!
+/api/wcl/intelligence /.netlify/functions/wcl-intelligence 200!
+/api/wcl/corpus      /.netlify/functions/wcl-corpus      200!
+/*                   /index.html                         200

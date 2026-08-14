@@ -1,0 +1,28 @@
+import { jsx, jsxs } from "react/jsx-runtime";
+import { useEffect, useRef, useState } from "react";
+import { raidOpsClient } from "../../api/raidOpsClient.js";
+
+const nf = new Intl.NumberFormat();
+const pct = v => `${Math.round((Number(v)||0)*100)}%`;
+const wait = ms => new Promise(resolve=>setTimeout(resolve,ms));
+const deepGoal = target => Math.min(1500,Math.max(200,Math.round(target*.12)));
+const encounterFromRuntime = () => { const value = new URLSearchParams(location.search).get("encounter") || window.__AVOID_WCL_INTELLIGENCE__?.encounter?.id || window.__AVOID_WCL__?.encounter?.id; const id=Number(value); return Number.isFinite(id)&&id>0?id:null; };
+
+export function CorpusWorkbench(){
+  const [status,setStatus]=useState(null),[busy,setBusy]=useState(false),[target,setTarget]=useState(1000);const polling=useRef(false);const encounterId=encounterFromRuntime();
+  const refresh=async()=>{if(!encounterId){setStatus(null);return null;}try{const r=await raidOpsClient.corpusStatus({encounter:encounterId});const state=r.status||null;setStatus(state);if(state?.targetPulls)setTarget(Number(state.targetPulls)||target);return state;}catch{setStatus(null);return null;}};
+  const poll=async()=>{if(!encounterId||polling.current)return;polling.current=true;setBusy(true);try{while(polling.current){const state=await refresh();if(!state||["ready","paused"].includes(state.status))break;await wait(5000);}}finally{polling.current=false;setBusy(false);}};
+  useEffect(()=>{refresh().then(state=>{if(["running","rate-limited"].includes(state?.status))poll();});return()=>{polling.current=false;}},[]);
+  const start=async(action="start")=>{if(!encounterId)return;setBusy(true);const r=await raidOpsClient.corpusAction({action,encounterId,targetPulls:target,deepTargetPulls:deepGoal(target),addPulls:500,addDeepPulls:100});setStatus(r.status);setBusy(false);poll();};
+  const pause=async()=>{polling.current=false;const r=await raidOpsClient.corpusAction({action:"pause",encounterId});setStatus(r.status);setBusy(false);};
+  const resume=async()=>{const r=await raidOpsClient.corpusAction({action:"resume",encounterId});setStatus(r.status);poll();};
+  const processed=status?.processedWideCount||0,deep=status?.processedDeepCount||0,pulls=status?.pullCount??((status?.aggregate?.killPulls||0)+(status?.aggregate?.wipePulls||0)),deepPulls=status?.deepPullCount??((status?.aggregate?.deepKillPulls||0)+(status?.aggregate?.deepWipePulls||0)),sources=status?.sourceStats?.total||0,ready=status?.status==="ready";
+  const phaseName=String(status?.phase||"");const phaseProgress=phaseName==="deep"?status?.progress?.deep:(phaseName.startsWith("discover")||phaseName==="expand-sources")?status?.progress?.discovery:status?.progress?.wide;
+  return jsxs("article",{className:"panel corpus-workbench",children:[
+    jsxs("div",{className:"panel-title",children:[jsx("i",{children:"AI"}),jsxs("div",{children:[jsx("h3",{children:"Encounter Intelligence Corpus"}),jsx("p",{children:"Durable hosted WCL corpus · background workflow · diverse raid groups · train/holdout validation · incremental enrichment"})]})]}),
+    jsxs("div",{className:"corpus-grid",children:[jsxs("div",{children:[jsx("label",{children:"WIDE CORPUS"}),jsx("b",{children:`${nf.format(pulls)} / ${nf.format(status?.targetPulls||status?.targetReports||target)}`}),jsx("small",{children:`${nf.format(processed)} reports profiled · ${nf.format(sources)} independent sources`})]}),jsxs("div",{children:[jsx("label",{children:"DEEP SAMPLE"}),jsx("b",{children:`${nf.format(deepPulls)} / ${nf.format(status?.deepTargetPulls||status?.deepTargetReports||deepGoal(target))}`}),jsx("small",{children:`${nf.format(deep)} reports · incomplete streams excluded per metric`})]}),jsxs("div",{children:[jsx("label",{children:"MODEL"}),jsx("b",{children:status?.model?.status?.toUpperCase?.()||"NOT BUILT"}),jsx("small",{children:status?.model?`${status.model.acceptedMechanics} accepted mechanics · ${Math.round(status.model.validationScore||0)}% holdout score`:"Generated pack replaces manual boss coding once published"})]}),jsxs("div",{children:[jsx("label",{children:"WCL BUDGET"}),jsx("b",{children:status?.rateLimit?.pointsRemaining!=null?nf.format(status.rateLimit.pointsRemaining):"—"}),jsx("small",{children:status?.rateLimit?.limitPerHour?`of ${nf.format(status.rateLimit.limitPerHour)} points/hour remaining`:"Workflow sleeps automatically to protect WCL quota"})]})]}),
+    jsx("div",{className:"corpus-progress",children:jsx("i",{style:{width:pct(phaseProgress||0)}})}),
+    jsxs("div",{className:"corpus-message",children:[jsx("b",{children:(status?.phase||"idle").toUpperCase()}),jsx("span",{children:status?.message||(encounterId?"Build in the background; closing this tab does not stop the durable research workflow.":"Waiting for the active WCL encounter before a corpus can be built.")})]}),
+    jsxs("div",{className:"corpus-actions",children:[jsx("select",{value:target,onChange:e=>setTarget(Number(e.target.value)),disabled:busy||["running","rate-limited"].includes(status?.status),children:[1000,5000,10000].map(v=>jsx("option",{value:v,children:`${nf.format(v)} target pulls`},v))}),!status&&jsx("button",{onClick:()=>start("start"),disabled:busy||!encounterId,children:"BUILD CORPUS"}),["running","rate-limited"].includes(status?.status)&&jsx("button",{onClick:pause,children:"PAUSE"}),status?.status==="paused"&&jsx("button",{onClick:resume,children:"RESUME"}),ready&&jsx("button",{onClick:()=>start("enrich"),disabled:busy,children:"ENRICH +500 PULLS"}),jsx("button",{className:"ghost",onClick:refresh,disabled:busy,children:"REFRESH"})]})
+  ]});
+}

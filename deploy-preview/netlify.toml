@@ -1,0 +1,47 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/wcl/report"
+  to = "/.netlify/functions/wcl-report"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/wcl/telemetry"
+  to = "/.netlify/functions/wcl-telemetry"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/wcl/history"
+  to = "/.netlify/functions/wcl-history"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/wcl/intelligence"
+  to = "/.netlify/functions/wcl-intelligence"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/wcl/corpus"
+  to = "/.netlify/functions/wcl-corpus"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/wcl/status"
+  to = "/.netlify/functions/wcl-status"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
