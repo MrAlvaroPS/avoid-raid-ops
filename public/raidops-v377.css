@@ -1,0 +1,16 @@
+/* AvoiD Raid Ops v3.7.7 — corpus standby feedback. Additive only. */
+
+.iris-action-alert{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin:0 12px 12px;padding:11px 13px;border:1px solid rgba(224,100,92,.22);background:rgba(224,100,92,.05)}
+.iris-action-alert>div{min-width:0}
+.iris-action-alert b{display:block;margin-bottom:3px;font-size:11px;letter-spacing:.07em;color:#df8b84}
+.iris-action-alert p{margin:0;font-size:10px;line-height:1.5;color:#aeb5ba}
+.iris-action-alert small{display:block;margin-top:4px;font-size:9px;line-height:1.45;color:#7f898f}
+.iris-action-alert button{flex:0 0 auto;padding:6px 8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.018);font:inherit;font-size:8.5px;font-weight:700;letter-spacing:.1em;color:#8e989f;cursor:pointer}
+.iris-action-alert button:hover{background:rgba(255,255,255,.04);color:#b5bec4}
+
+/* Also covers legacy corpus controls when Iris has detected the Blob quota lock. */
+.corpus-workbench button[data-iris-storage-disabled="1"]{opacity:.42!important;pointer-events:none!important;cursor:default!important}
+
+@media(max-width:900px){
+  .iris-action-alert{flex-direction:column;gap:8px}
+}
