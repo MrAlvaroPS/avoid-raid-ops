@@ -15,10 +15,10 @@ import {
 } from '../../../server/corpus/service.mjs';
 import { assertCorpusStorage, corpusGet } from '../../../server/corpus/storage.mjs';
 import { aggregateKey } from '../../../server/corpus/keys.mjs';
-import { applyEncounterPolicyV372, modelDiagnosticsV372 } from '../../../server/corpus/model-policy-v372.mjs';
-import { startTargetedDeepV372 } from '../../../server/corpus/targeted-deep-v372.mjs';
+import { applyEncounterPolicyV373, modelDiagnosticsV373 } from '../../../server/corpus/model-policy-v373.mjs';
+import { startTargetedDeepV373 } from '../../../server/corpus/targeted-deep-v373.mjs';
 
-const ENGINE_VERSION = '3.7.2';
+const ENGINE_VERSION = '3.7.3';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -49,13 +49,13 @@ async function decorateStatus(input, status) {
   return {
     ...status,
     engineVersion: ENGINE_VERSION,
-    model: raw ? modelDiagnosticsV372(raw, aggregate) : (status.model || null),
+    model: raw ? modelDiagnosticsV373(raw, aggregate) : (status.model || null),
   };
 }
 
 async function policyModel(input) {
   const {raw,aggregate} = await policyContext(input);
-  return applyEncounterPolicyV372(raw, aggregate);
+  return applyEncounterPolicyV373(raw, aggregate);
 }
 
 async function launchWorkflow(input) {
@@ -72,7 +72,7 @@ async function improveModel(input) {
   if (!model) throw new Error('No encounter model is available to improve');
   const rec = model.learning?.enrichmentRecommendation || {};
   if (rec.mode === 'targeted-deep') {
-    await startTargetedDeepV372({
+    await startTargetedDeepV373({
       ...input,
       addDeepPulls: Number(rec.suggestedAdditionalDeepPulls) || 0,
       addDeepReports: Number(rec.suggestedAdditionalDeepReports) || 0,
@@ -107,7 +107,7 @@ export default defineHandler(async (event) => {
           workflow: { enabled: true, durable: true },
           ...health,
           engineVersion: ENGINE_VERSION,
-          policyVersion: 'encounter-origin-v2',
+          policyVersion: 'encounter-origin-v3',
           storage,
         });
       }
@@ -136,7 +136,7 @@ export default defineHandler(async (event) => {
       return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, plan:(await policyModel(input))?.learning?.enrichmentRecommendation || null }, 202);
     }
     if (action === 'targeted-deep') {
-      await startTargetedDeepV372(input);
+      await startTargetedDeepV373(input);
       const launched = await launchWorkflow({ ...input, mode:'targeted-deep' });
       return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId }, 202);
     }
