@@ -1,7 +1,7 @@
 {
   "name": "avoid-raid-ops-vercel",
   "private": true,
-  "version": "0.3.7-8-vercel.0",
+  "version": "0.3.7-9-vercel.0",
   "type": "module",
   "workspaces": [
     "apps/web"
@@ -18,7 +18,7 @@
     "verify:data-truth": "python3 scripts/verify_data_truth_ui.py",
     "build": "npm run verify:vercel && npm test && vite build",
     "preview": "vite preview",
-    "verify:vercel": "node --check workflows/corpus-build.js && node --check routes/api/wcl/report.js && node --check routes/api/wcl/telemetry.js && node --check routes/api/wcl/history.js && node --check routes/api/wcl/intelligence.js && node --check routes/api/wcl/status.js && node --check routes/api/wcl/corpus.js && node --check server/corpus/storage.mjs && node --check server/corpus/model-policy-v373.mjs && node --check server/corpus/model-policy-v374.mjs && node --check server/corpus/model-policy-v375.mjs && node --check server/corpus/targeted-deep-v373.mjs && node --check server/corpus/deep-profile-v373.mjs && node --check server/corpus/corpus-step-v373.mjs && node --check server/corpus/corpus-step-v375.mjs && node --check public/iris-runtime-v376.js && node --check public/iris-runtime-v377.js && node --check public/iris-runtime-v378.js && node --check public/progress-runtime-v378.js && node --check public/encounter-intelligence-v375.js"
+    "verify:vercel": "node --check workflows/corpus-build.js && node --check routes/api/wcl/report.js && node --check routes/api/wcl/telemetry.js && node --check routes/api/wcl/history.js && node --check routes/api/wcl/intelligence.js && node --check routes/api/wcl/status.js && node --check routes/api/wcl/corpus.js && node --check server/corpus/storage.mjs && node --check server/corpus/model-policy-v373.mjs && node --check server/corpus/model-policy-v374.mjs && node --check server/corpus/model-policy-v375.mjs && node --check server/corpus/targeted-deep-v373.mjs && node --check server/corpus/deep-profile-v373.mjs && node --check server/corpus/corpus-step-v373.mjs && node --check server/corpus/corpus-step-v375.mjs && node --check server/analysis/progression/raid-sessions.mjs && node --check server/engines/history-engine.mjs && node --check public/iris-runtime-v376.js && node --check public/iris-runtime-v377.js && node --check public/iris-runtime-v378.js && node --check public/iris-runtime-v379.js && node --check public/progress-runtime-v378.js && node --check public/progress-runtime-v379.js && node --check public/encounter-intelligence-v375.js"
   },
   "dependencies": {
     "@vercel/blob": "2.6.1",
