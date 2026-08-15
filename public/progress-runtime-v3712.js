@@ -4,7 +4,7 @@
   const state={range:'all',signature:null};
   const qsa=(sel,root=document)=>root?[...root.querySelectorAll(sel)]:[];
   const qs=(sel,root=document)=>root?.querySelector(sel)||null;
-  const finite=v=>Number.isFinite(Number(v));
+  const finite=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
   const clamp=v=>Math.max(0,Math.min(100,Number(v)||0));
   const value=p=>p?.kill?0:(finite(p?.fightPercentage)?Number(p.fightPercentage):null);
   const median=values=>{const a=(values||[]).filter(finite).map(Number).sort((x,y)=>x-y);if(!a.length)return null;const m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;};
