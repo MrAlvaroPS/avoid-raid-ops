@@ -64,12 +64,12 @@ test('Progress and Live product boundary is documented', async () => {
   assert.match(doc, /LAST 25/);
 });
 
-test('v3.7.9 assets stay available while v3.7.12 is the active Progress/Iris runtime', async () => {
+test('v3.7.9 assets stay available while v3.7.13 is the active Progress/Iris runtime', async () => {
   const index = await read('index.html');
   assert.match(index, /raidops-v379\.css\?v=3\.7\.9/);
-  assert.match(index, /raidops-v3712\.css\?v=3\.7\.12/);
-  assert.match(index, /progress-runtime-v3712\.js\?v=3\.7\.12/);
-  assert.match(index, /iris-runtime-v3712\.js\?v=3\.7\.12/);
+  assert.match(index, /raidops-v3713\.css\?v=3\.7\.13/);
+  assert.match(index, /progress-runtime-v3713\.js\?v=3\.7\.13/);
+  assert.match(index, /iris-runtime-v3713\.js\?v=3\.7\.13/);
   assert.doesNotMatch(index, /progress-runtime-v379\.js\?v=3\.7\.9/);
   assert.doesNotMatch(index, /iris-runtime-v379\.js\?v=3\.7\.9/);
 });
