@@ -1,8 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
+
+test('v3.7.10 browser runtimes parse as JavaScript', async () => {
+  for (const path of ['public/progress-runtime-v3710.js','public/iris-runtime-v3710.js']) {
+    const source = await read(path);
+    assert.doesNotThrow(() => new vm.Script(source, { filename: path }));
+  }
+});
 
 test('Progress v3.7.10 exposes only explicit range controls as interactive state', async () => {
   const runtime = await read('public/progress-runtime-v3710.js');
