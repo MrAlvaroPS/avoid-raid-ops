@@ -297,7 +297,7 @@ export function buildProgressModel(inputPulls=[],options={}){
       sessionId:night.sessionId,sessionIndex:night.sessionIndex,startTime:night.startTime,endTime:night.endTime,title:night.title,
       pulls:night.pulls,scoredPulls:night.scoredPulls,unscoredPulls:night.unscoredPulls,kills:night.kills,
       bestFightPercentage:night.bestFightPercentage,medianFightPercentage:night.medianFightPercentage,
-      deepPullRatePct,medianDeltaPp,firstGlobalPull:night.firstGlobalPull,lastGlobalPull:night.lastGlobalPull,sourceReports:night.sourceReports
+      deepPullRatePct:deepRatePct,medianDeltaPp,firstGlobalPull:night.firstGlobalPull,lastGlobalPull:night.lastGlobalPull,sourceReports:night.sourceReports
     };
   });
   const state=progressionState(pulls,block,breakthrough,policy);
