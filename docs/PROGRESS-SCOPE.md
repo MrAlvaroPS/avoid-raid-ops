@@ -2,6 +2,8 @@
 
 `Progress` is the historical / strategic progression view for a selected encounter. It is deliberately different from `Live`.
 
+The normative technical definitions, parameters and versioning rules live in [`PROGRESS-METRICS-CONTRACT.md`](./PROGRESS-METRICS-CONTRACT.md). This file defines product intent; the metrics contract defines exact mathematics.
+
 ## Product boundary
 
 ### Progress
@@ -17,7 +19,7 @@ Answers raid-leader questions that need a longer horizon:
 - How efficiently are we converting scheduled raid time into useful pulls?
 - How does one raid night compare with another?
 
-The primary unit is the **encounter progression history**, spanning reports and raid nights.
+The primary unit is the **canonical encounter progression history**, spanning reports and raid nights.
 
 ### Live
 
@@ -32,6 +34,18 @@ Owns the current raid night and the seconds between pulls:
 - immediate next-call recommendations
 
 A between-pull brief must not live in `Progress`.
+
+## Single-source data contract
+
+Progress has exactly one strategic data owner:
+
+`History endpoint -> canonical progressionPulls -> progress-model-v1 -> every Progress panel`
+
+The browser must not independently recalculate strategic formulas. The canonical model is generated server-side by `server/analysis/progression/progress-metrics-v1.mjs` and returned as `history.progressModel`.
+
+This is an architectural invariant because it prevents the chart, Night-over-night, KPIs, Stage matrix and Progression health from using different pull populations or different formula copies.
+
+The same model is generic for every encounter and difficulty; no Belo'ren-specific condition is allowed in the generic Progress metrics engine.
 
 ## Interaction contract
 
@@ -57,125 +71,93 @@ Changing chart range issues **zero additional WCL requests**.
 
 ## Strategic headline metrics
 
-The top row is intentionally limited to five raid-leader metrics.
+The top row is intentionally limited to five raid-leader metrics. Their exact formula IDs are defined in the technical contract.
 
-### 1. TOTAL PROG PULLS
+### TOTAL PROG PULLS
 
-Deduplicated analytical pulls in the loaded encounter-history window, with the number of clustered raid nights.
+All deduplicated analytical pulls in the canonical loaded encounter history. Its night count must reconcile exactly with the sum of the Night-over-night pull counts.
 
-### 2. BEST PULL
+### BEST PULL
 
-Deepest observed WCL `fightPercentage` for the encounter. A kill is represented as 0% remaining.
+Deepest observed progress-scored WCL `fightPercentage`; a kill is represented as `0%`.
 
-### 3. DEEP PULL RATE
+### DEEP PULL RATE
 
-Percentage of the latest 20 scored pulls that finish within **10 percentage points of the current personal best**.
+Percentage of the latest 20 progress-scored pulls that finish within 10 percentage points of the current PB. This is a generic v1 product heuristic, not a mechanic claim.
 
-This is deliberately separate from PB. It answers whether the raid is repeatedly getting back to the area where new learning can happen.
+### CONSISTENCY GAP
 
-The 10pp threshold is a product heuristic, not a mechanic claim. In a later Iris version an encounter model may replace it with validated encounter milestones.
+`latest 20 scored-pull median fightPercentage - current PB fightPercentage`
 
-### 4. CONSISTENCY GAP
+Lower is better. It measures whether normal progression is converging toward the raid's observed ceiling.
 
-`latest 20-pull median boss HP − personal-best boss HP`
+### LAST BREAKTHROUGH
 
-Lower is better. A small gap means the raid's normal pull is converging toward its ceiling. A large gap means the best pull remains an outlier.
-
-### 5. LAST BREAKTHROUGH
-
-Age of the last **meaningful** progression event, expressed in pulls and raid nights.
-
-A breakthrough is currently one of:
-
-- a kill;
-- first reach of a new absolute stage;
-- at least 2 percentage points of meaningful depth beyond the prior breakthrough baseline.
-
-Tiny PB changes do not reset the plateau clock.
+Pull/night age of the last meaningful event: kill, first reach of a new absolute stage, or at least 2pp of new depth beyond the previous meaningful baseline.
 
 ## Progression state
 
-The large banner is categorical rather than a misleading single percentage-point trend. Examples:
+The banner is a categorical synthesis of the canonical model, not a separate formula and not an independent source of truth. v1 can surface:
 
+- `BUILDING BASELINE`
 - `BREAKTHROUGH`
-- `STABILIZING S3`
-- `CONVERTING S3`
-- `LEARNING S3`
+- `STABILIZING Sx`
+- `CONVERTING Sx`
+- `IMPROVING`
+- `REGRESSING`
+- `LEARNING Sx`
 - `PLATEAU`
 - `CLEARED`
 
-It is derived only from observable progression history: deep-pull rate, deepest-stage conversion and breakthrough age. It does not assert a cause for progression or regression.
+The state considers multiple dimensions. For example, `STABILIZING` requires stage conversion, deep-pull repeatability and consistency to meet their documented thresholds; merely reaching S3 often is not enough.
 
 ## Stage consistency
 
-The matrix groups the full loaded progression history into 20-pull windows and shows the percentage of pulls in each window that reached each absolute stage.
+The matrix uses the same canonical pull sequence, up to the latest 160 pulls, grouped into 20-pull windows. Each cell is the percentage reaching an absolute stage.
 
-It is **independent of chart range**. This exposes the distinction between reaching a stage once and making it repeatable.
+It is **independent of chart range**.
 
 ## Progression health
 
-A dedicated strategic panel contains three metrics that are useful across raid nights and do not belong in Live.
+### PHASE / STAGE CONVERSION
 
-### PHASE CONVERSION
-
-Percentage of the latest 20 pulls reaching the deepest stage observed anywhere in loaded encounter history, compared with the previous 20 where available.
+Percentage of the latest 20 canonical pulls reaching the deepest absolute stage observed in loaded history, compared with the previous 20 where available.
 
 ### NIGHT RETENTION / WARM-UP TAX
 
-Measures how many pulls the latest raid night needed to re-establish the previous night's closing level.
+The previous-night baseline is the median of its final five progress-scored pulls. The latest night is considered recovered at the first three-pull rolling median that is no more than 2pp shallower than that baseline.
 
-Definition:
-
-1. Previous closing level = median boss HP of the previous night's last five scored pulls.
-2. Recovery = first point in the current night where a three-pull rolling median is within 2pp of, or deeper than, that previous closing level.
-3. Surface both pulls-to-recover and elapsed active time when timestamps are available.
-
-This is observational only. It does not infer why the raid did or did not retain execution.
+A previous closing median of 97.5% or worse is considered too shallow to be a meaningful retention baseline. In that case Iris must show `NO VALID BASELINE`, not claim rapid retention of a 100% wipe level.
 
 ### RAID THROUGHPUT
 
-Useful pulls per active hour for the latest timestamped raid night, plus median downtime between consecutive pulls and comparison with the previous night when available.
+Canonical analytical pulls per **active raid hour**. Active time is the sum of pull durations plus inter-pull gaps shorter than 30 minutes. Gaps of 30 minutes or more are treated as non-active breaks and excluded from the denominator and downtime median.
 
-The active interval is measured from the first analytical pull start to the final analytical pull end in the clustered raid session. Pull-to-pull gaps >=30 minutes are excluded from the downtime median.
-
-This is not DPS. It is raid-time efficiency for the raid leader.
+This is raid-time efficiency, not DPS and not a player-performance score.
 
 ## Night-over-night
 
-Night-over-night is read-only. It summarizes recent clustered raid sessions using:
+Night-over-night is read-only and is generated from the same canonical sequence. Each row exposes:
 
-- pull count;
+- canonical pull count and global pull range;
+- number of progress-scored pulls;
 - best depth;
 - median depth;
-- deep-pull repeatability using the same current deep threshold;
-- median-depth change versus the preceding loaded night.
+- deep-pull repeatability using the model's shared threshold;
+- median-depth delta versus the preceding canonical raid night.
 
-It must never act as a hidden filter.
+The sum of all night pull counts must equal `TOTAL PROG PULLS` for the same loaded history.
 
-## Data contract
+## Data-quality behavior
 
-`Progress` consumes only data already loaded by the application:
+Missing data is metric-scoped rather than globally destructive. A canonical analytical pull can be present for stage conversion but unavailable for a depth median if WCL progress is missing.
 
-- `window.__AVOID_WCL__`
-- `window.__AVOID_WCL_HISTORY__`
+Exact `100.0%` WCL progress values are not silently rewritten. The model counts them in diagnostics so that a suspicious concentration can be audited at the pull-eligibility/data-ingestion layer instead of being hidden by the UI.
 
-The History endpoint exposes a compact `progressionPulls` series derived from the reports it already fetches. No extra browser WCL request is introduced by Progress interactions.
-
-The series is encounter-scoped and remains reusable for every current and future raid boss.
+If canonical invariants fail, the UI must show a warning/sync state rather than mix populations.
 
 ## Data-truth boundary
 
 Progress may state observed historical facts and deterministic transformations of those facts. It may not use correlation to assign blame or explain a wipe.
 
-Examples allowed:
-
-- deep-pull rate improved by 18pp;
-- median depth was 6pp deeper than the previous night;
-- the latest night needed 7 pulls to recover the previous closing level;
-- Stage 3 conversion rose from 35% to 70%.
-
-Examples not allowed without separate validated evidence:
-
-- the raid improved because of a composition change;
-- a player caused the plateau;
-- a specific mechanic is responsible for the regression.
+Allowed examples include a deep-pull-rate change, a canonical night median delta, a retention recovery cost or a stage-conversion change. Claims that composition, a player or a mechanic caused the change require their own validated evidence engine.

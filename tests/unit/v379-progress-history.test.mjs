@@ -45,12 +45,13 @@ test('v3.7.9 historical strategic metrics remain regression assets', async () =>
   assert.match(runtime, /Live owns the current raid night/);
 });
 
-test('History endpoint returns the compact pull series without widening its WCL lookback', async () => {
+test('History endpoint retains the bounded WCL lookback and now canonicalizes the pull series', async () => {
   const history = await read('server/engines/history-engine.mjs');
   assert.match(history, /daysBefore=35/);
   assert.match(history, /progressionPulls/);
-  assert.match(history, /confirmed-deduped-from-history-reports/);
-  assert.match(history, /globalPullNumber:index\+1/);
+  assert.match(history, /canonical-deduped-from-history-reports/);
+  assert.match(history, /buildProgressModel\(rawProgressionPulls\)/);
+  assert.match(history, /progressModel/);
 });
 
 test('Progress and Live product boundary is documented', async () => {
@@ -63,12 +64,12 @@ test('Progress and Live product boundary is documented', async () => {
   assert.match(doc, /LAST 25/);
 });
 
-test('v3.7.9 assets stay available while v3.7.10 is the active Progress/Iris runtime', async () => {
+test('v3.7.9 assets stay available while v3.7.11 is the active Progress/Iris runtime', async () => {
   const index = await read('index.html');
   assert.match(index, /raidops-v379\.css\?v=3\.7\.9/);
-  assert.match(index, /raidops-v3710\.css\?v=3\.7\.10/);
-  assert.match(index, /progress-runtime-v3710\.js\?v=3\.7\.10/);
-  assert.match(index, /iris-runtime-v3710\.js\?v=3\.7\.10/);
+  assert.match(index, /raidops-v3711\.css\?v=3\.7\.11/);
+  assert.match(index, /progress-runtime-v3711\.js\?v=3\.7\.11/);
+  assert.match(index, /iris-runtime-v3711\.js\?v=3\.7\.11/);
   assert.doesNotMatch(index, /progress-runtime-v379\.js\?v=3\.7\.9/);
   assert.doesNotMatch(index, /iris-runtime-v379\.js\?v=3\.7\.9/);
 });

@@ -1,0 +1,27 @@
+name: Validate AvoiD Raid Ops
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+      - feature/v3.7.11-progress-single-source
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Syntax and Vercel contract
+        run: npm run verify:vercel
+      - name: Unit tests
+        run: npm test
