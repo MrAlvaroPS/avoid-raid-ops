@@ -21,7 +21,7 @@ function pull({session='n1',sessionIndex=1,start=0,duration=60_000,pct=100,stage
   };
 }
 
-test('progress-model-v1 is one canonical population for totals, nights and matrix', () => {
+test('progress-model-v1 remains a historical canonical population regression', () => {
   const rows=[];
   for(let i=0;i<10;i++)rows.push(pull({session:'n1',sessionIndex:1,start:i*180_000,pct:95-i*2,stage:i>=7?2:1,report:'A'}));
   for(let i=0;i<28;i++)rows.push(pull({session:'n2',sessionIndex:2,start:4_000_000+i*180_000,pct:80-i,stage:i>=12?2:1,report:'B'}));
@@ -42,7 +42,7 @@ test('progress-model-v1 is one canonical population for totals, nights and matri
   assert.equal(model.nights[2].lastGlobalPull,51);
 });
 
-test('100% closing progress is not treated as a meaningful retained level', () => {
+test('v1 100% closing progress guard remains covered historically', () => {
   const rows=[];
   for(let i=0;i<6;i++)rows.push(pull({session:'n1',sessionIndex:1,start:i*180_000,pct:100,stage:1,report:'A'}));
   for(let i=0;i<6;i++)rows.push(pull({session:'n2',sessionIndex:2,start:4_000_000+i*180_000,pct:70-i,stage:2,report:'B'}));
@@ -53,11 +53,11 @@ test('100% closing progress is not treated as a meaningful retained level', () =
   assert.equal(model.diagnostics.hundredPctPulls,6);
 });
 
-test('raid throughput excludes long breaks from active time', () => {
+test('v1 raid throughput excludes long breaks from active time', () => {
   const rows=[
     pull({session:'n1',start:0,pct:80}),
     pull({session:'n1',start:11*60_000,pct:75}),
-    pull({session:'n1',start:57*60_000,pct:70}) // 45m after pull 2 ends: excluded gap
+    pull({session:'n1',start:57*60_000,pct:70})
   ];
   const model=buildProgressModel(rows);
   const t=model.health.throughput.current;
@@ -66,10 +66,8 @@ test('raid throughput excludes long breaks from active time', () => {
   assert.equal(t.medianDowntimeMinutes,10);
 });
 
-test('progress state is multi-dimensional rather than stage-rate only', () => {
+test('v1 progress state remains multi-dimensional', () => {
   const rows=[];
-  // An old 40% PB plus a high S3 reach rate must not become STABILIZING when
-  // the current block is consistently shallow and never returns to the PB zone.
   for(let i=0;i<20;i++)rows.push(pull({session:'n1',sessionIndex:1,start:i*180_000,pct:i===0?40:90,stage:i===0?1:3,report:'A'}));
   for(let i=0;i<20;i++)rows.push(pull({session:'n2',sessionIndex:2,start:5_000_000+i*180_000,pct:95,stage:3,report:'B'}));
   const model=buildProgressModel(rows);
@@ -79,7 +77,7 @@ test('progress state is multi-dimensional rather than stage-rate only', () => {
   assert.notEqual(model.state.key,'stabilizing');
 });
 
-test('policy values are centralized and technically stable', () => {
+test('v1 policy values remain technically stable for historical comparability', () => {
   assert.equal(PROGRESS_METRIC_POLICY.currentBlockPulls,20);
   assert.equal(PROGRESS_METRIC_POLICY.deepPullMarginPp,10);
   assert.equal(PROGRESS_METRIC_POLICY.breakthroughDepthPp,2);
@@ -88,7 +86,7 @@ test('policy values are centralized and technically stable', () => {
   assert.equal(PROGRESS_METRIC_POLICY.matrixWindowPulls,20);
 });
 
-test('v3.7.11 browser runtime has one Progress writer and no strategic formula copies', async () => {
+test('v3.7.11 browser runtime remains a historical one-writer regression', async () => {
   const runtime=await read('public/progress-runtime-v3711.js');
   assert.match(runtime,/dataOwner:'history\.progressModel'/);
   assert.match(runtime,/writerPolicy:'single-progress-writer'/);
@@ -102,7 +100,7 @@ test('v3.7.11 browser runtime has one Progress writer and no strategic formula c
   assert.doesNotMatch(runtime,/\bfetch\s*\(/);
 });
 
-test('chart range is presentation-only in v3.7.11', async () => {
+test('v3.7.11 chart range remains presentation-only in the historical runtime', async () => {
   const runtime=await read('public/progress-runtime-v3711.js');
   const handler=runtime.match(/qsa\('\[data-progress-range\]'[\s\S]*?renderChart\(pulls,m\);\}\)\);/);
   assert.ok(handler,'range handler exists');
@@ -111,16 +109,16 @@ test('chart range is presentation-only in v3.7.11', async () => {
   assert.doesNotMatch(handler[0],/renderNights|renderMatrix|renderHealth|renderBannerAndStats/);
 });
 
-test('History builds and returns the canonical Progress model', async () => {
+test('History now builds and returns canonical Progress model v2', async () => {
   const history=await read('server/engines/history-engine.mjs');
-  assert.match(history,/import \{ buildProgressModel \}/);
+  assert.match(history,/progress-metrics-v2\.mjs/);
   assert.match(history,/const built=buildProgressModel\(rawProgressionPulls\)/);
   assert.match(history,/progressModel/);
-  assert.match(history,/engineVersion:'3\.7\.11'/);
-  assert.match(history,/server-derived-single-source-v1/);
+  assert.match(history,/engineVersion:'3\.7\.12'/);
+  assert.match(history,/server-derived-single-source-v2-data-integrity/);
 });
 
-test('technical contract documents shared formulas, parameters and invariants', async () => {
+test('v1 technical contract remains available for historical comparability', async () => {
   const doc=await read('docs/PROGRESS-METRICS-CONTRACT.md');
   for(const id of ['progress.total_pulls.v1','progress.deep_pull_rate.v1','progress.consistency_gap.v1','progress.night_retention.v1','progress.raid_throughput.v1','progress.state.v1']) assert.match(doc,new RegExp(id.replaceAll('.','\\.')));
   assert.match(doc,/sum\(progressModel\.nights\[\]\.pulls\) === progressModel\.totals\.pulls/);

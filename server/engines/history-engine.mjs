@@ -2,7 +2,7 @@ import { wclGraphql } from '../wcl/client/graphql-client.mjs';
 import { CURRENT_HISTORY_REPORT_QUERY,LIST_GUILD_REPORTS_QUERY,REPORT_HISTORY_FIGHTS_QUERY } from '../wcl/queries/history.mjs';
 import { selectEncounter } from '../wcl/normalization/fights.mjs';
 import { clusterRaidSessions } from '../analysis/progression/raid-sessions.mjs';
-import { buildProgressModel } from '../analysis/progression/progress-metrics-v1.mjs';
+import { buildProgressModel } from '../analysis/progression/progress-metrics-v2.mjs';
 
 async function mapLimit(items,limit,fn){
   const out=new Array(items.length);let next=0;
@@ -35,7 +35,7 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
   const selected=selectEncounter(current.fights,encounterId);
   const anchor=selected[0];
   if(!anchor){
-    return {generatedAt:Date.now(),engineVersion:'3.7.11',guildId,zone:current.zone,encounter:null,nights:[],recentNights:[],progressionPulls:[],progressModel:null,currentNight:null,previousNight:null,delta:null,pagination:{total:0,hasMore:false,candidatesScanned:0}};
+    return {generatedAt:Date.now(),engineVersion:'3.7.12',guildId,zone:current.zone,encounter:null,nights:[],recentNights:[],progressionPulls:[],progressModel:null,currentNight:null,previousNight:null,delta:null,pagination:{total:0,hasMore:false,candidatesScanned:0}};
   }
 
   const DAY=86400000;
@@ -77,7 +77,7 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
 
   return {
     generatedAt:Date.now(),
-    engineVersion:'3.7.11',
+    engineVersion:'3.7.12',
     guildId,
     zone:current.zone,
     encounter:{id:anchor.encounterID,name:anchor.name,difficulty:anchor.difficulty},
@@ -95,7 +95,8 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
     evidence:{
       nightProgress:'confirmed',
       progressionPullSeries:'canonical-deduped-from-history-reports',
-      progressMetrics:'server-derived-single-source-v1',
+      progressMetrics:'server-derived-single-source-v2-data-integrity',
+      progressMetricEligibility:'versioned-and-auditable',
       queryStrategy:'two-stage-paginated',
       sessionClustering:'time-window',
       pullDeduplication:'timestamp+duration+progress',
