@@ -15,7 +15,7 @@ test('v3.7.6 introduced Iris, Onie and its release asset', async () => {
   assert.match(runtime, /corpusScope:'encounter\+difficulty\+partition'/);
   assert.match(index, /raidops-v376\.css\?v=3\.7\.6/);
   // Newer releases may replace the active runtime while keeping v3.7.6 as a regression asset.
-  assert.match(index, /iris-runtime-v37(?:6|7|8|9|10|11|12)\.js\?v=3\.7\.(?:6|7|8|9|10|11|12)/);
+  assert.match(index, /iris-runtime-v37(?:6|7|8|9|10|11|12|13)\.js\?v=3\.7\.(?:6|7|8|9|10|11|12|13)/);
 });
 
 test('Blob 403 is classified without claiming corpus deletion', async () => {
