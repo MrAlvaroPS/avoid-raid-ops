@@ -2,6 +2,7 @@ import { wclGraphql } from '../wcl/client/graphql-client.mjs';
 import { CURRENT_HISTORY_REPORT_QUERY,LIST_GUILD_REPORTS_QUERY,REPORT_HISTORY_FIGHTS_QUERY } from '../wcl/queries/history.mjs';
 import { selectEncounter } from '../wcl/normalization/fights.mjs';
 import { clusterRaidSessions } from '../analysis/progression/raid-sessions.mjs';
+import { buildProgressModel } from '../analysis/progression/progress-metrics-v1.mjs';
 
 async function mapLimit(items,limit,fn){
   const out=new Array(items.length);let next=0;
@@ -34,7 +35,7 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
   const selected=selectEncounter(current.fights,encounterId);
   const anchor=selected[0];
   if(!anchor){
-    return {generatedAt:Date.now(),guildId,zone:current.zone,encounter:null,nights:[],recentNights:[],progressionPulls:[],currentNight:null,previousNight:null,delta:null,pagination:{total:0,hasMore:false,candidatesScanned:0}};
+    return {generatedAt:Date.now(),engineVersion:'3.7.11',guildId,zone:current.zone,encounter:null,nights:[],recentNights:[],progressionPulls:[],progressModel:null,currentNight:null,previousNight:null,delta:null,pagination:{total:0,hasMore:false,candidatesScanned:0}};
   }
 
   const DAY=86400000;
@@ -54,14 +55,20 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
   const reports=loaded.filter(x=>x&&!x.__error&&(x.fights||[]).length);
 
   const clustered=clusterRaidSessions(reports,{currentReportCode:reportCode}).sort((a,b)=>a.startTime-b.startTime);
-  const progressionPulls=clustered
+  const rawProgressionPulls=clustered
     .flatMap(n=>(n.progressionPulls||[]).map(p=>({...p,sessionId:n.sessionId,sessionIndex:n.sessionIndex,sessionStartTime:n.startTime,sessionTitle:n.title})))
-    .sort((a,b)=>Number(a.absoluteStartTime)-Number(b.absoluteStartTime))
-    .map((p,index)=>({...p,pullNumber:index+1,globalPullNumber:index+1}));
-  const nights=clustered.map(({progressionPulls:ignored,...summary})=>summary);
+    .sort((a,b)=>Number(a.absoluteStartTime)-Number(b.absoluteStartTime));
+
+  const built=buildProgressModel(rawProgressionPulls);
+  const progressionPulls=built.canonicalPulls;
+  const progressModel={...built,canonicalPulls:undefined};
+  const nights=progressModel.nights||[];
   const recent=nights.slice(-5);
-  const currentNight=nights.find(n=>(n.reportCodes||[]).includes(reportCode))||recent.at(-1)||null;
-  const previousNight=currentNight?nights.filter(n=>Number(n.startTime)<Number(currentNight.startTime)).at(-1)||null:null;
+
+  const currentSessionId=progressionPulls.find(p=>Array.isArray(p.reportCodes)&&p.reportCodes.includes(reportCode))?.sessionId || recent.at(-1)?.sessionId || null;
+  const currentNight=currentSessionId?nights.find(n=>n.sessionId===currentSessionId)||null:null;
+  const currentIndex=currentNight?nights.findIndex(n=>n.sessionId===currentNight.sessionId):-1;
+  const previousNight=currentIndex>0?nights[currentIndex-1]:null;
   const delta=currentNight&&previousNight?{
     medianPctPoints:Number(previousNight.medianFightPercentage)-Number(currentNight.medianFightPercentage),
     bestPctPoints:Number(previousNight.bestFightPercentage)-Number(currentNight.bestFightPercentage),
@@ -70,12 +77,13 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
 
   return {
     generatedAt:Date.now(),
-    engineVersion:'3.7.9',
+    engineVersion:'3.7.11',
     guildId,
     zone:current.zone,
     encounter:{id:anchor.encounterID,name:anchor.name,difficulty:anchor.difficulty},
     historyWindow:{daysBefore,daysAfter,start,end},
     progressionPulls,
+    progressModel,
     nights,
     recentNights:recent,
     currentNight,
@@ -86,7 +94,8 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
     errors:errors.slice(0,5),
     evidence:{
       nightProgress:'confirmed',
-      progressionPullSeries:'confirmed-deduped-from-history-reports',
+      progressionPullSeries:'canonical-deduped-from-history-reports',
+      progressMetrics:'server-derived-single-source-v1',
       queryStrategy:'two-stage-paginated',
       sessionClustering:'time-window',
       pullDeduplication:'timestamp+duration+progress',
