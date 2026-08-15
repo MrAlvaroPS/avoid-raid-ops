@@ -26,7 +26,7 @@ async function listAllReports({guildId,start,end,zoneId,maxPages=10}){
   return {reports:[...byCode.values()],total:total??byCode.size,hasMore,pageCount:pageNo-1,truncated:hasMore};
 }
 
-export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore=90,daysAfter=7}){
+export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore=35,daysAfter=7}){
   const currentData=await wclGraphql(CURRENT_HISTORY_REPORT_QUERY,{code:reportCode});
   const current=currentData?.reportData?.report;
   if(!current)return null;
