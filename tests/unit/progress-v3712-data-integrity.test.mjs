@@ -38,7 +38,9 @@ test('metric eligibility preserves raw pulls and excludes hard contradictions on
 
 test('progress-model-v2 reconciles raw and eligible populations across nights and matrix',()=>{
   const rows=[];
-  for(let i=0;i<10;i++)rows.push(pull({session:'n1',sessionIndex:1,start:i*180_000,pct:i<6?100:90-i,stage:i===8?2:1,report:'A',fightId:i+1}));
+  // Two explicit hard contradictions: an exact 100% progress value while WCL also
+  // says the pull reached Stage 2. They remain raw but are not strategic evidence.
+  for(let i=0;i<10;i++)rows.push(pull({session:'n1',sessionIndex:1,start:i*180_000,pct:i<6?100:90-i,stage:i===5||i===8?2:1,report:'A',fightId:i+1}));
   for(let i=0;i<28;i++)rows.push(pull({session:'n2',sessionIndex:2,start:4_000_000+i*180_000,pct:i===5?100:82-i*.8,stage:i===5?2:(i>=16?2:1),report:'B',fightId:100+i}));
   for(let i=0;i<13;i++)rows.push(pull({session:'n3',sessionIndex:3,start:10_000_000+i*180_000,pct:62-i*1.1,stage:i>=6?3:2,report:'C',fightId:200+i}));
 
@@ -48,7 +50,7 @@ test('progress-model-v2 reconciles raw and eligible populations across nights an
   assert.equal(model.totals.rawPulls,51);
   assert.equal(model.nights.reduce((n,x)=>n+x.pulls,0),51);
   assert.equal(model.nights.reduce((n,x)=>n+x.metricEligiblePulls,0),model.totals.metricEligiblePulls);
-  assert.equal(model.totals.metricExcludedPulls,2); // exact 100 after Stage 2 in n1/n2
+  assert.equal(model.totals.metricExcludedPulls,2);
   assert.equal(model.block.currentBlock.metricEligiblePulls,20);
   assert.equal(model.matrix.windows.reduce((n,w)=>n+w.pulls,0),model.totals.metricEligiblePulls);
   assert.ok(Object.values(model.diagnostics.invariants).every(Boolean));
@@ -58,7 +60,6 @@ test('progress-model-v2 reconciles raw and eligible populations across nights an
 test('CURRENT FORM metrics share exactly the latest 20 metric-eligible pulls',()=>{
   const rows=[];
   for(let i=0;i<50;i++)rows.push(pull({session:i<25?'n1':'n2',sessionIndex:i<25?1:2,start:i*180_000,pct:90-i,stage:i>=30?3:2,fightId:i+1}));
-  // Insert two raw pulls that remain auditable but are excluded strategically.
   rows.push(pull({session:'n2',sessionIndex:2,start:51*180_000,pct:100,boss:75,stage:3,fightId:90}));
   rows.push(pull({session:'n2',sessionIndex:2,start:52*180_000,pct:null,boss:80,stage:2,fightId:91}));
   const model=buildProgressModel(rows);
