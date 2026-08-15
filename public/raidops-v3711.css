@@ -1,0 +1,70 @@
+/* AvoiD Raid Ops v3.7.11 — canonical strategic Progress, one data owner. */
+
+/* Indicators are read-only. Only explicit Progress controls advertise interaction. */
+.stats-row .stat,
+.night-table>div,
+.progress-window-matrix,
+.progress-window-cell,
+.progress-health-panel,
+.progress-health-card,
+.page-banner .banner-stat,
+.legend-row,
+[data-progress-indicator="1"]{cursor:default!important}
+.progress-commandbar>span,.progress-commandbar>em{pointer-events:none;user-select:none}
+.progress-commandbar button{cursor:pointer}
+.progress-commandbar button:disabled{cursor:default}
+
+.page-banner .banner-stat b.progress-state-value{font-size:27px;line-height:1.05;letter-spacing:-.6px;white-space:nowrap;color:#dfe7e4}
+.page-banner .banner-stat b.progress-state-value.good{color:var(--green)}
+.page-banner .banner-stat b.progress-state-value.warn{color:var(--gold)}
+.page-banner .banner-stat small{max-width:340px;margin-left:auto;line-height:1.45}
+
+/* Canonical history curve. */
+.pullcurve[data-progress-runtime="3.7.11"] svg{overflow:visible}
+.pullcurve[data-progress-runtime="3.7.11"] .progress-main-line{fill:none;stroke:var(--green);stroke-width:.9;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 5px #58e3af55)}
+.pullcurve[data-progress-runtime="3.7.11"] .progress-median-line{fill:none;stroke:var(--blue);stroke-width:.62;stroke-dasharray:2 1.35;vector-effect:non-scaling-stroke;opacity:.9}
+.pullcurve[data-progress-runtime="3.7.11"] circle.progress-point{fill:#101b17;stroke:var(--green);stroke-width:.38;vector-effect:non-scaling-stroke}
+.pullcurve[data-progress-runtime="3.7.11"] circle.progress-point.pb{fill:#2a2111;stroke:var(--gold);stroke-width:.68;filter:drop-shadow(0 0 4px #efb75f55)}
+.pullcurve[data-progress-runtime="3.7.11"] .progress-night-separator{stroke:#5d6872;stroke-width:.28;stroke-dasharray:1 1.6;vector-effect:non-scaling-stroke;opacity:.42}
+.pullcurve[data-progress-runtime="3.7.11"] .progress-empty{min-height:260px;display:grid;place-items:center;color:#68737c;font-size:11px;letter-spacing:.04em}
+
+/* Matrix and health share the canonical model, never the chart display range. */
+.progress-window-matrix{overflow-x:auto;align-items:center;gap:6px 5px}
+.progress-window-matrix label{text-align:center;font-size:7px;color:#78838b;font-weight:900;letter-spacing:.55px}
+.progress-window-matrix>b{font-size:7px;color:#78838b;white-space:nowrap}
+.progress-window-cell{height:28px;border-radius:4px;border:1px solid #222b32;background:#14191e;display:grid;place-items:center;font-style:normal;min-width:58px}
+.progress-window-cell span{font-size:7.5px;font-weight:900;color:#748087}
+.progress-window-cell.none{opacity:.36}
+.progress-window-cell.low{border-color:#66532d;background:#6b552719}
+.progress-window-cell.low span{color:#b29554}
+.progress-window-cell.mid{border-color:#315846;background:#2a6a4e24}
+.progress-window-cell.mid span{color:#7cae98}
+.progress-window-cell.high{border-color:#36755c;background:#2a8a612e}
+.progress-window-cell.high span{color:#9bd6be}
+.progress-window-cell.full{border-color:#58e3af4d;background:linear-gradient(90deg,#1d6c524d,#2fad8238);box-shadow:inset 0 0 12px #58e3af08}
+.progress-window-cell.full span{color:var(--green)}
+
+.progress-health-panel{margin-top:0}
+.progress-health-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line,#222a31)}
+.progress-health-card{min-height:112px;padding:20px 22px;border-right:1px solid var(--line,#222a31);display:flex;flex-direction:column;justify-content:center}
+.progress-health-card:last-child{border-right:0}
+.progress-health-card label{font-size:8px;font-weight:900;letter-spacing:1.15px;color:#78838b;margin-bottom:8px}
+.progress-health-card b{font-size:25px;line-height:1;color:#dbe3e0;letter-spacing:-.35px}
+.progress-health-card em{margin-top:7px;font-style:normal;font-size:9px;font-weight:800;color:#8b959c}
+.progress-health-card em.good{color:var(--green)}
+.progress-health-card em.warn{color:var(--gold)}
+.progress-health-card small{margin-top:7px;font-size:9px;line-height:1.45;color:#68737c}
+.progress-data-warning{margin:0 22px 18px;padding:10px 12px;border:1px solid #66532d;background:#6b552712;color:#aa955f;font-size:9px;line-height:1.5;letter-spacing:.01em}
+.progress-data-warning b{color:#d0b96f;font-size:9px;letter-spacing:.08em}
+
+.progress-rl-panel,.progress-pull-inspector{display:none!important}
+
+@media(max-width:1100px){
+  .progress-health-grid{grid-template-columns:1fr}
+  .progress-health-card{border-right:0;border-bottom:1px solid var(--line,#222a31)}
+  .progress-health-card:last-child{border-bottom:0}
+}
+@media(max-width:900px){
+  .progress-window-matrix{min-width:620px}
+  .page-banner .banner-stat b.progress-state-value{font-size:22px}
+}
