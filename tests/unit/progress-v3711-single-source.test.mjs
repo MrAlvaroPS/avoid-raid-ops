@@ -68,11 +68,15 @@ test('raid throughput excludes long breaks from active time', () => {
 
 test('progress state is multi-dimensional rather than stage-rate only', () => {
   const rows=[];
-  for(let i=0;i<20;i++)rows.push(pull({session:'n1',start:i*180_000,pct:95,stage:3}));
+  // An old 40% PB plus a high S3 reach rate must not become STABILIZING when
+  // the current block is consistently shallow and never returns to the PB zone.
+  for(let i=0;i<20;i++)rows.push(pull({session:'n1',sessionIndex:1,start:i*180_000,pct:i===0?40:90,stage:i===0?1:3,report:'A'}));
+  for(let i=0;i<20;i++)rows.push(pull({session:'n2',sessionIndex:2,start:5_000_000+i*180_000,pct:95,stage:3,report:'B'}));
   const model=buildProgressModel(rows);
   assert.equal(model.block.currentStageConversionPct,100);
+  assert.equal(model.block.currentDeepRatePct,0);
+  assert.equal(model.block.consistencyGapPp,55);
   assert.notEqual(model.state.key,'stabilizing');
-  assert.ok(model.block.consistencyGapPp===0||model.block.consistencyGapPp!=null);
 });
 
 test('policy values are centralized and technically stable', () => {
