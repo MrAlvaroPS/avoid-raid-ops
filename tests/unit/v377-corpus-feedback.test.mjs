@@ -35,6 +35,6 @@ test('v3.7.7 checkpoint records the exact standby and multi-encounter restart co
 test('v3.7.7 assets remain available while a newer Iris runtime may be active', async () => {
   const index = await read('index.html');
   assert.match(index, /raidops-v377\.css\?v=3\.7\.7/);
-  assert.match(index, /iris-runtime-v37(?:7|8|9)\.js\?v=3\.7\.(?:7|8|9)/);
+  assert.match(index, /iris-runtime-v37(?:7|8|9|10)\.js\?v=3\.7\.(?:7|8|9|10)/);
   assert.doesNotMatch(index, /iris-runtime-v376\.js/);
 });
