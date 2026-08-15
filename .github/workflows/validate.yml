@@ -19,9 +19,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - name: Install
-        run: npm ci
+        run: npm install --no-audit --no-fund
       - name: Syntax and Vercel contract
         run: npm run verify:vercel
       - name: Unit tests
