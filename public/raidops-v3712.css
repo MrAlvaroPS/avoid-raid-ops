@@ -1,0 +1,56 @@
+/* AvoiD Raid Ops v3.7.12 — Progress data integrity + explicit metric scopes. */
+
+/* Preserve v3.7.11 read-only indicator rule. */
+.stats-row .stat,
+.night-table>div,
+.progress-window-matrix,
+.progress-window-cell,
+.progress-health-card,
+.page-banner .banner-stat,
+.legend-row,
+[data-progress-indicator="1"]{cursor:default!important}
+.progress-commandbar>span,.progress-commandbar>em{pointer-events:none;user-select:none}
+.progress-commandbar button,.progress-data-quality summary{cursor:pointer}
+.progress-commandbar button:disabled{cursor:default}
+
+.pullcurve[data-progress-runtime="3.7.12"] svg{overflow:visible}
+.pullcurve[data-progress-runtime="3.7.12"] .progress-main-line{fill:none;stroke:var(--green);stroke-width:.9;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 5px #58e3af55)}
+.pullcurve[data-progress-runtime="3.7.12"] .progress-median-line{fill:none;stroke:var(--blue);stroke-width:.62;stroke-dasharray:2 1.35;vector-effect:non-scaling-stroke;opacity:.9}
+.pullcurve[data-progress-runtime="3.7.12"] circle.progress-point{fill:#101b17;stroke:var(--green);stroke-width:.38;vector-effect:non-scaling-stroke}
+.pullcurve[data-progress-runtime="3.7.12"] circle.progress-point.pb{fill:#2a2111;stroke:var(--gold);stroke-width:.68;filter:drop-shadow(0 0 4px #efb75f55)}
+.pullcurve[data-progress-runtime="3.7.12"] circle.progress-point.review:not(.pb){fill:#171b1d;stroke:#88939a;stroke-dasharray:.5 .4;opacity:.74}
+.pullcurve[data-progress-runtime="3.7.12"] .progress-night-separator{stroke:#5d6872;stroke-width:.28;stroke-dasharray:1 1.6;vector-effect:non-scaling-stroke;opacity:.42}
+
+.progress-window-matrix>b{display:flex;flex-direction:column;gap:2px}
+.progress-window-matrix>b small{font-size:6px;font-weight:700;color:#56616a;letter-spacing:.04em}
+
+.progress-data-quality{margin:0;border-top:1px solid var(--line,#222a31);background:#0e131711}
+.progress-data-quality summary{list-style:none;padding:12px 22px;font-size:8px;font-weight:900;letter-spacing:1.15px;color:#7c878f;user-select:none;display:flex;align-items:center;gap:8px}
+.progress-data-quality summary::-webkit-details-marker{display:none}
+.progress-data-quality summary:before{content:'+';font-size:10px;color:#657078}
+.progress-data-quality[open] summary:before{content:'−'}
+.progress-data-quality.grade-good summary{color:#72c5a3}
+.progress-data-quality.grade-partial summary{color:#b5a36b}
+.progress-data-quality.grade-review summary,.progress-data-quality.grade-blocked summary{color:#d3ad66}
+.progress-data-quality-body{padding:0 22px 18px}
+.progress-quality-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid #202a30;margin-bottom:12px}
+.progress-quality-kpis span{padding:12px;border-right:1px solid #202a30;font-size:7px;font-weight:900;letter-spacing:.9px;color:#69747c}
+.progress-quality-kpis span:last-child{border-right:0}
+.progress-quality-kpis b{display:block;margin-bottom:4px;font-size:17px;line-height:1;color:#d9e1de;letter-spacing:-.2px}
+.progress-quality-notes{margin:0 0 12px;padding:10px 12px;border:1px solid #66532d;background:#6b552712}
+.progress-quality-notes p{margin:0 0 4px;color:#a89769;font-size:8.5px;line-height:1.45}
+.progress-quality-notes p:last-child{margin-bottom:0}
+.progress-quality-audit{border:1px solid #202a30;overflow:auto;max-height:310px}
+.progress-quality-audit>div{display:grid;grid-template-columns:60px 70px 70px 55px 80px minmax(260px,1fr);align-items:center;border-bottom:1px solid #1c252b;min-width:760px}
+.progress-quality-audit>div:last-child{border-bottom:0}
+.progress-quality-audit>div>span{padding:8px 10px;font-size:8px;color:#8c969d}
+.progress-quality-audit .head span{font-size:6.5px;font-weight:900;letter-spacing:.75px;color:#667179;background:#11171b}
+.progress-quality-audit small{display:block;margin-top:2px;font-size:7px;line-height:1.4;color:#56616a}
+
+.page-banner .banner-stat b.progress-state-value.warn{color:var(--gold)}
+
+@media(max-width:900px){
+  .progress-quality-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .progress-quality-kpis span:nth-child(2){border-right:0}
+  .progress-quality-kpis span:nth-child(-n+2){border-bottom:1px solid #202a30}
+}
