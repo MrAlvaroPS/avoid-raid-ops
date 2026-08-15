@@ -22,7 +22,7 @@ test('raid sessions expose deduplicated encounter progression pulls with stage d
   assert.deepEqual(new Set(sessions[0].progressionPulls[0].reportCodes),new Set(['AAA','BBB']));
 });
 
-test('Progress v3.7.9 uses encounter history and meaningful long-horizon pull ranges', async () => {
+test('Progress v3.7.9 remains as the first encounter-history implementation', async () => {
   const runtime = await read('public/progress-runtime-v379.js');
   assert.match(runtime, /window\.__AVOID_WCL_HISTORY__/);
   assert.match(runtime, /progressionPulls/);
@@ -36,15 +36,13 @@ test('Progress v3.7.9 uses encounter history and meaningful long-horizon pull ra
   assert.match(runtime, /20-pull windows/);
 });
 
-test('Progress strategic metrics are global rather than current-pull inspection', async () => {
+test('v3.7.9 historical strategic metrics remain regression assets', async () => {
   const runtime = await read('public/progress-runtime-v379.js');
   for (const label of ['TOTAL PROG PULLS','BEST PULL','LAST 20 MEDIAN','DEEPEST STAGE REACH','PULLS SINCE PB']) {
     assert.match(runtime,new RegExp(label));
   }
   assert.match(runtime, /PROGRESSION HISTORY/);
   assert.match(runtime, /Live owns the current raid night/);
-  assert.match(runtime, /progress-pull-inspector/); // cleanup only
-  assert.match(runtime, /remove\(\)/);
 });
 
 test('History endpoint returns the compact pull series without widening its WCL lookback', async () => {
@@ -65,10 +63,12 @@ test('Progress and Live product boundary is documented', async () => {
   assert.match(doc, /LAST 25/);
 });
 
-test('index activates v3.7.9 Progress, CSS and Iris runtimes', async () => {
+test('v3.7.9 assets stay available while v3.7.10 is the active Progress/Iris runtime', async () => {
   const index = await read('index.html');
   assert.match(index, /raidops-v379\.css\?v=3\.7\.9/);
-  assert.match(index, /progress-runtime-v379\.js\?v=3\.7\.9/);
-  assert.match(index, /iris-runtime-v379\.js\?v=3\.7\.9/);
-  assert.doesNotMatch(index, /progress-runtime-v378\.js\?v=3\.7\.8/);
+  assert.match(index, /raidops-v3710\.css\?v=3\.7\.10/);
+  assert.match(index, /progress-runtime-v3710\.js\?v=3\.7\.10/);
+  assert.match(index, /iris-runtime-v3710\.js\?v=3\.7\.10/);
+  assert.doesNotMatch(index, /progress-runtime-v379\.js\?v=3\.7\.9/);
+  assert.doesNotMatch(index, /iris-runtime-v379\.js\?v=3\.7\.9/);
 });
