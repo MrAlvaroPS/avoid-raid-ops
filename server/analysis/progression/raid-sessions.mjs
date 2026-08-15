@@ -1,4 +1,5 @@
 import { median } from '../../wcl/normalization/primitives.mjs';
+import { stageCount } from '../../wcl/normalization/fights.mjs';
 import { classifyPullForAnalysis } from '../pulls/pull-eligibility.mjs';
 
 const absStart=(report,fight)=>Number(report.startTime||0)+Number(fight.startTime||0);
@@ -15,12 +16,30 @@ function samePull(a,b){
 }
 
 function normalizePull(report,fight){
-  return {reportCodes:[report.code],fightIds:[fight.id],encounterID:fight.encounterID,name:fight.name,difficulty:fight.difficulty,absoluteStartTime:absStart(report,fight),absoluteEndTime:absEnd(report,fight),durationMs:duration(fight),kill:Boolean(fight.kill),fightPercentage:Number.isFinite(Number(fight.fightPercentage))?Number(fight.fightPercentage):null,bossPercentage:Number.isFinite(Number(fight.bossPercentage))?Number(fight.bossPercentage):null,rosterSize:(fight.friendlyPlayers||[]).length};
+  return {
+    reportCodes:[report.code],
+    fightIds:[fight.id],
+    encounterID:fight.encounterID,
+    name:fight.name,
+    difficulty:fight.difficulty,
+    absoluteStartTime:absStart(report,fight),
+    absoluteEndTime:absEnd(report,fight),
+    durationMs:duration(fight),
+    stageCount:stageCount(fight),
+    kill:Boolean(fight.kill),
+    fightPercentage:Number.isFinite(Number(fight.fightPercentage))?Number(fight.fightPercentage):null,
+    bossPercentage:Number.isFinite(Number(fight.bossPercentage))?Number(fight.bossPercentage):null,
+    rosterSize:(fight.friendlyPlayers||[]).length
+  };
 }
 
 export function dedupeSessionPulls(reports){
   const candidates=[];
-  for(const report of reports||[])for(const fight of (report.fights||[]).filter(f=>!f.inProgress&&classifyPullForAnalysis(f).eligible))candidates.push(normalizePull(report,fight));
+  for(const report of reports||[]){
+    for(const fight of (report.fights||[]).filter(f=>!f.inProgress&&classifyPullForAnalysis(f).eligible)){
+      candidates.push(normalizePull(report,fight));
+    }
+  }
   candidates.sort((a,b)=>a.absoluteStartTime-b.absoluteStartTime);
   const out=[];
   for(const pull of candidates){
@@ -30,6 +49,7 @@ export function dedupeSessionPulls(reports){
       match.fightIds=[...match.fightIds,...pull.fightIds];
       if(pull.rosterSize>match.rosterSize)match.rosterSize=pull.rosterSize;
       match.kill=match.kill||pull.kill;
+      match.stageCount=Math.max(Number(match.stageCount)||1,Number(pull.stageCount)||1);
       if(Number.isFinite(pull.fightPercentage)&&(!Number.isFinite(match.fightPercentage)||pull.fightPercentage<match.fightPercentage))match.fightPercentage=pull.fightPercentage;
     }else out.push(pull);
   }
@@ -55,12 +75,33 @@ export function clusterRaidSessions(reports,{gapMs=45*60*1000,currentReportCode=
     const reportCodes=session.reports.map(r=>r.code);
     const preferred=session.reports.find(r=>r.code===currentReportCode)||session.reports[0];
     const titles=[...new Set(session.reports.map(r=>r.title).filter(Boolean))];
+    const sessionId=`${new Date(session.startTime).toISOString().slice(0,10)}-${reportCodes[0]}`;
     return {
-      sessionId:`${new Date(session.startTime).toISOString().slice(0,10)}-${reportCodes[0]}`,
-      reportCode:preferred?.code||reportCodes[0],reportCodes,sourceReports:reportCodes.length,
-      title:preferred?.title||titles.join(' / '),titles,startTime:session.startTime,endTime:session.endTime,
-      pulls:pulls.length,kills:pulls.filter(p=>p.kill).length,bestFightPercentage:pcts.length?Math.min(...pcts):null,medianFightPercentage:pcts.length?median(pcts):null,rosterSizeMedian:median(pulls.map(p=>p.rosterSize).filter(Number.isFinite)),deduplicatedPulls:candidatesCount(session.reports)-pulls.length
+      sessionId,
+      sessionIndex:index+1,
+      reportCode:preferred?.code||reportCodes[0],
+      reportCodes,
+      sourceReports:reportCodes.length,
+      title:preferred?.title||titles.join(' / '),
+      titles,
+      startTime:session.startTime,
+      endTime:session.endTime,
+      pulls:pulls.length,
+      kills:pulls.filter(p=>p.kill).length,
+      bestFightPercentage:pcts.length?Math.min(...pcts):null,
+      medianFightPercentage:pcts.length?median(pcts):null,
+      rosterSizeMedian:median(pulls.map(p=>p.rosterSize).filter(Number.isFinite)),
+      deduplicatedPulls:candidatesCount(session.reports)-pulls.length,
+      progressionPulls:pulls.map((p,pullIndex)=>({
+        ...p,
+        sessionId,
+        sessionIndex:index+1,
+        sessionPullNumber:pullIndex+1
+      }))
     };
   }).filter(s=>s.pulls>0);
 }
-function candidatesCount(reports){return (reports||[]).reduce((n,r)=>n+(r.fights||[]).filter(f=>!f.inProgress&&classifyPullForAnalysis(f).eligible).length,0);}
+
+function candidatesCount(reports){
+  return (reports||[]).reduce((n,r)=>n+(r.fights||[]).filter(f=>!f.inProgress&&classifyPullForAnalysis(f).eligible).length,0);
+}
