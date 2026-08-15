@@ -1,4 +1,4 @@
-const finite=v=>Number.isFinite(Number(v));
+const finite=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
 const num=v=>finite(v)?Number(v):null;
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,Number(v)));
 
