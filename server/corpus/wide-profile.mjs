@@ -38,9 +38,10 @@ export function summarizeAbilityTable(value,maps){
   };walk(root);return Object.fromEntries([...out].map(([id,v])=>[String(id),v]));
 }
 
-// Player actor ids are report-local implementation detail and are deliberately not
-// persisted in GLOBAL BOSS KNOWLEDGE. Raid/player identity lives in the home-raid scope.
-export function compactFight(f){return{id:num(f.id),startTime:num(f.startTime),endTime:num(f.endTime),durationMs:num(f.endTime)!=null&&num(f.startTime)!=null?num(f.endTime)-num(f.startTime):null,kill:Boolean(f.kill),fightPercentage:num(f.fightPercentage),bossPercentage:num(f.bossPercentage),averageItemLevel:num(f.averageItemLevel),phaseTransitions:(f.phaseTransitions||[]).map(p=>({id:num(p.id),startTime:num(p.startTime)}))};}
+// friendlyPlayers is kept only in the transient header because Deep provenance needs
+// to distinguish friendly actor ids from encounter-side actor ids. Persisted Wide/Deep
+// profiles are sanitized before storage and never retain this player-id list.
+export function compactFight(f){return{id:num(f.id),startTime:num(f.startTime),endTime:num(f.endTime),durationMs:num(f.endTime)!=null&&num(f.startTime)!=null?num(f.endTime)-num(f.startTime):null,kill:Boolean(f.kill),fightPercentage:num(f.fightPercentage),bossPercentage:num(f.bossPercentage),averageItemLevel:num(f.averageItemLevel),friendlyPlayers:(f.friendlyPlayers||[]).map(Number).filter(Number.isFinite),phaseTransitions:(f.phaseTransitions||[]).map(p=>({id:num(p.id),startTime:num(p.startTime)}))};}
 
 export function normalizeReportHeader(data,{encounterId,difficulty}){
   const report=data?.reportData?.report;if(!report)return null;
