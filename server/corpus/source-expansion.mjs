@@ -25,8 +25,9 @@ export async function fetchReportIdentity(code){
 export function sourceKey(source){return source?.type&&source?.id!=null?`${source.type}:${source.id}`:null;}
 
 export function sourceFromIdentity(identity){
-  const guildId=num(identity?.guild?.id);if(guildId!=null)return{type:'guild',id:guildId,name:identity?.guild?.name||null,page:1};
-  const userId=num(identity?.owner?.id);if(userId!=null)return{type:'user',id:userId,name:null,page:1};
+  const ownerId=num(identity?.owner?.id);
+  const guildId=num(identity?.guild?.id);if(guildId!=null)return{type:'guild',id:guildId,name:identity?.guild?.name||null,ownerId,page:1};
+  if(ownerId!=null)return{type:'user',id:ownerId,name:null,ownerId,page:1};
   return null;
 }
 
