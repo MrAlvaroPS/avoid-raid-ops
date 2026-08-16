@@ -28,7 +28,7 @@ export async function recompileCorpusModelV2(input = {}) {
   job.phase = 'complete';
   job.updatedAt = Date.now();
   job.completedAt = Date.now();
-  job.message = `RECOMPILE · 0 WCL · canonical sampling v2 selected ${aggregate.wideReports.toLocaleString()} Wide reports / ${aggregate.deepReports.toLocaleString()} Deep reports across ${manifest.wide.sources.toLocaleString()} independent sources; home guild excluded.`;
+  job.message = `RECOMPILE · 0 WCL · canonical sampling v2 selected ${aggregate.wideReports.toLocaleString()} Wide reports / ${aggregate.deepReports.toLocaleString()} Deep reports across ${manifest.wide.sources.toLocaleString()} independent sources; AvoiD/home uploaders excluded.`;
   await Promise.all([
     corpusSet(jobKey(args), job),
     corpusSet(aggregateKey(args), aggregate),
@@ -61,10 +61,13 @@ export async function loadPublishedEncounterModelV2(input = {}) {
   if (Number(sampling?.scope?.encounterId) !== Number(args.encounterId)
       || Number(sampling?.scope?.difficulty) !== Number(args.difficulty)
       || Number(sampling?.scope?.partition) !== Number(args.partition)) return null;
+  if (Number(sampling.homeSourceSelectedReports || 0) !== 0) return null;
   if (Number(sampling.homeGuildSelectedReports || 0) !== 0) return null;
+  if (Number(sampling.homeOwnerSelectedReports || 0) !== 0) return null;
   if (Number(sampling.selectedWrongScopeReports || 0) !== 0) return null;
   if (Number(sampling.selectedMissingSourceReports || 0) !== 0) return null;
   if (model?.knowledgeContract?.version !== IRIS_KNOWLEDGE_CONTRACT_VERSION) return null;
   if (model?.knowledgeContract?.homeGuildParticipatesInBossModel !== false) return null;
+  if (model?.knowledgeContract?.knownHomeUploadersParticipateInBossModel !== false) return null;
   return model;
 }
