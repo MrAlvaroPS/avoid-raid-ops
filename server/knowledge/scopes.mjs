@@ -6,6 +6,11 @@ const finitePositive = value => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
+const parsePositiveIdList = value => [...new Set(String(value || '')
+  .split(/[\s,;]+/)
+  .map(finitePositive)
+  .filter(Boolean))];
+
 export function homeGuildId() {
   // AVOID_HOME_GUILD_ID is the explicit knowledge-boundary override. WCL_GUILD_ID is
   // the established runtime guild setting, so use it as the compatibility fallback
@@ -13,6 +18,14 @@ export function homeGuildId() {
   return finitePositive(process.env.AVOID_HOME_GUILD_ID)
     || finitePositive(process.env.WCL_GUILD_ID)
     || DEFAULT_HOME_GUILD_ID;
+}
+
+export function configuredHomeOwnerIds() {
+  return parsePositiveIdList(process.env.AVOID_HOME_WCL_OWNER_IDS);
+}
+
+export function normalizeHomeOwnerIds(additional = []) {
+  return [...new Set([...configuredHomeOwnerIds(), ...(additional || []).map(finitePositive).filter(Boolean)])];
 }
 
 export function bossKnowledgeScope({ encounterId, difficulty = 5, partition = 0 } = {}) {
@@ -48,12 +61,25 @@ export function isHomeGuildId(value) {
   return finitePositive(value) === homeGuildId();
 }
 
+export function isHomeOwnerId(value, additional = []) {
+  const owner = finitePositive(value);
+  return owner != null && normalizeHomeOwnerIds(additional).includes(owner);
+}
+
 export function sourceGuildId(profile = {}) {
   return finitePositive(profile?.guild?.id);
 }
 
+export function sourceOwnerId(profile = {}) {
+  return finitePositive(profile?.owner?.id);
+}
+
 export function isHomeGuildProfile(profile = {}) {
   return isHomeGuildId(sourceGuildId(profile));
+}
+
+export function isHomeSourceProfile(profile = {}, additionalOwnerIds = []) {
+  return isHomeGuildProfile(profile) || isHomeOwnerId(sourceOwnerId(profile), additionalOwnerIds);
 }
 
 export function profileMatchesBossScope(profile = {}, scope = {}) {
@@ -62,12 +88,12 @@ export function profileMatchesBossScope(profile = {}, scope = {}) {
     && Number(profile?.partition) === Number(scope?.partition);
 }
 
-export function assertProfileAllowedInGlobalBossKnowledge(profile = {}, scope = {}) {
+export function assertProfileAllowedInGlobalBossKnowledge(profile = {}, scope = {}, { additionalHomeOwnerIds = [] } = {}) {
   if (!profileMatchesBossScope(profile, scope)) {
     throw new Error(`Boss corpus scope mismatch for report ${profile?.code || 'unknown'}: expected encounter ${scope?.encounterId} d${scope?.difficulty} p${scope?.partition}`);
   }
-  if (isHomeGuildProfile(profile)) {
-    throw new Error(`Home guild ${homeGuildId()} is excluded from global boss training/holdout`);
+  if (isHomeSourceProfile(profile, additionalHomeOwnerIds)) {
+    throw new Error(`Home source is excluded from global boss training/holdout`);
   }
   return true;
 }
