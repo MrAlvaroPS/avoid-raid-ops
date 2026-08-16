@@ -54,7 +54,7 @@ test('Product references are persisted literally', async () => {
 test('v3.7.8 assets remain additive while a newer strategic Progress runtime is active', async () => {
   const index = await read('index.html');
   assert.match(index, /raidops-v378\.css\?v=3\.7\.8/);
-  assert.match(index, /progress-runtime-v37(?:9|10|11|12|13)\.js\?v=3\.7\.(?:9|10|11|12|13)/);
-  assert.match(index, /iris-runtime-v37(?:9|10|11|12|13)\.js\?v=3\.7\.(?:9|10|11|12|13)/);
+  assert.match(index, /progress-runtime-v3713\.js\?v=3\.8\.0|progress-runtime-v37(?:9|10|11|12|13)\.js\?v=3\.7\.(?:9|10|11|12|13)/);
+  assert.match(index, /iris-runtime-v3713\.js\?v=3\.8\.0|iris-runtime-v37(?:9|10|11|12|13)\.js\?v=3\.7\.(?:9|10|11|12|13)/);
   assert.doesNotMatch(index, /progress-runtime-v378\.js\?v=3\.7\.8/);
 });
