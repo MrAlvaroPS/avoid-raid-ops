@@ -1,48 +1,85 @@
-# Reliability v1 — shadow implementation status
+# Reliability v1 — shadow implementation checkpoint
 
-This is the restart/checkpoint document for Reliability work.
+Current scoring revision: **1.1.0**  
+Public UI status: **PENDING by design**
 
-## Implemented now
+This is the canonical restart point for Reliability work.
+
+## What Reliability now means
+
+Reliability measures **dependable execution and raid availability under proven, observable progression responsibility**.
+
+It does not measure parse, damage, healing, attendance, popularity or subjective officer opinion.
+
+DPS/HPS/parse are a separate Performance product. They may correlate with raid outcomes but never enter the Reliability score.
+
+## Implemented brain
 
 - Versioned semantic/scoring contract.
-- Parse/output hard-separated from Reliability.
+- Shared versioned metric registry.
+- Explicit producer contracts for Mechanics, Survival, Defensives and Duties evidence.
 - Role-aware base weights.
+- Mandatory Mechanics + Survival + Defensives publication dimensions.
 - Compact per-player evidence ledger.
-- Attendance-derived Survival denominator.
-- WCL meaningful-death / wipe-cutoff Survival evidence.
-- Mechanic failure evidence ingestion without inventing clean player opportunities.
+- Attendance-derived player pull population.
+- Source-completeness default is **unproven/false**.
+- Mechanic failure evidence remains visible without fabricating clean denominators.
 - Defensive tri-state availability contract (`confirmed available / confirmed unavailable / unknown`).
-- Assigned-duty opportunity contract.
-- Severity and evidence-confidence weighting.
-- Weak Bayesian/shrinkage prior.
-- Deterministic peer fallback hierarchy.
-- Exact score contribution trace.
+- Assigned-duty ownership contract.
+- Severity × evidence-confidence opportunity weighting.
+- Fixed/versioned Bayesian scoring prior.
+- Peer benchmark hierarchy separated from absolute scoring.
+- Exact component `why` text and exact overall contribution trace.
 - Confidence independent from score.
-- Publication gates.
+- Minimum MEDIUM confidence required before overall publication.
 - Safe player-vs-player comparison gates.
-- Adaptation/repeated-mistake signal kept outside base score to avoid double charging.
-- Ledger invariants/data-error diagnostics.
+- Adaptation/repeated-mistake signal outside base score to avoid double charging.
+- Ledger population/mass/data-integrity invariants.
 - Intelligence endpoint shadow integration.
+
+## Critical scoring-stability decisions
+
+### Peer groups never move the absolute score
+
+A player's Reliability is computed from their own evidence plus a fixed versioned weak prior. Loading/removing peers may change comparison text and `peerDelta`, but **must not change the player's score**.
+
+This avoids the pathological case where the same performance receives a different Reliability simply because the roster changed.
+
+### Low-confidence clean evidence cannot inflate the score
+
+Evidence confidence weights opportunity mass itself. A low-confidence clean row contributes less evidence rather than behaving like a full clean success.
+
+### Survival measures availability, not proven blame
+
+A meaningful pre-wipe death can reduce the Survival availability component, but Iris does not claim that the player caused the death unless separate causal evidence exists. `death-linked` never creates another penalty.
+
+### Missing/incomplete data defaults to PENDING
+
+- no source-completeness proof -> no inferred clean success;
+- no confirmed defensive availability -> no defensive miss;
+- no proven duty assignment -> no duty miss;
+- no player mechanic denominator -> classified failures remain visible but Mechanics remains pending.
 
 ## Current real-data behavior
 
-`/api/wcl/intelligence` now returns `reliability` in shadow mode.
+`/api/wcl/intelligence` returns a `reliability` shadow object.
 
-Expected for the current AvoiD Belo'ren report:
+For the current AvoiD Belo'ren report the expected state remains:
 
-- player attendance and Survival evidence can be derived;
+- player attendance can be observed;
 - classified player mechanic failures can be observed;
-- current encounter engine does **not** yet prove a generic clean player-opportunity denominator for those mechanics;
-- confirmed defensive availability opportunities are not yet produced;
+- clean player mechanic opportunity denominators are not yet generically produced;
+- defensive availability opportunities are not yet produced;
 - assigned duty opportunities are not yet produced;
-- scope is one report/raid night;
-- therefore **overall Reliability must remain null/pending**.
+- the shadow integration does not yet explicitly certify meaningful-death stream completeness, so Survival defaults to unscored rather than assuming missing deaths mean survival;
+- scope is still one report/raid night;
+- therefore **overall Reliability must remain `null / shadow-pending`**.
 
-This is intentional. A visible number at this point would be denominator fabrication.
+A visible player score now would still be evidence fabrication.
 
-## Workstream A — player mechanic opportunities
+## Producer contract A — player mechanic opportunities
 
-Required output contract from encounter analysis:
+Required scoreable output:
 
 ```text
 actorId
@@ -51,133 +88,146 @@ mechanicKey
 occurrenceKey
 assigned=true
 observable=true
+sourceComplete=true
 severity
 confidence
 success/failure
-model/rule provenance
+rule/model provenance
 ```
 
 Rules:
 
-- do not convert raid-level cast count into 20 player opportunities;
-- player opportunity must be attributable from assignment/target/role/state evidence;
-- generated encounter mechanics can only score after provenance validation;
-- one player+occurrence = maximum one opportunity;
-- clean success must be observable, not inferred from missing data on a truncated stream.
+- never convert one raid-level cast into twenty player opportunities;
+- assignment must come from target/state/role/explicit assignment evidence;
+- generated encounter rules score only after provenance validation;
+- one actor + occurrence = at most one opportunity;
+- clean success requires a complete failure-detection source.
 
-Belo'ren currently has several player-attributed failures but insufficient generic proof of clean denominators. Keep them visible/unscored until the opportunity model is implemented safely.
+Belo'ren already has player-attributed failures, but not a safe generic clean denominator. Keep those failures visible/unscored until this producer exists.
 
-## Workstream B — defensive availability engine
+## Producer contract B — defensive availability
 
-Build a versioned class/spec defensive catalog with:
+Build a versioned class/spec defensive catalog containing:
 
-- spell ID / aura ID;
-- class/spec restrictions;
-- base cooldown / charges;
+- spell/aura IDs;
+- class/spec/build restrictions;
+- base cooldown, charges and reset rules;
 - talent modifiers from CombatantInfo;
-- mitigation type and applicable damage schools/categories;
-- immunity/DR/absorb/heal semantics;
-- buff/cast evidence needed to prove use;
-- cooldown reconstruction rules.
+- DR/immunity/absorb/heal semantics;
+- applicability by damage type/window;
+- cast/buff evidence needed to prove use;
+- cooldown reconstruction and source-completeness rules.
 
-The engine then emits only confirmed opportunities:
+Scoreable output:
 
 ```text
-player
-window
-ability
+actorId
+canonicalPullKey / fightId
+opportunityKey
+abilityId
 availability=confirmed
-usedOnTime
+sourceComplete=true
+usedOnTime=true|false
 confidence
 dangerWeight
-preventableDeath? (optional explanatory counterfactual)
+preventableDeath?   # explanatory only
 ```
 
-Healthstone/healing potion must remain non-penalizing until inventory/availability can be proven.
+Healthstone/healing potion remain non-penalizing until availability can actually be proven.
 
-## Workstream C — duty ownership
+## Producer contract C — assigned duties
 
 Raw interrupt/dispels counts are descriptive only.
 
-Reliability needs ownership:
+Reliability needs:
 
 ```text
-assignment/opportunity -> player -> success/failure
+assignment/opportunity -> player -> observable outcome
 ```
 
-Sources may include encounter-model assignment semantics, explicit raid plans in a future Iris planning layer, target/debuff ownership, or deterministic tank-role duties.
+Ownership can eventually come from encounter semantics, explicit Iris raid plans, target/debuff ownership or deterministic role duties.
 
-No assignment = no player penalty.
+No proven assignment = no penalty.
 
-## Workstream D — longitudinal identity and persistence
+## Producer contract D — complete Survival source
 
-Current report actor IDs are not enough for multi-night scoring.
+The meaningful-death source must certify completeness for the scored pull population before clean Survival rows are emitted.
 
-Target identity:
+A truncated/unverified death stream yields PENDING Survival for affected pulls. It never means `no death observed = survived`.
 
-1. canonical WCL/character identity;
-2. provisional region+realm+name fallback;
-3. alias/migration support for rename/transfer.
+## Longitudinal identity + persistence
 
-Reliability persistence must use the same deduplicated canonical pull identity as Progress/History so overlapping logger reports cannot double count an opportunity.
+Report actor IDs cannot support multi-night Reliability.
 
-Persist compact evidence rows, not raw event streams.
+Target identity hierarchy:
 
-## Workstream E — peer baselines
+1. canonical character identity;
+2. provisional region+realm+name;
+3. alias/migration handling for rename/transfer.
 
-Current scorer already supports a peer interface and fallback hierarchy.
+Persistence must use the same canonical/deduplicated pull identity as Progress/History so overlapping logger reports cannot double count opportunities.
 
-Target production hierarchy:
+Persist compact evidence rows, not raw WCL streams.
 
-1. same spec + role + encounter + difficulty + partition + comparable progress context;
-2. same class + role only when same-spec sample is insufficient, clearly labeled;
-3. role/context fallback;
-4. versioned global prior.
+## Peer baselines
 
-Two peer products should eventually coexist:
+Production comparison hierarchy:
 
-- **AvoiD internal peers** for roster comparison;
-- **external corpus peers** for broader same-spec benchmarking.
+1. same spec + role + encounter + difficulty + partition;
+2. same class + role when same-spec sample is insufficient, explicitly labeled;
+3. same role;
+4. roster;
+5. policy reference.
 
-Parse/ranking data remains a separate Performance product and never becomes a Reliability component.
+Two future comparison datasets can coexist:
 
-## Workstream F — scopes
+- internal AvoiD peers;
+- external corpus peers.
 
-Do not silently mix these:
+Neither changes absolute Reliability.
 
-- `CURRENT FORM` — recent window for coaching/trend;
+## Scope separation
+
+Never silently mix:
+
+- `CURRENT FORM` — recent coaching/trend;
 - `ENCOUNTER RELIABILITY` — encounter+difficulty+partition;
-- `TIER RELIABILITY` — future aggregate of published encounter scores under its own contract.
+- `TIER RELIABILITY` — future aggregate under a separate contract.
 
-## UI publication rule
+## UI publication contract
 
-Players/Composition may continue showing `PENDING` until the shadow profile is publishable.
+Players/Composition continue to show `PENDING` until the profile clears publication gates.
 
-When enabled, a player detail must show at minimum:
+When public, player detail must expose at minimum:
 
 ```text
-Reliability 0-100
+Reliability 0–100
 Confidence
-scored dimensions
-peer source + peer baseline
-data coverage
+Encounter / scope
+Mechanics / Survival / Defensives / Duties
+actual peer source + peer benchmark
 WHY THIS SCORE?
+per-component why
 exact contribution trace
-primary positive/negative evidence
+evidence coverage / pending evidence
 current-form direction
 ```
 
-A player-vs-player overall comparison is hidden when score coverage/confidence is not comparable; shared component comparison may still be shown.
+No overall A-vs-B statement when coverage/confidence/context is incompatible.
 
 ## Definition of done for public Reliability v1
 
-- mechanics player denominator live and validated;
+- player mechanic opportunity producer live and validated;
 - defensive availability engine live for supported specs;
-- at least 75% role-weight coverage for published players;
-- two or more nights of deduplicated evidence;
+- complete Survival source wired explicitly;
+- mandatory Mechanics + Survival + Defensives scoreable;
+- >=75% role weight coverage;
+- >=MEDIUM confidence;
+- >=2 deduplicated raid nights;
 - stable cross-report identity;
-- same evidence population used everywhere Reliability appears;
-- no raw parse/output input in score trace;
-- score trace exactly reconstructs displayed number;
-- manual audit of several high/medium/low profiles agrees with underlying evidence;
-- no score is published for data-integrity failures.
+- same evidence model consumed everywhere Reliability appears;
+- parse/output absent from score trace;
+- changing peer population does not change absolute score;
+- score trace exactly reconstructs the displayed score;
+- several high/medium/low profiles manually audited against evidence;
+- data-integrity error always blocks publication.
