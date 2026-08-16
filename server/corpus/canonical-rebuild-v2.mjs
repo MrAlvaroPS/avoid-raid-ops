@@ -2,6 +2,7 @@ import { corpusDelete, corpusGet, corpusList, corpusSet } from './storage.mjs';
 import { aggregateKey, corpusId, modelKey, profileKey, deepProfileKey } from './keys.mjs';
 import { createAggregate, mergeWideProfile, mergeDeepProfile } from './aggregate.mjs';
 import { compileEncounterModel } from './compiler.mjs';
+import { applyBossSamplingPolicyV376 } from './model-policy-v376.mjs';
 import { bossKnowledgeScope, homeGuildId, isHomeSourceProfile, normalizeHomeOwnerIds, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 import { globalBossSamplingKey } from '../knowledge/keys.mjs';
 import { buildBalancedBossSample, buildBossSamplingManifest } from './sampling-v2.mjs';
@@ -129,8 +130,13 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
   for (const profile of wideSample.selected) mergeWideProfile(aggregate, profile, { validationFraction: config.validationFraction });
   for (const profile of deepSample.selected) mergeDeepProfile(aggregate, profile, { validationFraction: config.validationFraction });
 
-  const model = compileEncounterModel(aggregate, compilerOptionsFromCorpusConfig(config));
+  const compiled = compileEncounterModel(aggregate, compilerOptionsFromCorpusConfig(config));
+  // Publication policy is part of persistence, not a UI decoration. This guarantees
+  // an old compiler-level `published` result cannot sit on disk and later bypass the
+  // new population/sampling gates through another consumer.
+  const model = applyBossSamplingPolicyV376(compiled, aggregate);
   model.knowledgeContract = {
+    ...(model.knowledgeContract || {}),
     version: manifest.contractVersion,
     scope: manifest.scope,
     homeGuildId: manifest.homeGuildId,
