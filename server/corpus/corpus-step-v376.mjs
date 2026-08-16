@@ -20,7 +20,7 @@ function candidateSource(job, code) {
   return job?.candidateSourceByCode?.[String(code)] || `unmapped:${String(code)}`;
 }
 
-function nextCandidateBySourceRoundRobin(job = {}) {
+export function nextCandidateBySourceRoundRobin(job = {}) {
   const processed = new Set(job.processedWide || []);
   const failed = new Set((job.failed || []).filter(row => row.stage === 'wide').map(row => row.code));
   const remaining = (job.candidates || []).filter(code => !processed.has(code) && !failed.has(code));
