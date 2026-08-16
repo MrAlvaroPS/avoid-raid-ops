@@ -3,7 +3,7 @@ import { CORPUS_DEEP_EVENTS_QUERY } from '../wcl/queries/corpus.mjs';
 import { paginatorEvents,eventAbilityId,eventSourceId } from '../wcl/normalization/events.mjs';
 import { fetchReportHeader } from './wide-profile.mjs';
 import { normalizeDeepProfile } from './deep-profile.mjs';
-import { isHomeGuildId, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
+import { isHomeSourceProfile, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null;};
 const ts=e=>num(e?.timestamp);
@@ -57,7 +57,7 @@ export function attachOriginEvidenceV373(profile,data){
 export async function fetchDeepProfileV373({code,encounterId,difficulty=5,partition=0}){
   const header=await fetchReportHeader({code,encounterId,difficulty,partition});
   if(!header||!header.fights?.length)return null;
-  if(isHomeGuildId(header?.guild?.id))return null;
+  if(isHomeSourceProfile(header))return null;
   const fightIDs=header.fights.map(f=>Number(f.id)).filter(Number.isFinite);if(!fightIDs.length)return null;
   const data=await wclGraphql(CORPUS_DEEP_EVENTS_QUERY,{code:String(code),fightIDs});
   // Provenance needs transient friendly actor ids; sanitization happens only after
