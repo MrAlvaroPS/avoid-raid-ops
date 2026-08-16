@@ -3,11 +3,13 @@ import { getCorpusStatus } from './service.mjs';
 import { corpusGet, corpusSet } from './storage.mjs';
 import { aggregateKey, corpusAliasKey, jobKey, modelKey } from './keys.mjs';
 import { globalBossSamplingKey } from '../knowledge/keys.mjs';
+import { homeGuildId, normalizeHomeOwnerIds } from '../knowledge/scopes.mjs';
 import { clampCorpusConfig } from './config.mjs';
 import { rebuildCanonicalBossCorpus } from './canonical-rebuild-v2.mjs';
 
 const now = () => Date.now();
 const sourceKey = source => source?.type && source?.id != null ? `${source.type}:${source.id}` : null;
+const uniq = values => [...new Set((values || []).map(Number).filter(value => Number.isFinite(value) && value > 0))];
 
 async function resolveArgs(input = {}) {
   const args = { encounterId: Number(input.encounterId), difficulty: Number(input.difficulty || 5), partition: Number(input.partition || 0) };
@@ -18,6 +20,27 @@ async function resolveArgs(input = {}) {
 
 function candidateSource(job, code) {
   return job?.candidateSourceByCode?.[String(code)] || `unmapped:${String(code)}`;
+}
+
+function mappedHomeSource(job, code) {
+  const key = candidateSource(job, code);
+  if (key === `guild:${homeGuildId()}`) return true;
+  if (!key.startsWith('user:')) return false;
+  const ownerId = Number(key.slice(5));
+  return normalizeHomeOwnerIds(job?.homeOwnerIds || []).includes(ownerId);
+}
+
+function skipMappedHomeCandidates(job = {}) {
+  const done = new Set(job.processedWide || []);
+  const skipped = [];
+  for (const code of job.candidates || []) {
+    if (!done.has(code) && mappedHomeSource(job, code)) skipped.push(code);
+  }
+  if (!skipped.length) return 0;
+  job.processedWide = [...new Set([...(job.processedWide || []), ...skipped])];
+  job.skippedHomeSource = Number(job.skippedHomeSource || 0) + skipped.length;
+  job.message = `Filtered ${skipped.length.toLocaleString()} mapped AvoiD/home-source report${skipped.length === 1 ? '' : 's'} before WCL profiling · ${job.skippedHomeSource.toLocaleString()} home candidates excluded from global boss knowledge.`;
+  return skipped.length;
 }
 
 export function nextCandidateBySourceRoundRobin(job = {}) {
@@ -40,15 +63,20 @@ export function nextCandidateBySourceRoundRobin(job = {}) {
 
 async function prioritizeWideCandidate(args, job) {
   if (job?.phase !== 'wide') return job;
+  const filtered = skipMappedHomeCandidates(job);
   const next = nextCandidateBySourceRoundRobin(job);
-  if (!next) return job;
+  if (!next) {
+    if (filtered) { job.updatedAt = now(); await corpusSet(jobKey(args), job); }
+    return job;
+  }
   const candidates = job.candidates || [];
   const index = candidates.indexOf(next);
-  if (index <= 0) return job;
-  job.candidates = [next, ...candidates.slice(0, index), ...candidates.slice(index + 1)];
-  job.samplingAcquisitionPolicy = 'source-round-robin-v1';
-  job.updatedAt = now();
-  await corpusSet(jobKey(args), job);
+  if (index > 0) job.candidates = [next, ...candidates.slice(0, index), ...candidates.slice(index + 1)];
+  if (index > 0 || filtered) {
+    job.samplingAcquisitionPolicy = 'source-round-robin-v1';
+    job.updatedAt = now();
+    await corpusSet(jobKey(args), job);
+  }
   return job;
 }
 
@@ -58,6 +86,7 @@ async function recordDiscoverySourceAndRotate(args, before, input, state) {
   if (!current) return state;
   if (input.executionToken && current.activeExecutionToken && String(input.executionToken) !== String(current.activeExecutionToken)) return state;
   current.candidateSourceByCode ||= {};
+  current.homeOwnerIds = normalizeHomeOwnerIds(current.homeOwnerIds || []);
   let changed = false;
 
   if (before.phase === 'discover-identities') {
@@ -71,6 +100,16 @@ async function recordDiscoverySourceAndRotate(args, before, input, state) {
     if (code && key && !current.candidateSourceByCode[String(code)]) {
       current.candidateSourceByCode[String(code)] = key;
       changed = true;
+    }
+    // A guild-associated AvoiD report tells us the WCL uploader id as well. Keep that
+    // source identity on the job so a later personal/un-guilded report by the same
+    // uploader cannot leak into GLOBAL BOSS KNOWLEDGE.
+    if (added?.type === 'guild' && Number(added.id) === homeGuildId() && Number(added.ownerId) > 0) {
+      const nextOwners = uniq([...(current.homeOwnerIds || []), Number(added.ownerId)]);
+      if (nextOwners.length !== current.homeOwnerIds.length) {
+        current.homeOwnerIds = nextOwners;
+        changed = true;
+      }
     }
   }
 
@@ -128,7 +167,7 @@ async function finalizeCanonicalCorpus(input = {}) {
   job.phase = 'complete';
   job.updatedAt = now();
   job.completedAt = now();
-  job.message = `Canonical global-boss model rebuilt at 0 extra WCL: ${aggregate.wideReports.toLocaleString()} balanced Wide reports / ${aggregate.deepReports.toLocaleString()} balanced Deep reports · ${manifest.wide.sources.toLocaleString()} sources · home guild excluded.`;
+  job.message = `Canonical global-boss model rebuilt at 0 extra WCL: ${aggregate.wideReports.toLocaleString()} balanced Wide reports / ${aggregate.deepReports.toLocaleString()} balanced Deep reports · ${manifest.wide.sources.toLocaleString()} sources · AvoiD/home uploaders excluded.`;
 
   await Promise.all([
     corpusSet(jobKey(args), job),
