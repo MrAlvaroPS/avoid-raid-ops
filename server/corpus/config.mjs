@@ -19,6 +19,13 @@ export const CORPUS_DEFAULTS = Object.freeze({
   minIndependentSourcesToPublish: 50,
   minValidationSourcesToPublish: 12,
   minValidationMeanToPublish: 0.66,
+  // Canonical global-boss sampling gates. These are evaluated after cached reports
+  // are rebalanced by independent source and progression outcome.
+  maxSourceReportShareToPublish: 0.10,
+  maxSourcePullShareToPublish: 0.12,
+  maxDeepSourceReportShareToPublish: 0.20,
+  minSourcesPerOutcomeToPublish: 8,
+  minDeepSourcesPerOutcomeToPublish: 3,
   // v3.7.1 safety hold: the legacy compiler persists candidates, while the
   // encounter-origin policy is applied by the corpus API. Keep auto-publish
   // disabled until the policy layer moves into the persisted compiler path.
