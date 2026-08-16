@@ -50,6 +50,16 @@ test('corpus execution provider keeps Vercel Workflow hosted and local worker ex
   assert.match(worker,/local-filesystem/);
 });
 
+test('local enrich reuses persisted discovery before spending WCL points on known identities',async()=>{
+  const execution=await read('../../server/corpus/execution.mjs');
+  assert.match(execution,/reusePersistedLocalDiscovery/);
+  assert.match(execution,/candidateRemaining/);
+  assert.match(execution,/hasDiscoverySnapshot/);
+  assert.match(execution,/job\.phase='wide'/);
+  assert.match(execution,/reusing persisted discovery snapshot/);
+  assert.match(execution,/if\(!hosted\)await reusePersistedLocalDiscovery/);
+});
+
 test('compatibility runtime polls hosted workflow and keeps corpus panel above mechanic catalogue',async()=>{
   const runtime=await read('../../deploy-preview/public/wcl-runtime.js');
   assert.match(runtime,/pollCorpus/);
