@@ -69,12 +69,12 @@ test('canonical compile and recompile rebalance persisted profiles without WCL c
   assert.match(serviceV2,/RECOMPILE · 0 WCL/);
 });
 
-test('global boss ingestion excludes home guild before expensive wide/deep persistence',async()=>{
+test('global boss ingestion excludes AvoiD guild and configured home uploaders before expensive wide/deep persistence',async()=>{
   const wide=await read('../../server/corpus/wide-profile.mjs');
   const deep=await read('../../server/corpus/deep-profile-v373.mjs');
-  assert.match(wide,/isHomeGuildId\(header\?\.guild\?\.id\)/);
+  assert.match(wide,/isHomeSourceProfile\(header\)/);
   assert.match(wide,/sanitizeGlobalBossProfile/);
-  assert.match(deep,/isHomeGuildId\(header\?\.guild\?\.id\)/);
+  assert.match(deep,/isHomeSourceProfile\(header\)/);
   assert.match(deep,/attachOriginEvidenceV373[\s\S]*sanitizeGlobalBossProfile/);
 });
 
@@ -133,7 +133,7 @@ test('Vite/Nitro Workflow integration is pinned for Vercel deployment',async()=>
   const vite=await read('../../vite.config.js');
   assert.equal(pkg.dependencies['@vercel/blob'],'2.6.1');
   assert.equal(pkg.dependencies.workflow,'5.0.0-beta.36');
-  assert.equal(pkg.dependencies.nitro,'3.0.260610-beta');
+  assert.equal(pkg.dependencies.nitro,'3.0.260610-beta.36');
   assert.equal(pkg.engines.node,'22.x');
   assert.match(vite,/nitro\(\)/);
   assert.doesNotMatch(vite,/workflow\(\)/);
