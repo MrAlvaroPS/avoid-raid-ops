@@ -37,6 +37,10 @@ export const RELIABILITY_POLICY=Object.freeze({
   evidenceConfidence:Object.freeze({confirmed:1.00,high:0.90,medium:0.65,low:0.35,unknown:0.00}),
   survivalIncidentPenalty:Object.freeze({firstMeaningfulDeath:1.00,meaningfulDeath:0.50}),
 
+  // Survival measures raid availability, not proven blame. Cause evidence is
+  // explanatory only; it never adds another Survival penalty.
+  survivalSemantics:Object.freeze({kind:'availability-not-causality',causeDoesNotMultiplyPenalty:true}),
+
   // Recurrence is explanatory and part of the adaptation signal. It does not
   // multiply the base mechanic penalty and therefore cannot double-charge the
   // same failed occurrence.
@@ -57,6 +61,7 @@ export const RELIABILITY_POLICY=Object.freeze({
   publication:Object.freeze({
     minPullsAttended:15,
     minNights:2,
+    minConfidence:'medium',
     minScoredWeightCoverage:0.75,
     // Defensives is mandatory: execution Reliability is not considered mature
     // until Iris can prove availability rather than infer it from absent casts.
