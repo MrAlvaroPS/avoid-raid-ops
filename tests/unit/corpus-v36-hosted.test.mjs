@@ -69,6 +69,16 @@ test('duplicate local improve requests reuse the active job instead of extending
   assert.match(api,/reusedExistingJob:Boolean\(launched\.reusedExistingJob\)/);
 });
 
+test('v375 owns the visible corpus card so compatibility polling cannot tear it down',async()=>{
+  const html=await read('../../index.html');
+  const guard=await read('../../public/corpus-ui-stability-v1.js');
+  assert.match(html,/encounter-intelligence-v375\.js[\s\S]*corpus-ui-stability-v1\.js/);
+  assert.match(guard,/nativeCorpusRenderer/);
+  assert.match(guard,/encounter-intelligence-v375/);
+  assert.match(guard,/window\.applyCorpusWorkbench = function stableCorpusWorkbench/);
+  assert.match(guard,/legacyPollingRendererSuppressed: true/);
+});
+
 test('compatibility runtime polls hosted workflow and keeps corpus panel above mechanic catalogue',async()=>{
   const runtime=await read('../../deploy-preview/public/wcl-runtime.js');
   assert.match(runtime,/pollCorpus/);
