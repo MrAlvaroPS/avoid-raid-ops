@@ -14,6 +14,14 @@ test('v3.6 hosted research defaults to a cautious 1K validation run',()=>{
   assert.equal(clampCorpusConfig({targetPulls:5000,deepTargetPulls:600}).targetPulls,5000);
 });
 
+test('boss publication adds independent-source and pull-outcome balance gates',()=>{
+  assert.equal(CORPUS_DEFAULTS.maxSourceReportShareToPublish,.10);
+  assert.equal(CORPUS_DEFAULTS.maxSourcePullShareToPublish,.12);
+  assert.equal(CORPUS_DEFAULTS.maxDeepSourceReportShareToPublish,.20);
+  assert.ok(CORPUS_DEFAULTS.minSourcesPerOutcomeToPublish>=4);
+  assert.ok(CORPUS_DEFAULTS.minDeepSourcesPerOutcomeToPublish>=2);
+});
+
 test('Vercel corpus storage is private, persistent and uses consistent reads',async()=>{
   const src=await read('../../server/corpus/storage.mjs');
   assert.match(src,/@vercel\/blob/);
@@ -30,7 +38,7 @@ test('corpus workflow is durable and keeps side effects inside a step',async()=>
   assert.match(src,/"use step"/);
   assert.match(src,/from 'workflow'/);
   assert.doesNotMatch(src,/workflow\/sleep/);
-  assert.match(src,/stepCorpus/);
+  assert.match(src,/stepCorpusV376/);
   assert.doesNotMatch(src,/candidates:/);
 });
 
@@ -46,8 +54,28 @@ test('corpus execution provider keeps Vercel Workflow hosted and local worker ex
   assert.match(execution,/activateCorpusExecution/);
   assert.match(execution,/vercel-workflow/);
   assert.match(execution,/local-worker/);
-  assert.match(worker,/stepCorpusV375/);
+  assert.match(worker,/stepCorpusV376/);
   assert.match(worker,/local-filesystem/);
+});
+
+test('canonical compile and recompile rebalance persisted profiles without WCL calls',async()=>{
+  const step=await read('../../server/corpus/corpus-step-v376.mjs');
+  const rebuild=await read('../../server/corpus/canonical-rebuild-v2.mjs');
+  const serviceV2=await read('../../server/corpus/service-v2.mjs');
+  assert.match(step,/rebuildCanonicalBossCorpus/);
+  assert.match(rebuild,/buildBalancedBossSample/);
+  assert.match(rebuild,/globalBossSamplingKey/);
+  assert.doesNotMatch(rebuild,/wclGraphql|fetchRankingPage|fetchWideProfile|fetchDeepProfile/);
+  assert.match(serviceV2,/RECOMPILE · 0 WCL/);
+});
+
+test('global boss ingestion excludes home guild before expensive wide/deep persistence',async()=>{
+  const wide=await read('../../server/corpus/wide-profile.mjs');
+  const deep=await read('../../server/corpus/deep-profile-v373.mjs');
+  assert.match(wide,/isHomeGuildId\(header\?\.guild\?\.id\)/);
+  assert.match(wide,/sanitizeGlobalBossProfile/);
+  assert.match(deep,/isHomeGuildId\(header\?\.guild\?\.id\)/);
+  assert.match(deep,/attachOriginEvidenceV373[\s\S]*sanitizeGlobalBossProfile/);
 });
 
 test('local enrich reuses persisted discovery before spending WCL points on known identities',async()=>{
