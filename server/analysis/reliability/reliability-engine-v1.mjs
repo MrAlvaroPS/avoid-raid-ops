@@ -59,6 +59,7 @@ export function buildRawReliabilityProfile(ledger,{policy=RELIABILITY_POLICY}={}
     context:ledger.context,
     participation:ledger.participation,
     integrity:ledger.integrity,
+    validation:ledger.validation||{ok:true,status:'valid',errors:[],warnings:[]},
     adaptation:ledger.adaptation,
     raw:{
       mechanics:rawMechanics(ledger,policy),
@@ -111,6 +112,7 @@ function confidenceForProfile(profile,components,coverage,policy){
   let level=passes(policy.confidence.high)?'high':passes(policy.confidence.medium)?'medium':'low';
   if(identityStatus==='report-scoped')level='low';
   if(identityStatus==='provisional-name-realm'&&level==='high')level='medium';
+  if(profile.validation?.ok===false)level='low';
   return{id:RELIABILITY_METRIC_IDS.confidence,level,pulls,nights,effectiveOpportunities:round(effective,1),evidenceCoverage:round(coverage,3),identityStatus};
 }
 
@@ -118,19 +120,21 @@ function publicationGate(profile,components,coverage,confidence,policy){
   const reasons=[],pub=policy.publication;
   const scored=Object.values(components).filter(c=>c.status==='scored').map(c=>c.dimension);
   const pulls=Number(profile.participation?.pullsAttended)||0,nights=Number(profile.context?.nights)||0;
+  if(profile.validation?.ok===false)reasons.push(`data integrity: ${(profile.validation.errors||[]).join('; ')}`);
   if(pulls<pub.minPullsAttended)reasons.push(`pulls ${pulls}/${pub.minPullsAttended}`);
   if(nights<pub.minNights)reasons.push(`nights ${nights}/${pub.minNights}`);
   if(profile.identity?.status==='report-scoped')reasons.push('stable cross-report player identity missing');
   for(const dim of pub.requiredDimensions)if(!scored.includes(dim))reasons.push(`${dim} dimension not scored`);
   if(scored.length<pub.minScoredDimensions)reasons.push(`scored dimensions ${scored.length}/${pub.minScoredDimensions}`);
   if(coverage<pub.minScoredWeightCoverage)reasons.push(`weight coverage ${round(100*coverage,0)}%/${round(100*pub.minScoredWeightCoverage,0)}%`);
-  return{publishable:reasons.length===0,reasons,scoredDimensions:scored,confidence:confidence.level};
+  return{publishable:reasons.length===0,reasons,scoredDimensions:scored,confidence:confidence.level,dataIntegrity:profile.validation};
 }
 
 function explanation(profile,components,gate,trace){
   const name=profile.identity?.name||'Player';
   if(!gate.publishable){
     const observed=[];
+    if(profile.validation?.ok===false)observed.push(`Data integrity error: ${(profile.validation.errors||[]).join('; ')}`);
     if(profile.evidence?.mechanicUnscoredFailures?.length)observed.push(`${profile.evidence.mechanicUnscoredFailures.length} classified mechanic failures lack player-level opportunity denominators`);
     if(profile.evidence?.defensiveUnscored?.length)observed.push(`${profile.evidence.defensiveUnscored.length} defensive rows are not scoreable because availability/outcome is unproven`);
     return{
@@ -180,13 +184,15 @@ export function scoreReliabilityProfiles(ledgers,{policy=RELIABILITY_POLICY}={})
       value,shadowValue,baseRoleWeights:weights,scoredWeightCoverage:round(coverage,3),rows:traceRows,
       exactContributionSum:round(traceRows.reduce((s,r)=>s+Number(r.contribution||0),0),3)
     };
+    const status=profile.validation?.ok===false?'data-error':gate.publishable?'published':'shadow-pending';
     const result={
       schemaVersion:1,modelVersion:RELIABILITY_MODEL_VERSION,id:RELIABILITY_METRIC_IDS.overall,
       identity:profile.identity,context:profile.context,participation:profile.participation,
-      status:gate.publishable?'published':'shadow-pending',value,shadowValue,
+      status,value,shadowValue,
       confidence,components,adaptation:profile.adaptation,publication:gate,scoreTrace:trace,
       peerComparison:{id:RELIABILITY_METRIC_IDS.peerDelta,baselineValue:peerOverall,delta:value!=null&&peerOverall!=null?round(value-peerOverall,1):null,sourceByDimension:Object.fromEntries(Object.entries(components).map(([d,c])=>[d,c.peer?.source||null]))},
       explanation:null,
+      dataIntegrity:profile.validation,
       dataTruth:{...policy.dataTruth,parseExcluded:true,performanceInputsUsed:[]},
       evidenceSummary:{
         mechanicUnscoredFailures:profile.evidence.mechanicUnscoredFailures.length,
@@ -207,7 +213,8 @@ export function compareReliabilityProfiles(a,b,{policy=RELIABILITY_POLICY}={}){
   const sameDims=JSON.stringify(aDims)===JSON.stringify(bDims);
   const minRank=confidenceRank[policy.comparison.minimumConfidence]||2;
   const confidenceOk=(confidenceRank[a.confidence?.level]||0)>=minRank&&(confidenceRank[b.confidence?.level]||0)>=minRank;
-  const comparable=(!policy.comparison.requireSameScoredDimensions||sameDims)&&confidenceOk;
+  const integrityOk=a.dataIntegrity?.ok!==false&&b.dataIntegrity?.ok!==false;
+  const comparable=integrityOk&&(!policy.comparison.requireSameScoredDimensions||sameDims)&&confidenceOk;
   const dimensions={};
   for(const d of [...new Set([...aDims,...bDims])]){
     const av=a.components?.[d]?.value,bv=b.components?.[d]?.value;
@@ -216,7 +223,7 @@ export function compareReliabilityProfiles(a,b,{policy=RELIABILITY_POLICY}={}){
   return{
     status:comparable?'comparable':'context-mismatch',
     comparable,
-    reason:comparable?null:!sameDims?'Players do not have the same scored Reliability dimensions.':'Both players need at least medium confidence for overall comparison.',
+    reason:comparable?null:!integrityOk?'At least one profile has a Reliability data-integrity error.':!sameDims?'Players do not have the same scored Reliability dimensions.':'Both players need at least medium confidence for overall comparison.',
     a:{key:a.identity?.key,name:a.identity?.name,value:a.value,confidence:a.confidence?.level},
     b:{key:b.identity?.key,name:b.identity?.name,value:b.value,confidence:b.confidence?.level},
     overallDelta:comparable&&a.value!=null&&b.value!=null?round(Number(a.value)-Number(b.value),1):null,
