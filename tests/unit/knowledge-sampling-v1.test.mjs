@@ -7,6 +7,7 @@ import {
   sanitizeGlobalBossProfile,
 } from '../../server/knowledge/scopes.mjs';
 import { globalBossKnowledgeId } from '../../server/knowledge/keys.mjs';
+import { writeHomeRaidEvidence } from '../../server/knowledge/raid-ledger.mjs';
 import {
   OUTCOME_STRATA,
   buildBalancedBossSample,
@@ -47,6 +48,10 @@ test('global boss identity hard-separates difficulty and partition',()=>{
 test('home raid scope rejects every external guild',()=>{
   assert.equal(raidKnowledgeScope({guildId:homeGuildId(),encounterId:3182,difficulty:5,partition:4}).kind,'home-raid');
   assert.throws(()=>raidKnowledgeScope({guildId:homeGuildId()+1,encounterId:3182,difficulty:5,partition:4}),/home-guild only/i);
+});
+
+test('home raid persistence guard rejects external report guild before touching storage',async()=>{
+  await assert.rejects(()=>writeHomeRaidEvidence({guildId:homeGuildId(),reportGuildId:homeGuildId()+1,encounterId:3182,difficulty:5,partition:4,reportCode:'external-report'}),/cannot enter the AvoiD raid\/player knowledge ledger/i);
 });
 
 test('persisted global profile sanitization removes friendly player actor ids',()=>{
