@@ -2,7 +2,7 @@ import { corpusDelete, corpusGet, corpusList, corpusSet } from './storage.mjs';
 import { aggregateKey, corpusId, modelKey, profileKey, deepProfileKey } from './keys.mjs';
 import { createAggregate, mergeWideProfile, mergeDeepProfile } from './aggregate.mjs';
 import { compileEncounterModel } from './compiler.mjs';
-import { bossKnowledgeScope, isHomeSourceProfile, normalizeHomeOwnerIds, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
+import { bossKnowledgeScope, homeGuildId, isHomeSourceProfile, normalizeHomeOwnerIds, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 import { globalBossSamplingKey } from '../knowledge/keys.mjs';
 import { buildBalancedBossSample, buildBossSamplingManifest } from './sampling-v2.mjs';
 
@@ -55,6 +55,17 @@ async function migrateLegacyRowsToPartition(rows = [], args = {}) {
   return migrated;
 }
 
+function deriveHomeOwnerIds(rows = [], existing = []) {
+  const discovered = [...(existing || [])];
+  for (const row of rows) {
+    const profile = row?.value;
+    if (Number(profile?.guild?.id) !== homeGuildId()) continue;
+    const ownerId = Number(profile?.owner?.id);
+    if (Number.isFinite(ownerId) && ownerId > 0) discovered.push(ownerId);
+  }
+  return normalizeHomeOwnerIds(discovered);
+}
+
 async function purgeHomeSourceRows(rows = [], homeOwnerIds = []) {
   const home = rows.filter(row => row?.value && isHomeSourceProfile(row.value, homeOwnerIds));
   for (const row of home) await corpusDelete(row.key);
@@ -64,7 +75,6 @@ async function purgeHomeSourceRows(rows = [], homeOwnerIds = []) {
 export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate = null, config, purgeHomeGuild = true } = {}) {
   const scope = bossKnowledgeScope(args);
   const prefix = corpusId(args);
-  const homeOwnerIds = normalizeHomeOwnerIds(job?.homeOwnerIds || []);
   const [wideKeys, deepKeys] = await Promise.all([
     corpusList(`profiles/${prefix}/`),
     corpusList(`deep/${prefix}/`),
@@ -76,6 +86,11 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
     migrateLegacyRowsToPartition(wideRows, args),
     migrateLegacyRowsToPartition(deepRows, args),
   ]);
+  // This is what makes the already-running pre-v2 Belo'ren cache safely reusable:
+  // any persisted AvoiD guild profile teaches the recompiler its uploader owner id,
+  // then personal/un-guilded profiles by that same owner are excluded too. No WCL call.
+  const homeOwnerIds = deriveHomeOwnerIds([...wideRows, ...deepRows], job?.homeOwnerIds || []);
+  if (job) job.homeOwnerIds = homeOwnerIds;
   const wideProfiles = wideRows.map(row => row.value).filter(Boolean);
   const deepProfiles = deepRows.map(row => row.value).filter(Boolean);
 
@@ -100,6 +115,7 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
   manifest.cachedWideReports = wideProfiles.length;
   manifest.cachedDeepReports = deepProfiles.length;
   manifest.migratedLegacyPartitionProfiles = migratedWide + migratedDeep;
+  manifest.homeOwnerIdsRecoveredFromCache = homeOwnerIds.length;
 
   const aggregate = createAggregate({
     ...args,
