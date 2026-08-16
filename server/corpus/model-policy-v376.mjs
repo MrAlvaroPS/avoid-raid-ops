@@ -46,6 +46,7 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     minDeepSourcesPerOutcome: thresholds.minDeepSourcesPerOutcome,
   }) : {
     homeGuildExcluded: false,
+    homeSourceExcluded: false,
     scopeIsolation: false,
     sourceIdentityComplete: false,
     sourceReportBalance: false,
@@ -63,23 +64,24 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
   if (!samplingChecks.sourceReportBalance || !samplingChecks.sourcePullBalance) { scorePct = Math.min(scorePct, 74); caps.push('source-concentration'); }
   if (!samplingChecks.outcomeCoverage) { scorePct = Math.min(scorePct, 69); caps.push('outcome-strata-under-covered'); }
   if (!samplingChecks.deepSourceBalance || !samplingChecks.deepOutcomeCoverage) { scorePct = Math.min(scorePct, 79); caps.push('deep-sample-under-balanced'); }
-  if (Number(manifest?.homeGuildSelectedReports || 0) > 0) { scorePct = 0; caps.push('home-guild-contamination'); }
+  if (!samplingChecks.homeSourceExcluded || Number(manifest?.homeSourceSelectedReports || 0) > 0) { scorePct = 0; caps.push('home-source-contamination'); }
 
   const previousRec = model?.learning?.enrichmentRecommendation || {};
-  const samplingBlocked = !samplingChecks.sourceIdentityComplete || !samplingChecks.sourceReportBalance || !samplingChecks.sourcePullBalance || !samplingChecks.outcomeCoverage || !samplingChecks.deepOutcomeCoverage;
+  const samplingBlocked = !samplingChecks.homeSourceExcluded || !samplingChecks.sourceIdentityComplete || !samplingChecks.sourceReportBalance || !samplingChecks.sourcePullBalance || !samplingChecks.outcomeCoverage || !samplingChecks.deepOutcomeCoverage;
   const recommendation = samplingBlocked ? {
     ...previousRec,
     priority: 'high',
     mode: 'diversity-first',
     suggestedAdditionalWidePulls: Math.max(500, num(previousRec.suggestedAdditionalWidePulls)),
     suggestedAdditionalDeepPulls: Math.max(100, num(previousRec.suggestedAdditionalDeepPulls)),
-    reason: 'Canonical boss sampling is not yet balanced across trusted independent sources and progression outcomes. Add diverse guild reports before increasing confidence.',
+    reason: 'Canonical boss sampling is not yet clean and balanced across trusted independent sources and progression outcomes. AvoiD/home sources remain evaluation-only.',
   } : previousRec;
 
   const checks = {
     ...(model?.validation?.publishChecks || {}),
     samplingManifest: Boolean(manifest),
     homeGuildExcluded: Boolean(samplingChecks.homeGuildExcluded) && Number(manifest?.homeGuildSelectedReports || 0) === 0,
+    homeSourceExcluded: Boolean(samplingChecks.homeSourceExcluded) && Number(manifest?.homeSourceSelectedReports || 0) === 0,
     scopeIsolation: Boolean(samplingChecks.scopeIsolation),
     sourceIdentityComplete: Boolean(samplingChecks.sourceIdentityComplete),
     sourceReportBalance: Boolean(samplingChecks.sourceReportBalance),
@@ -97,6 +99,7 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     globalBossScope: 'encounter+difficulty+partition',
     homeGuildId: homeGuildId(),
     homeGuildParticipatesInBossTrainOrHoldout: false,
+    knownHomeUploadersParticipateInBossTrainOrHoldout: false,
     externalPlayersParticipateInHomeRaidLedger: false,
   };
   model.sampling = manifest ? {
@@ -106,8 +109,13 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     deep: manifest.deep,
     outcomePolicy: manifest.outcomePolicy,
     homeGuildId: manifest.homeGuildId,
+    homeOwnerIds: manifest.homeOwnerIds,
+    homeSourceExcluded: manifest.homeSourceExcluded,
     homeGuildExcluded: manifest.homeGuildExcluded,
+    homeOwnerExcluded: manifest.homeOwnerExcluded,
+    homeSourceSelectedReports: Number(manifest.homeSourceSelectedReports || 0),
     homeGuildSelectedReports: Number(manifest.homeGuildSelectedReports || 0),
+    homeOwnerSelectedReports: Number(manifest.homeOwnerSelectedReports || 0),
     wrongScopeExcluded: manifest.wrongScopeExcluded,
     missingSourceExcluded: manifest.missingSourceExcluded,
     cachedWideReports: manifest.cachedWideReports,
