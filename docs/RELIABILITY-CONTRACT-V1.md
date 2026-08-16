@@ -1,41 +1,40 @@
 # Iris Reliability Contract v1
 
 Status: **shadow / not yet a published roster score**  
-Model: `reliability.overall.v1`  
+Metric: `reliability.overall.v1`  
+Current scoring revision: `1.1.0`  
 Policy: `server/analysis/reliability/reliability-policy-v1.mjs`
 
 ## 1. What Reliability measures
 
-Reliability estimates how dependable a raider is **when they have an observable progression responsibility**.
+Reliability estimates **dependable execution and availability when a raider has an observable progression responsibility**.
 
-It is intended to answer:
+It answers:
 
-> When this player is present and has a responsibility that the logs can actually prove, how consistently do they execute it correctly and remain available to the raid?
+> When this player is present and the logs can prove what responsibility/opportunity they had, how consistently do they execute it correctly and remain available to the raid?
 
-Reliability is not a skill ranking, parse ranking, DPS/HPS ranking, popularity score, attendance score, or subjective officer grade.
+Reliability is **not** a skill ranking, parse ranking, DPS/HPS ranking, attendance/punctuality score, popularity score or subjective officer grade.
 
-### Explicit non-goal: parse
+### Parse/output is a separate product
 
-Damage/healing performance is deliberately outside Reliability.
+DPS, HPS, WCL parse percentile, boss DPS, weighted DPS and rankings do **not** enter Reliability.
 
-- DPS, HPS, WCL parse percentile, boss DPS, weighted DPS and rankings do **not** enter the Reliability formula.
-- Performance may be displayed alongside Reliability as context.
-- Natural correlation is allowed: a mechanically reliable player may also parse well, but one number never changes the other.
+Performance may be displayed beside Reliability because the two are naturally related in raid outcomes, but neither number modifies the other.
+
 - A 99 parse cannot compensate for repeated execution failures.
-- A low parse cannot by itself reduce Reliability.
+- A low parse cannot reduce Reliability by itself.
+- Changing only DPS/HPS/parse data must leave the Reliability score and `scoreTrace` unchanged.
 
-This is enforced in code by keeping performance fields outside the Reliability evidence ledger and scorer.
+## 2. Dimensions and role weights
 
-## 2. Scored dimensions
-
-Reliability v1 has four possible dimensions.
-
-| Dimension | Meaning | Base weight DPS | HEAL | TANK |
+| Dimension | Meaning | DPS | HEAL | TANK |
 | --- | --- | ---: | ---: | ---: |
 | Mechanics | Player-owned mechanic execution with a proven denominator | 40% | 35% | 30% |
-| Survival | Remaining alive through meaningful pre-wipe windows | 25% | 25% | 30% |
-| Defensives | Correct use of a defensive when availability and opportunity are proven | 20% | 25% | 30% |
-| Duties | Explicitly assigned/observable role duties such as an interrupt/dispelling/tank duty | 15% | 15% | 10% |
+| Survival | Remaining available through meaningful pre-wipe windows | 25% | 25% | 30% |
+| Defensives | Correct use when personal availability and danger window are proven | 20% | 25% | 30% |
+| Duties | Explicitly assigned + observable interrupts/dispels/externals/tank duties | 15% | 15% | 10% |
+
+Mechanics, Survival and Defensives are **mandatory publication dimensions**. Duties is optional because not every encounter gives every player enough provable assigned-duty opportunities.
 
 `Adaptation / repeated mistake rate` is a separate coaching signal. It does not add another score weight because that would double-charge the same mechanic failure.
 
@@ -43,42 +42,38 @@ Reliability v1 has four possible dimensions.
 
 A player can only fail something they had a proven opportunity/responsibility to execute.
 
-Every scored row must have an explicit player denominator:
+Every scored row must have an actor-scoped denominator:
 
 ```text
-actor + canonical pull + responsibility/opportunity -> success/failure
+actor + canonical pull + responsibility/opportunity + occurrence -> success/failure
 ```
 
-Raw counts such as `4 mechanic failures`, `3 interrupts` or `2 defensives used` are not Reliability metrics without their opportunity denominator.
-
-### Never infer a clean success from absence alone
-
-If the log proves a failure but cannot prove how many clean opportunities that player had, the failure remains visible evidence but is **unscored**.
-
-Example:
+Raw counts are not Reliability metrics:
 
 ```text
-3 wrong-colour exposures observed
-player-specific clean exposure opportunities unknown
-=> show 3 classified failures
-=> Mechanics score remains pending
+4 mechanic failures    != Reliability evidence with denominator
+3 interrupts           != interrupt Reliability
+2 defensive casts      != defensive Reliability
 ```
 
-This prevents severe denominator bias.
+Examples of valid forms are `4 / 47 player-owned mechanic opportunities`, `5 / 6 assigned interrupts`, or `8 / 10 confirmed-available defensive windows`.
 
-## 4. Mechanics formula
+### Absence is not automatically success
 
-Mechanic opportunities are weighted by severity:
+A clean success can only be inferred when the responsibility is proven **and the source needed to detect failure is proven complete**.
+
+If Iris observes three classified player failures but cannot prove how many clean opportunities existed:
 
 ```text
-severity 1 -> 0.40
-severity 2 -> 0.55
-severity 3 -> 0.70
-severity 4 -> 0.85
-severity 5 -> 1.00
+show: 3 classified failures
+score: Mechanics PENDING
 ```
 
-A failed opportunity is discounted by evidence confidence:
+If an event stream is truncated, absent events from that stream cannot become clean successes.
+
+## 4. Evidence confidence
+
+Evidence confidence weights **the opportunity mass itself**, so low-confidence clean rows cannot artificially inflate a score.
 
 ```text
 confirmed -> 1.00
@@ -88,193 +83,252 @@ low       -> 0.35
 unknown   -> 0.00
 ```
 
-For each player:
+A failed mechanic uses the lower defensible confidence between the opportunity and failure evidence.
+
+## 5. Mechanics formula
+
+Severity importance:
 
 ```text
-opportunityMass = sum(severityImportance)
-failureMass     = sum(severityImportance * evidenceConfidence) for failed opportunities
-successMass     = opportunityMass - failureMass
-rawSuccessRate  = successMass / opportunityMass
+severity 1 -> 0.40
+severity 2 -> 0.55
+severity 3 -> 0.70
+severity 4 -> 0.85
+severity 5 -> 1.00
 ```
 
-A raid-wide failure without a proven responsible player does not create a player mechanic failure.
+For each proven player opportunity:
 
-## 5. Survival formula
+```text
+opportunityMass += severityImportance * opportunityConfidence
 
-The denominator is **pulls attended by that player**, not guild pulls.
+if failed:
+  failureMass += severityImportance * min(opportunityConfidence, failureConfidence)
 
-Only meaningful deaths before the WCL wipe cutoff are considered.
+successMass = opportunityMass - failureMass
+rawSuccessRate = successMass / opportunityMass
+```
+
+A raid-wide failure without a proven responsible player never creates a player mechanic failure.
+
+One actor + mechanic occurrence can score at most once, regardless of how many damage ticks/event rows were emitted.
+
+## 6. Survival formula
+
+Survival denominator is **eligible pulls actually attended by the player**, never guild pull count.
+
+The source must be a complete meaningful-death population using the same wipe-cutoff semantics across all players. If that source is incomplete, Survival is PENDING rather than interpreting missing deaths as survival.
 
 Per attended pull:
 
 ```text
-no meaningful death        -> penalty 0.00
-meaningful non-first death -> penalty 0.50
-first meaningful death     -> penalty 1.00
+no meaningful pre-wipe death -> penalty 0.00
+later meaningful death       -> penalty 0.50
+first meaningful death       -> penalty 1.00
 ```
 
 Then:
 
 ```text
-opportunityMass = pulls attended
+opportunityMass = attended pulls with complete death evidence
 failureMass     = sum(per-pull incident penalty)
 successMass     = opportunityMass - failureMass
-rawSuccessRate  = successMass / opportunityMass
 ```
 
-The death does not have to be proven self-caused to exist as a Survival event. Probable mechanic causality is explanatory only and does not add a second Survival penalty.
+Survival measures raid availability, not moral blame. A probable mechanic cause can explain the incident but does not add another Survival penalty.
 
-Deaths after the wipe cutoff are excluded.
+## 7. Defensives formula
 
-## 6. Defensive formula
+A defensive opportunity is scoreable only when Iris can prove all of these:
 
-A defensive opportunity is scoreable only when all of these are proven:
+1. ability exists for the player's current class/spec/build;
+2. it was available at the danger window;
+3. the source used to reconstruct availability is complete;
+4. the danger window is observable;
+5. on-time use/non-use is observable.
 
-1. the relevant defensive existed for the player's current class/spec/build;
-2. it was available at the window;
-3. the danger window is observable;
-4. on-time use can be determined.
-
-Unknown availability is never a missed defensive.
-
-This is especially important for Healthstone/healing potion: observing no cast does not prove the consumable was available in inventory.
+Availability is tri-state:
 
 ```text
-opportunityMass = sum(dangerWeight)
-failureMass     = sum(dangerWeight * evidenceConfidence) when not used on time
+confirmed available
+confirmed unavailable
+unknown
 ```
 
-A preventable-death counterfactual may explain severity but does not add another penalty to the same opportunity.
+Only `confirmed available` enters the denominator. `unknown` is never a miss.
 
-## 7. Duty formula
+Healthstone/healing potion receive no penalty from `no cast observed` alone because that does not prove inventory availability.
 
-Duties include responsibilities where ownership is proven: assigned interrupt, dispel, external, tank assignment, etc.
+```text
+mass = dangerWeight * evidenceConfidence
+opportunityMass += mass
+if missed/late: failureMass += mass
+```
 
-A raw interrupt/dispels count is not a score.
+A preventable-death counterfactual can explain severity but does not charge the same defensive opportunity again.
 
-A duty row scores only if:
+## 8. Duties formula
+
+Duties include responsibilities whose ownership is proven: assigned interrupt, dispel, external, tank responsibility, etc.
+
+A duty scores only when:
 
 ```text
 assigned === true
 observable === true
+sourceComplete === true
 ```
 
-The score then uses weighted successful opportunities exactly like other binary execution dimensions.
+```text
+mass = importance * evidenceConfidence
+opportunityMass += mass
+if failed: failureMass += mass
+```
 
-## 8. Bayesian/shrinkage scoring
+Raw utility counts remain descriptive and cannot become Reliability by themselves.
 
-Small samples must not produce extreme scores.
+## 9. Absolute Bayesian/shrinkage scoring
 
-Each scored dimension uses a weak peer prior:
+Small samples must not produce extreme scores. Each dimension uses a weak **fixed, versioned policy prior**:
 
 ```text
 posterior =
-  (successMass + priorStrength * peerSuccessRate)
+  (successMass + priorStrength * fixedPolicySuccessRate)
   / (opportunityMass + priorStrength)
 
 componentScore = posterior * 100
 ```
 
-v1 `priorStrength = 8` equivalent opportunities.
+Scoring revision 1.1.0:
 
-Peer hierarchy:
+```text
+priorStrength = 8 equivalent opportunities
+Mechanics prior  = 90%
+Survival prior   = 92%
+Defensives prior = 86%
+Duties prior     = 90%
+```
+
+### Peer groups do not alter the score
+
+This is a hard stability rule.
+
+A raider's absolute Reliability must not change merely because somebody joins/leaves the roster or the peer population changes. Therefore same-spec/class/role peers are **comparison benchmarks only**; they never enter the scoring prior.
+
+## 10. Peer comparison
+
+Peer hierarchy within the same encounter/difficulty/partition context:
 
 1. same spec + same role, minimum 3 peers;
 2. same class + same role, minimum 3 peers;
 3. same role, minimum 5 peers;
 4. roster, minimum 10 peers;
-5. versioned policy fallback prior.
+5. labeled policy reference when no real peer sample exists.
 
-The peer source is always returned with the component. A fallback prior must never be presented as a real same-spec benchmark.
+Each component records the actual peer source, sample and delta. A policy reference is never called a real `peer median`.
 
-External WCL/corpus peers can later implement the same peer interface without changing the scoring formula.
+External corpus peers can implement the same interface later without changing the absolute scoring formula.
 
-## 9. Overall score
-
-Base weights are role-aware. Missing optional dimensions can only be renormalized after publication gates are satisfied.
+## 11. Overall score
 
 ```text
-scoredWeightCoverage = sum(base weights of scored dimensions)
+scoredWeightCoverage = sum(base role weights of scored dimensions)
 effectiveWeight(d)   = baseWeight(d) / sum(base weights of scored dimensions)
 overall               = sum(componentScore(d) * effectiveWeight(d))
 ```
 
-The engine returns an exact `scoreTrace` containing every component value, base weight, effective weight and contribution. The trace sum must equal the displayed score.
+The engine returns an exact `scoreTrace` with component value, base weight, effective weight, contribution and `why`. Its contribution sum must reconstruct the displayed score.
 
 ### Publication gates
 
-An overall Reliability number is not published unless all gates pass:
+No overall Reliability is published unless **all** gates pass:
 
-- at least 15 pulls attended;
-- at least 2 raid nights;
+- >=15 pulls attended;
+- >=2 raid nights;
 - stable cross-report player identity;
 - Mechanics scored;
 - Survival scored;
-- at least 3 scored dimensions;
-- at least 75% of role weight covered;
-- component-specific minimum samples:
-  - Mechanics: 20 weighted opportunities;
-  - Survival: 15 pulls;
-  - Defensives: 8 weighted opportunities;
-  - Duties: 8 weighted opportunities.
+- Defensives scored;
+- >=3 scored dimensions;
+- >=75% role weight coverage;
+- Mechanics >=20 weighted effective opportunities;
+- Survival >=15 attended pulls with complete source;
+- Defensives >=8 weighted effective opportunities;
+- Duties, if scored, >=8 weighted effective opportunities;
+- no data-integrity error.
 
-If gates fail, `value=null` and status is `shadow-pending`. A shadow calculation may exist for engineering diagnosis but must not be rendered as the player's Reliability.
+Until then `value=null`; engineering may expose a `shadowValue`, but the UI must not present it as the player's Reliability.
 
-## 10. Confidence is separate from score
+## 12. Confidence is independent from score
 
-`Reliability 86` and `Confidence HIGH` are independent values.
+`Reliability 86 · HIGH` means two separate things.
 
-Confidence depends on:
+Confidence depends on sample size, raid nights, effective scored opportunities, weight coverage and identity quality. It does not modify the score.
 
-- pulls attended;
-- raid nights;
-- effective scored opportunities;
-- scored weight coverage;
-- stable identity quality.
+A report-scoped actor identity caps confidence at LOW. A provisional name+realm identity caps it at MEDIUM. Strong longitudinal confidence requires canonical identity.
 
-A report-scoped identity caps confidence at LOW. A name+realm provisional identity caps it at MEDIUM. Canonical identity is required for the strongest longitudinal confidence.
+## 13. Player-vs-player comparison
 
-## 11. Comparison rules
+An overall comparison is allowed only when both profiles:
 
-Comparative statements must not compare two overall scores unless both players:
-
+- are actually published;
+- use the same Reliability model version;
+- belong to the same encounter/difficulty/partition context;
 - have at least MEDIUM confidence;
-- have the same set of scored dimensions.
+- have the same scored dimensions;
+- have no data-integrity errors.
 
-Otherwise Iris compares individual dimensions only and says why the overall comparison is unsafe.
+If those conditions fail, Iris may compare shared component evidence but must explain why an overall `A > B` conclusion is unsafe.
 
-Preferred peer display is same-spec+role. Same-class/role or role-only fallbacks must be labeled as such.
+The UI should prefer same-spec comparison, then clearly labeled same-class/role context. Same class is not treated as equivalent to same spec.
 
-## 12. Current form vs encounter vs tier
+## 14. Adaptation / repeated mistakes
 
-These are different products and must never be silently mixed.
+Adaptation answers a different question:
 
-- **Current form**: recent evidence window; trend/coaching, not a replacement for the historical score.
-- **Encounter Reliability**: one encounter+difficulty+partition.
-- **Tier Reliability**: future aggregate of published encounter profiles; do not raw-pool unlike mechanic denominators across bosses without an explicit tier contract.
+> After this raider has already failed a mechanic, how often do they repeat that mistake on later proven opportunities?
 
-v1 shadow integration is report+encounter scoped until cross-report identity/ledger persistence is wired.
+```text
+repeatedFailureRate = repeatedFailures / repeatOpportunities
+```
 
-## 13. Double-counting rules
+It is useful for coaching and current-form direction but does not multiply Mechanics or add another base-score dimension.
 
-- One mechanic occurrence can create at most one mechanic failure for the same actor/opportunity.
-- Repetition/adaptation does not multiply the base mechanic penalty.
+## 15. Scope separation
+
+Never silently mix:
+
+- **Current Form** — recent evidence, coaching/trend;
+- **Encounter Reliability** — encounter+difficulty+partition;
+- **Tier Reliability** — future aggregate under its own contract.
+
+A Tier score must not raw-pool unlike mechanic denominators across bosses without an explicit tier aggregation contract.
+
+## 16. Double-counting rules
+
+- One player+mechanic occurrence -> maximum one Mechanics opportunity/failure.
+- Repetition/adaptation does not multiply the original failure.
 - `death-linked` is explanation, not an extra penalty.
-- The same death may legitimately appear in Mechanics and Survival because those dimensions answer different questions, but no third causal penalty is added.
-- Duplicate logger reports must eventually map to the same canonical pull/opportunity before longitudinal persistence.
+- The same event may legitimately appear in Mechanics and Survival because those dimensions answer different questions; no third causal penalty is added.
+- A preventable-death defensive counterfactual does not charge the missed defensive twice.
+- Overlapping logger reports must map to the same canonical pull/opportunity before longitudinal persistence.
 
-## 14. Data-truth hard rules
+## 17. Data-truth hard rules
 
-The following can never reduce Reliability:
+These can never reduce Reliability:
 
-- unassigned raid-wide mechanic failures;
-- mechanics whose player denominator is unknown;
-- a defensive whose availability is unknown;
-- absent Healthstone/potion use without proof of availability;
+- unassigned raid-wide failures;
+- mechanics with unknown player denominator;
+- a mechanic opportunity whose assignment/outcome/failure source is not complete;
+- unknown defensive availability;
+- absent Healthstone/potion cast without availability proof;
+- a defensive row with unknown outcome;
 - post-wipe deaths;
+- an incomplete death stream interpreted as clean survival;
 - unverified corpus mechanic relations;
 - raw DPS/HPS/parse/ranking;
-- interrupt/dispels counts without assigned opportunity;
-- an encounter pull the player did not attend.
+- raw interrupt/dispels counts without assigned opportunity;
+- a pull the player did not attend;
+- another player's score or a changing peer population.
 
-These are testable invariants, not UI guidance.
+These are testable invariants, not UI suggestions.
