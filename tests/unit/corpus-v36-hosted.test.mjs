@@ -34,13 +34,20 @@ test('corpus workflow is durable and keeps side effects inside a step',async()=>
   assert.doesNotMatch(src,/candidates:/);
 });
 
-test('hosted corpus API launches Vercel Workflow instead of browser stepping',async()=>{
+test('corpus execution provider keeps Vercel Workflow hosted and local worker explicit',async()=>{
   const api=await read('../../routes/api/wcl/corpus.js');
-  assert.match(api,/from 'workflow\/api'/);
-  assert.match(api,/start\(corpusBuildWorkflow/);
-  assert.match(api,/activateCorpusExecution/);
+  const execution=await read('../../server/corpus/execution.mjs');
+  const worker=await read('../../scripts/iris-local-worker.mjs');
+  assert.match(api,/launchCorpusExecution/);
+  assert.match(api,/corpusExecutionDescriptor/);
   assert.match(api,/workflowRunId/);
-  assert.match(api,/corpusBuilder: 'vercel-workflow'/);
+  assert.match(execution,/import\('workflow\/api'\)/);
+  assert.match(execution,/corpusBuildWorkflow/);
+  assert.match(execution,/activateCorpusExecution/);
+  assert.match(execution,/vercel-workflow/);
+  assert.match(execution,/local-worker/);
+  assert.match(worker,/stepCorpusV375/);
+  assert.match(worker,/local-filesystem/);
 });
 
 test('compatibility runtime polls hosted workflow and keeps corpus panel above mechanic catalogue',async()=>{
@@ -69,7 +76,7 @@ test('Vite/Nitro Workflow integration is pinned for Vercel deployment',async()=>
   const vite=await read('../../vite.config.js');
   assert.equal(pkg.dependencies['@vercel/blob'],'2.6.1');
   assert.equal(pkg.dependencies.workflow,'5.0.0-beta.36');
-  assert.equal(pkg.dependencies.nitro,'3.0.260610-beta');
+  assert.equal(pkg.dependencies.nitro,'3.0.260610-beta.36');
   assert.equal(pkg.engines.node,'22.x');
   assert.match(vite,/nitro\(\)/);
   assert.doesNotMatch(vite,/workflow\(\)/);
