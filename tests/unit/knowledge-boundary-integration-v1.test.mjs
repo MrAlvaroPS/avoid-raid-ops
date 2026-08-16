@@ -1,0 +1,44 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const read=path=>readFile(new URL(path,import.meta.url),'utf8');
+
+test('runtime intelligence cannot consume a legacy published boss model',async()=>{
+  const engine=await read('../../server/engines/intelligence-engine.mjs');
+  const service=await read('../../server/corpus/service-v2.mjs');
+  assert.match(engine,/loadPublishedEncounterModelV2/);
+  assert.doesNotMatch(engine,/from '\.\.\/corpus\/service\.mjs'/);
+  assert.match(service,/sampling\.policyVersion !== BOSS_SAMPLING_POLICY_VERSION/);
+  assert.match(service,/homeGuildSelectedReports/);
+  assert.match(service,/selectedWrongScopeReports/);
+  assert.match(service,/selectedMissingSourceReports/);
+});
+
+test('external reports cannot produce AvoiD player Reliability or player-focus output',async()=>{
+  const query=await read('../../server/wcl/queries/telemetry.mjs');
+  const engine=await read('../../server/engines/intelligence-engine.mjs');
+  assert.match(query,/guild\{id name\}/);
+  assert.match(engine,/homeRaidEligible=reportGuildId===homeGuildId\(\)/);
+  assert.match(engine,/homeRaidEligible\?buildReliabilityShadow/);
+  assert.match(engine,/homeRaidEligible\?buildPlayerMatrix/);
+  assert.match(engine,/externalReliabilityDisabled/);
+  assert.match(engine,/disabled-external-guild/);
+});
+
+test('new global Wide and Deep profiles carry exact partition and scrub friendly actor ids',async()=>{
+  const wide=await read('../../server/corpus/wide-profile.mjs');
+  const deep=await read('../../server/corpus/deep-profile-v373.mjs');
+  const scopes=await read('../../server/knowledge/scopes.mjs');
+  assert.match(wide,/partition:Number\(partition\|\|0\)/);
+  assert.match(deep,/normalized\.partition=Number\(partition\|\|header\.partition\|\|0\)/);
+  assert.match(scopes,/Number\(profile\?\.partition\) === Number\(scope\?\.partition\)/);
+  assert.match(scopes,/const \{ friendlyPlayers, \.\.\.rest \} = fight/);
+});
+
+test('legacy cached profiles are migrated from their partition-scoped storage key without WCL',async()=>{
+  const rebuild=await read('../../server/corpus/canonical-rebuild-v2.mjs');
+  assert.match(rebuild,/partition-scoped-storage-key-v1/);
+  assert.match(rebuild,/migratedLegacyPartitionProfiles/);
+  assert.doesNotMatch(rebuild,/wclGraphql|fetchRankingPage|fetchWideProfile|fetchDeepProfile/);
+});
