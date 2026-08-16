@@ -4,6 +4,8 @@ import { selectPeerBaseline,peerBaselineQuality } from './peer-baseline-v1.mjs';
 const clamp=(v,min=0,max=1)=>Math.max(min,Math.min(max,v));
 const round=(v,d=1)=>Number.isFinite(Number(v))?Number(Number(v).toFixed(d)):null;
 const arr=v=>Array.isArray(v)?v:[];
+const confidenceRank=Object.freeze({unknown:0,low:1,medium:2,high:3});
+const confidenceMeets=(actual,minimum)=>Number(confidenceRank[String(actual||'unknown').toLowerCase()]||0)>=Number(confidenceRank[String(minimum||'unknown').toLowerCase()]||0);
 
 function confidenceFactor(value,policy=RELIABILITY_POLICY){
   const key=String(value||'unknown').toLowerCase();
@@ -124,7 +126,7 @@ function componentWhy(component,baseline){
   if(component.status!=='scored')return `${round(raw.opportunityMass||0,1)} effective opportunities observed; ${dimensionThreshold(d,RELIABILITY_POLICY)} required before ${d} can score. Absolute scoring prior: ${component.scoringPrior?.value}. Peer context: ${peer}.`;
   const delta=Number.isFinite(peerValue)?round(Number(component.value)-peerValue,1):null;
   const suffix=delta==null?`Peer context: ${peer}.`:`${delta>=0?'+':''}${delta} vs ${peer}.`;
-  if(d==='survival')return `${raw.firstDeaths||0} first meaningful deaths and ${Math.max(0,(raw.meaningfulDeaths||0)-(raw.firstDeaths||0))} later meaningful deaths across ${raw.opportunityCount||0} attended pulls. Score ${component.value}; ${suffix}`;
+  if(d==='survival')return `${raw.firstDeaths||0} first meaningful deaths and ${Math.max(0,(raw.meaningfulDeaths||0)-(raw.firstDeaths||0))} later meaningful deaths across ${raw.opportunityCount||0} attended pulls. Survival measures availability, not proven blame. Score ${component.value}; ${suffix}`;
   if(d==='mechanics')return `${raw.failures||0} failed player-owned mechanic opportunities from ${raw.opportunityCount||0} proven opportunities (${round(raw.failureMass||0,2)} weighted failure mass). Score ${component.value}; ${suffix}`;
   if(d==='defensives')return `${raw.failures||0} missed/late uses from ${raw.opportunityCount||0} confirmed-available defensive windows (${round(raw.failureMass||0,2)} weighted failure mass). Score ${component.value}; ${suffix}`;
   if(d==='duties')return `${raw.failures||0} failed assigned duties from ${raw.opportunityCount||0} proven duty opportunities. Score ${component.value}; ${suffix}`;
@@ -163,11 +165,12 @@ function publicationGate(profile,components,coverage,confidence,policy){
   if(Object.values(profile.raw||{}).some(x=>x?.massInvariantOk===false))reasons.push('weighted opportunity/failure mass invariant failed');
   if(pulls<pub.minPullsAttended)reasons.push(`pulls ${pulls}/${pub.minPullsAttended}`);
   if(nights<pub.minNights)reasons.push(`nights ${nights}/${pub.minNights}`);
+  if(!confidenceMeets(confidence.level,pub.minConfidence))reasons.push(`confidence ${confidence.level}/${pub.minConfidence} required`);
   if(profile.identity?.status==='report-scoped')reasons.push('stable cross-report player identity missing');
   for(const dim of pub.requiredDimensions)if(!scored.includes(dim))reasons.push(`${dim} dimension not scored`);
   if(scored.length<pub.minScoredDimensions)reasons.push(`scored dimensions ${scored.length}/${pub.minScoredDimensions}`);
   if(coverage<pub.minScoredWeightCoverage)reasons.push(`weight coverage ${round(100*coverage,0)}%/${round(100*pub.minScoredWeightCoverage,0)}%`);
-  return{publishable:reasons.length===0,reasons,scoredDimensions:scored,confidence:confidence.level,dataIntegrity:profile.validation};
+  return{publishable:reasons.length===0,reasons,scoredDimensions:scored,confidence:confidence.level,minConfidence:pub.minConfidence,dataIntegrity:profile.validation};
 }
 
 function explanation(profile,components,gate,trace){
@@ -177,11 +180,11 @@ function explanation(profile,components,gate,trace){
     const observed=[];
     if(profile.validation?.ok===false)observed.push(`Data integrity error: ${(profile.validation.errors||[]).join('; ')}`);
     if(profile.evidence?.mechanicUnscoredFailures?.length)observed.push(`${profile.evidence.mechanicUnscoredFailures.length} classified mechanic failures lack player-level opportunity denominators`);
-    if(profile.evidence?.survivalUnscored?.length)observed.push(`${profile.evidence.survivalUnscored.length} survival rows are unavailable because the death stream is incomplete`);
+    if(profile.evidence?.survivalUnscored?.length)observed.push(`${profile.evidence.survivalUnscored.length} survival rows are unavailable because the death stream is incomplete or completeness is unproven`);
     if(profile.evidence?.defensiveUnscored?.length)observed.push(`${profile.evidence.defensiveUnscored.length} defensive rows are not scoreable because availability/outcome is unproven`);
     return{
       headline:`${name} Reliability is pending`,
-      summary:'No overall score is published until the same evidence contract can defend the denominator, mandatory dimensions and comparison context.',
+      summary:'No overall score is published until the same evidence contract can defend the denominator, mandatory dimensions, confidence and comparison context.',
       blockers:gate.reasons,observedNotScored:observed,breakdown,
       scoredComponents:breakdown.filter(c=>c.status==='scored')
     };
@@ -252,18 +255,22 @@ export function scoreReliabilityProfiles(ledgers,{policy=RELIABILITY_POLICY}={})
   });
 }
 
-const confidenceRank={unknown:0,low:1,medium:2,high:3};
-const sameContext=(a,b)=>Number(a?.context?.encounterId)===Number(b?.context?.encounterId)
-  && Number(a?.context?.difficulty)===Number(b?.context?.difficulty)
-  && (a?.context?.partition==null||b?.context?.partition==null||Number(a.context.partition)===Number(b.context.partition));
+const contextNumber=v=>Number.isFinite(Number(v))?Number(v):null;
+const sameContext=(a,b)=>{
+  const ae=contextNumber(a?.context?.encounterId),be=contextNumber(b?.context?.encounterId);
+  const ad=contextNumber(a?.context?.difficulty),bd=contextNumber(b?.context?.difficulty);
+  if(ae==null||be==null||ad==null||bd==null)return false;
+  if(ae!==be||ad!==bd)return false;
+  const ap=contextNumber(a?.context?.partition),bp=contextNumber(b?.context?.partition);
+  return ap==null||bp==null?true:ap===bp;
+};
 
 export function compareReliabilityProfiles(a,b,{policy=RELIABILITY_POLICY}={}){
   if(!a||!b)return{status:'unavailable',reason:'Both Reliability profiles are required.'};
   const aDims=Object.values(a.components||{}).filter(x=>x.status==='scored').map(x=>x.dimension).sort();
   const bDims=Object.values(b.components||{}).filter(x=>x.status==='scored').map(x=>x.dimension).sort();
   const sameDims=JSON.stringify(aDims)===JSON.stringify(bDims);
-  const minRank=confidenceRank[policy.comparison.minimumConfidence]||2;
-  const confidenceOk=(confidenceRank[a.confidence?.level]||0)>=minRank&&(confidenceRank[b.confidence?.level]||0)>=minRank;
+  const confidenceOk=confidenceMeets(a.confidence?.level,policy.comparison.minimumConfidence)&&confidenceMeets(b.confidence?.level,policy.comparison.minimumConfidence);
   const integrityOk=a.dataIntegrity?.ok!==false&&b.dataIntegrity?.ok!==false;
   const published=a.status==='published'&&b.status==='published'&&a.value!=null&&b.value!=null;
   const versionOk=a.modelVersion===b.modelVersion;
