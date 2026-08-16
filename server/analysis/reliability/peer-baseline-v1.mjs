@@ -16,27 +16,23 @@ function sameReliabilityContext(a,b,policy){
     && sameNumberOrNull(ac.partition,bc.partition);
 }
 
-function eligiblePeers(profiles,player,dimension,predicate){
-  return (profiles||[]).filter(p=>
-    p.identity?.key!==player.identity?.key
-    && sameReliabilityContext(p,player,RELIABILITY_POLICY)
-    && predicate(p)
-    && Number.isFinite(Number(p.raw?.[dimension]?.successRate))
-  );
-}
+const componentValue=(profile,dimension)=>{
+  const value=profile?.components?.[dimension]?.value;
+  return Number.isFinite(Number(value))?Number(value):null;
+};
 
 function result(source,peers,dimension){
-  const rates=peers.map(p=>Number(p.raw[dimension].successRate)).filter(Number.isFinite);
-  return{source,successRate:median(rates),peerCount:rates.length,peerKeys:peers.map(p=>p.identity?.key).filter(Boolean)};
+  const values=peers.map(p=>componentValue(p,dimension)).filter(Number.isFinite);
+  return{source,value:median(values),peerCount:values.length,peerKeys:peers.map(p=>p.identity?.key).filter(Boolean)};
 }
 
 export function selectPeerBaseline(profiles,player,dimension,{policy=RELIABILITY_POLICY}={}){
   const cfg=policy.peerSelection,identity=player.identity||{};
-  const scopedEligible=(predicate)=> (profiles||[]).filter(p=>
+  const scopedEligible=predicate=>(profiles||[]).filter(p=>
     p.identity?.key!==player.identity?.key
     && sameReliabilityContext(p,player,policy)
     && predicate(p)
-    && Number.isFinite(Number(p.raw?.[dimension]?.successRate))
+    && componentValue(p,dimension)!=null
   );
 
   const specRole=scopedEligible(p=>same(p.identity?.spec,identity.spec)&&same(p.identity?.role,identity.role));
@@ -53,7 +49,7 @@ export function selectPeerBaseline(profiles,player,dimension,{policy=RELIABILITY
 
   return{
     source:'policy-reference',
-    successRate:Number(policy.priors.scoringSuccessRate[dimension]),
+    value:Number(policy.priors.scoringSuccessRate[dimension])*100,
     peerCount:0,
     peerKeys:[]
   };
