@@ -20,10 +20,10 @@ test('source expansion is zone/time scoped and can expand guild or personal logs
   assert.match(CORPUS_SOURCE_REPORTS_QUERY,/reports\(guildID:\$guildID,userID:\$userID,zoneID:\$zoneID/);
   assert.match(CORPUS_SOURCE_REPORTS_QUERY,/startTime:\$startTime,endTime:\$endTime/);
   const guild=sourceFromIdentity({guild:{id:42,name:'Raiders'},owner:{id:99}});
-  assert.deepEqual(guild,{type:'guild',id:42,name:'Raiders',page:1});
+  assert.deepEqual(guild,{type:'guild',id:42,name:'Raiders',ownerId:99,page:1});
   assert.equal(sourceKey(guild),'guild:42');
   const personal=sourceFromIdentity({guild:null,owner:{id:99}});
-  assert.deepEqual(personal,{type:'user',id:99,name:null,page:1});
+  assert.deepEqual(personal,{type:'user',id:99,name:null,ownerId:99,page:1});
 });
 
 test('corpus keys lock persistence to the resolved partition',()=>{
