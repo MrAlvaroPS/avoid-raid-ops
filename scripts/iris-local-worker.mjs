@@ -1,6 +1,6 @@
 import { corpusGet, corpusList, corpusStorageStatus } from '../server/corpus/storage.mjs';
 import { activateCorpusExecution } from '../server/corpus/service.mjs';
-import { stepCorpusV375 } from '../server/corpus/corpus-step-v375.mjs';
+import { stepCorpusV376 } from '../server/corpus/corpus-step-v376.mjs';
 
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const POLL_MS=Math.max(500,Number(process.env.IRIS_LOCAL_POLL_MS)||2000);
@@ -27,7 +27,7 @@ function stateLine(args,state){
   const wide=Number(state?.pullCount||0);
   const deep=Number(state?.deepPullCount||0);
   const failed=Number(state?.failedCount||0);
-  const message=String(state?.message||'').replace(/\s+/g,' ').slice(0,160);
+  const message=String(state?.message||'').replace(/\s+/g,' ').slice(0,180);
   return `[Iris ${id}] ${status} · ${phase} · wide ${wide} · deep ${deep} · failed ${failed}${message?` · ${message}`:''}`;
 }
 
@@ -56,7 +56,7 @@ async function processJob(key){
 
   let state=null;
   for(let i=0;i<BATCH_STEPS&&!stopping;i++){
-    state=await stepCorpusV375(input);
+    state=await stepCorpusV376(input);
     printChanged(args,state);
     if(!state||state.executionSuperseded||state.status!=='running')break;
   }
@@ -72,6 +72,7 @@ async function main(){
   console.log('IRIS LOCAL WORKER');
   console.log(`Storage: ${storage.localDir}`);
   console.log(`Poll: ${POLL_MS}ms · batch: ${BATCH_STEPS} steps`);
+  console.log('Knowledge: GLOBAL BOSS = encounter+difficulty+partition · HOME RAID kept separate');
   console.log('Waiting for local corpus jobs. Ctrl+C stops the worker safely; checkpoints stay on disk.');
 
   while(!stopping){
