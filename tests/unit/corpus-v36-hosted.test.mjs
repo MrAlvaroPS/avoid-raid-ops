@@ -76,7 +76,7 @@ test('Vite/Nitro Workflow integration is pinned for Vercel deployment',async()=>
   const vite=await read('../../vite.config.js');
   assert.equal(pkg.dependencies['@vercel/blob'],'2.6.1');
   assert.equal(pkg.dependencies.workflow,'5.0.0-beta.36');
-  assert.equal(pkg.dependencies.nitro,'3.0.260610-beta.36');
+  assert.equal(pkg.dependencies.nitro,'3.0.260610-beta');
   assert.equal(pkg.engines.node,'22.x');
   assert.match(vite,/nitro\(\)/);
   assert.doesNotMatch(vite,/workflow\(\)/);
