@@ -60,6 +60,15 @@ test('local enrich reuses persisted discovery before spending WCL points on know
   assert.match(execution,/if\(!hosted\)await reusePersistedLocalDiscovery/);
 });
 
+test('duplicate local improve requests reuse the active job instead of extending targets again',async()=>{
+  const api=await read('../../routes/api/wcl/corpus.js');
+  assert.match(api,/execution\.runtime === 'local'/);
+  assert.match(api,/active\.status === 'running'/);
+  assert.match(api,/active\.status === 'rate-limited'/);
+  assert.match(api,/reusedExistingJob: true/);
+  assert.match(api,/reusedExistingJob:Boolean\(launched\.reusedExistingJob\)/);
+});
+
 test('compatibility runtime polls hosted workflow and keeps corpus panel above mechanic catalogue',async()=>{
   const runtime=await read('../../deploy-preview/public/wcl-runtime.js');
   assert.match(runtime,/pollCorpus/);
