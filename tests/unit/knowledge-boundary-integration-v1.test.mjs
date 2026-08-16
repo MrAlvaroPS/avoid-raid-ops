@@ -10,7 +10,9 @@ test('runtime intelligence cannot consume a legacy published boss model',async()
   assert.match(engine,/loadPublishedEncounterModelV2/);
   assert.doesNotMatch(engine,/from '\.\.\/corpus\/service\.mjs'/);
   assert.match(service,/sampling\.policyVersion !== BOSS_SAMPLING_POLICY_VERSION/);
+  assert.match(service,/homeSourceSelectedReports/);
   assert.match(service,/homeGuildSelectedReports/);
+  assert.match(service,/homeOwnerSelectedReports/);
   assert.match(service,/selectedWrongScopeReports/);
   assert.match(service,/selectedMissingSourceReports/);
 });
@@ -19,11 +21,13 @@ test('external reports cannot produce AvoiD player Reliability or player-focus o
   const query=await read('../../server/wcl/queries/telemetry.mjs');
   const engine=await read('../../server/engines/intelligence-engine.mjs');
   assert.match(query,/guild\{id name\}/);
-  assert.match(engine,/homeRaidEligible=reportGuildId===homeGuildId\(\)/);
+  assert.match(query,/owner\{id\}/);
+  assert.match(engine,/homeRaidEligible=isHomeSourceProfile/);
+  assert.match(engine,/reportOwnerId/);
   assert.match(engine,/homeRaidEligible\?buildReliabilityShadow/);
   assert.match(engine,/homeRaidEligible\?buildPlayerMatrix/);
   assert.match(engine,/externalReliabilityDisabled/);
-  assert.match(engine,/disabled-external-guild/);
+  assert.match(engine,/disabled-external-source/);
 });
 
 test('new global Wide and Deep profiles carry exact partition and scrub friendly actor ids',async()=>{
@@ -41,4 +45,14 @@ test('legacy cached profiles are migrated from their partition-scoped storage ke
   assert.match(rebuild,/partition-scoped-storage-key-v1/);
   assert.match(rebuild,/migratedLegacyPartitionProfiles/);
   assert.doesNotMatch(rebuild,/wclGraphql|fetchRankingPage|fetchWideProfile|fetchDeepProfile/);
+});
+
+test('discovery retains home guild uploader provenance and future acquisition skips mapped home sources',async()=>{
+  const source=await read('../../server/corpus/source-expansion.mjs');
+  const step=await read('../../server/corpus/corpus-step-v376.mjs');
+  assert.match(source,/ownerId,page:1/);
+  assert.match(step,/current\.homeOwnerIds/);
+  assert.match(step,/mappedHomeSource/);
+  assert.match(step,/skipMappedHomeCandidates/);
+  assert.match(step,/before WCL profiling/);
 });
