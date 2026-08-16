@@ -68,6 +68,17 @@ async function policyModel(input) {
 }
 
 async function improveModel(input) {
+  const execution = corpusExecutionDescriptor();
+  const active = await getCorpusStatus(input);
+  if (execution.runtime === 'local' && active && (active.status === 'running' || active.status === 'rate-limited')) {
+    return {
+      status: active,
+      workflowRunId: null,
+      executionMode: 'local-worker',
+      reusedExistingJob: true,
+    };
+  }
+
   const model = await policyModel(input);
   if (!model) throw new Error('No encounter model is available to improve');
   const rec = model.learning?.enrichmentRecommendation || {};
@@ -132,7 +143,7 @@ export default defineHandler(async (event) => {
     }
     if (action === 'improve') {
       const launched = await improveModel(input);
-      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, executionMode:launched.executionMode, plan:(await policyModel(input))?.learning?.enrichmentRecommendation || null }, 202);
+      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, executionMode:launched.executionMode, reusedExistingJob:Boolean(launched.reusedExistingJob), plan:(await policyModel(input))?.learning?.enrichmentRecommendation || null }, 202);
     }
     if (action === 'targeted-deep') {
       await startTargetedDeepV373(input);
