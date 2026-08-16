@@ -1,6 +1,4 @@
 import { defineHandler } from 'nitro/h3';
-import { start } from 'workflow/api';
-import { corpusBuildWorkflow } from '../../../workflows/corpus-build.js';
 import {
   getCorpusHealth,
   getCorpusStatus,
@@ -9,11 +7,10 @@ import {
   resumeCorpus,
   resetCorpus,
   loadAnyEncounterModel,
-  activateCorpusExecution,
-  attachWorkflowRun,
   recompileCorpusModel,
 } from '../../../server/corpus/service.mjs';
 import { assertCorpusStorage, corpusGet, corpusStorageErrorInfo } from '../../../server/corpus/storage.mjs';
+import { launchCorpusExecution, corpusExecutionDescriptor } from '../../../server/corpus/execution.mjs';
 import { aggregateKey, jobKey } from '../../../server/corpus/keys.mjs';
 import { aggregateSummary } from '../../../server/corpus/aggregate.mjs';
 import { applyEncounterPolicyV375, modelDiagnosticsV375 } from '../../../server/corpus/model-policy-v375.mjs';
@@ -70,15 +67,6 @@ async function policyModel(input) {
   return model;
 }
 
-async function launchWorkflow(input) {
-  const executionToken = crypto.randomUUID();
-  const workflowInput = { ...input, executionToken, executionMode: 'vercel-workflow' };
-  let status = await activateCorpusExecution(workflowInput, executionToken);
-  const run = await start(corpusBuildWorkflow, [workflowInput]);
-  status = await attachWorkflowRun(workflowInput, executionToken, run.runId);
-  return { status, workflowRunId: run.runId };
-}
-
 async function improveModel(input) {
   const model = await policyModel(input);
   if (!model) throw new Error('No encounter model is available to improve');
@@ -90,7 +78,7 @@ async function improveModel(input) {
       addDeepReports: Number(rec.suggestedAdditionalDeepReports) || 0,
       focusAbilityIds: model.learning?.enrichmentFocusAbilityIds || [],
     });
-    return launchWorkflow({ ...input, mode:'targeted-deep' });
+    return launchCorpusExecution({ ...input, mode:'targeted-deep' });
   }
   await startCorpus({
     ...input,
@@ -98,7 +86,7 @@ async function improveModel(input) {
     addPulls:Number(rec.suggestedAdditionalWidePulls) || 500,
     addDeepPulls:Number(rec.suggestedAdditionalDeepPulls) || 100,
   });
-  return launchWorkflow({ ...input, mode:'enrich' });
+  return launchCorpusExecution({ ...input, mode:'enrich' });
 }
 
 export default defineHandler(async (event) => {
@@ -114,9 +102,7 @@ export default defineHandler(async (event) => {
         const health = await getCorpusHealth();
         return json({
           ok: true,
-          runtime: 'vercel',
-          corpusBuilder: 'vercel-workflow',
-          workflow: { enabled: true, durable: true },
+          ...corpusExecutionDescriptor(),
           ...health,
           engineVersion: ENGINE_VERSION,
           policyVersion: 'relation-provenance-v2',
@@ -141,23 +127,23 @@ export default defineHandler(async (event) => {
     if (action === 'start' || action === 'enrich') {
       const mode = action === 'enrich' ? 'enrich' : 'initial';
       await startCorpus({ ...input, mode });
-      const launched = await launchWorkflow({ ...input, mode });
-      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId }, 202);
+      const launched = await launchCorpusExecution({ ...input, mode });
+      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, executionMode:launched.executionMode }, 202);
     }
     if (action === 'improve') {
       const launched = await improveModel(input);
-      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, plan:(await policyModel(input))?.learning?.enrichmentRecommendation || null }, 202);
+      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, executionMode:launched.executionMode, plan:(await policyModel(input))?.learning?.enrichmentRecommendation || null }, 202);
     }
     if (action === 'targeted-deep') {
       await startTargetedDeepV373(input);
-      const launched = await launchWorkflow({ ...input, mode:'targeted-deep' });
-      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId }, 202);
+      const launched = await launchCorpusExecution({ ...input, mode:'targeted-deep' });
+      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, executionMode:launched.executionMode }, 202);
     }
     if (action === 'pause') return json({ ok:true, status:await decorateStatus(input, await pauseCorpus(input)) });
     if (action === 'resume') {
       await resumeCorpus(input);
-      const launched = await launchWorkflow(input);
-      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId }, 202);
+      const launched = await launchCorpusExecution(input);
+      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, executionMode:launched.executionMode }, 202);
     }
     if (action === 'recompile') {
       const status = await recompileCorpusModel(input);
