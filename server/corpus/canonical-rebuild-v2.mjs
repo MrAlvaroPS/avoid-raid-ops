@@ -2,7 +2,7 @@ import { corpusDelete, corpusGet, corpusList, corpusSet } from './storage.mjs';
 import { aggregateKey, corpusId, modelKey, profileKey, deepProfileKey } from './keys.mjs';
 import { createAggregate, mergeWideProfile, mergeDeepProfile } from './aggregate.mjs';
 import { compileEncounterModel } from './compiler.mjs';
-import { bossKnowledgeScope, isHomeGuildProfile, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
+import { bossKnowledgeScope, isHomeSourceProfile, normalizeHomeOwnerIds, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 import { globalBossSamplingKey } from '../knowledge/keys.mjs';
 import { buildBalancedBossSample, buildBossSamplingManifest } from './sampling-v2.mjs';
 
@@ -55,8 +55,8 @@ async function migrateLegacyRowsToPartition(rows = [], args = {}) {
   return migrated;
 }
 
-async function purgeHomeGuildRows(rows = []) {
-  const home = rows.filter(row => row?.value && isHomeGuildProfile(row.value));
+async function purgeHomeSourceRows(rows = [], homeOwnerIds = []) {
+  const home = rows.filter(row => row?.value && isHomeSourceProfile(row.value, homeOwnerIds));
   for (const row of home) await corpusDelete(row.key);
   return home.length;
 }
@@ -64,6 +64,7 @@ async function purgeHomeGuildRows(rows = []) {
 export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate = null, config, purgeHomeGuild = true } = {}) {
   const scope = bossKnowledgeScope(args);
   const prefix = corpusId(args);
+  const homeOwnerIds = normalizeHomeOwnerIds(job?.homeOwnerIds || []);
   const [wideKeys, deepKeys] = await Promise.all([
     corpusList(`profiles/${prefix}/`),
     corpusList(`deep/${prefix}/`),
@@ -82,6 +83,7 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
     scope,
     targetPulls: Number(job?.targetPulls) || Number.POSITIVE_INFINITY,
     mode: 'wide',
+    homeOwnerIds,
   });
   const selectedWideCodes = new Set(wideSample.selectedCodes);
   const deepEligible = deepProfiles.filter(profile => selectedWideCodes.has(String(profile?.code || '')));
@@ -89,6 +91,7 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
     scope,
     targetPulls: Number(job?.deepTargetPulls) || Number.POSITIVE_INFINITY,
     mode: 'deep',
+    homeOwnerIds,
   });
 
   const manifest = buildBossSamplingManifest({ scope, wideSample, deepSample });
@@ -115,17 +118,20 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
     version: manifest.contractVersion,
     scope: manifest.scope,
     homeGuildId: manifest.homeGuildId,
+    homeOwnerIds: manifest.homeOwnerIds,
     homeGuildParticipatesInBossModel: false,
+    knownHomeUploadersParticipateInBossModel: false,
     playerKnowledgeScope: 'home-raid-only',
   };
   model.sampling = manifest;
 
   let purgedHomeGuildProfiles = 0;
   if (purgeHomeGuild) {
-    purgedHomeGuildProfiles += await purgeHomeGuildRows(wideRows);
-    purgedHomeGuildProfiles += await purgeHomeGuildRows(deepRows);
+    purgedHomeGuildProfiles += await purgeHomeSourceRows(wideRows, homeOwnerIds);
+    purgedHomeGuildProfiles += await purgeHomeSourceRows(deepRows, homeOwnerIds);
   }
   manifest.purgedHomeGuildProfiles = purgedHomeGuildProfiles;
+  manifest.purgedHomeSourceProfiles = purgedHomeGuildProfiles;
 
   return {
     aggregate,
