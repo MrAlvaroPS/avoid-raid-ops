@@ -83,23 +83,35 @@ function dimensionThreshold(dimension,policy){
   return Infinity;
 }
 
+function componentWhy(dimension,raw,baseline,{pending=false,min=null,value=null,delta=null}={}){
+  const peer=`${baseline?.source||'unknown'}${Number.isFinite(Number(baseline?.successRate))?` ${round(Number(baseline.successRate)*100,1)}%`:''}`;
+  if(pending)return `${round(raw?.opportunityMass||0,1)} effective opportunities observed; ${min} required before ${dimension} can score. Peer context: ${peer}.`;
+  if(dimension==='survival')return `${raw.firstDeaths||0} first meaningful deaths and ${Math.max(0,(raw.meaningfulDeaths||0)-(raw.firstDeaths||0))} later meaningful deaths across ${raw.opportunityCount||0} attended pulls. Score ${value}; ${delta>=0?'+':''}${delta} vs ${peer}.`;
+  if(dimension==='mechanics')return `${raw.failures||0} failed player-owned mechanic opportunities from ${raw.opportunityCount||0} proven opportunities (${round(raw.failureMass||0,2)} weighted failure mass). Score ${value}; ${delta>=0?'+':''}${delta} vs ${peer}.`;
+  if(dimension==='defensives')return `${raw.failures||0} missed/late uses from ${raw.opportunityCount||0} confirmed-available defensive windows (${round(raw.failureMass||0,2)} weighted failure mass). Score ${value}; ${delta>=0?'+':''}${delta} vs ${peer}.`;
+  if(dimension==='duties')return `${raw.failures||0} failed assigned duties from ${raw.opportunityCount||0} proven duty opportunities. Score ${value}; ${delta>=0?'+':''}${delta} vs ${peer}.`;
+  return `${dimension} score ${value}; ${delta>=0?'+':''}${delta} vs ${peer}.`;
+}
+
 function finalizeDimension(raw,baseline,dimension,policy){
   const min=dimensionThreshold(dimension,policy),observed=Number(raw?.opportunityMass)||0;
   if(observed<min){
     return{
       id:RELIABILITY_METRIC_IDS[dimension],dimension,status:'pending',value:null,
       reason:`${round(observed,1)} effective opportunities; ${min} required.`,sample:raw,peer:baseline,
-      peerQuality:peerBaselineQuality(baseline)
+      peerQuality:peerBaselineQuality(baseline),why:componentWhy(dimension,raw,baseline,{pending:true,min})
     };
   }
   const priorStrength=Number(policy.priors.equivalentOpportunityStrength)||0;
   const priorRate=clamp(Number(baseline?.successRate));
   const posterior=(Number(raw.successMass)+priorStrength*priorRate)/(observed+priorStrength);
+  const value=round(100*clamp(posterior),1),delta=round(100*(posterior-priorRate),1);
   return{
-    id:RELIABILITY_METRIC_IDS[dimension],dimension,status:'scored',value:round(100*clamp(posterior),1),
+    id:RELIABILITY_METRIC_IDS[dimension],dimension,status:'scored',value,
     rawValue:round(100*Number(raw.successRate),1),sample:raw,
     peer:{...baseline,value:round(100*priorRate,1)},peerQuality:peerBaselineQuality(baseline),
-    deltaVsPeer:round(100*(posterior-priorRate),1),
+    deltaVsPeer:delta,
+    why:componentWhy(dimension,raw,baseline,{value,delta}),
     formula:'posterior=(successMass + priorStrength*peerSuccessRate)/(opportunityMass + priorStrength)'
   };
 }
@@ -131,7 +143,7 @@ function publicationGate(profile,components,coverage,confidence,policy){
 }
 
 function explanation(profile,components,gate,trace){
-  const name=profile.identity?.name||'Player';
+  const name=profile.identity?.name||'Player',breakdown=Object.values(components).map(c=>({dimension:c.dimension,status:c.status,value:c.value,why:c.why,peerSource:c.peer?.source||null,deltaVsPeer:c.deltaVsPeer??null}));
   if(!gate.publishable){
     const observed=[];
     if(profile.validation?.ok===false)observed.push(`Data integrity error: ${(profile.validation.errors||[]).join('; ')}`);
@@ -140,9 +152,8 @@ function explanation(profile,components,gate,trace){
     return{
       headline:`${name} Reliability is pending`,
       summary:`No overall score is published until the same evidence contract can defend the denominator and comparison context.`,
-      blockers:gate.reasons,
-      observedNotScored:observed,
-      scoredComponents:Object.values(components).filter(c=>c.status==='scored').map(c=>({dimension:c.dimension,value:c.value,deltaVsPeer:c.deltaVsPeer}))
+      blockers:gate.reasons,observedNotScored:observed,breakdown,
+      scoredComponents:breakdown.filter(c=>c.status==='scored')
     };
   }
   const scored=Object.values(components).filter(c=>c.status==='scored').sort((a,b)=>a.value-b.value);
@@ -152,7 +163,7 @@ function explanation(profile,components,gate,trace){
     summary:`The score is the exact weighted sum of scored execution dimensions; parse/output is excluded.`,
     strongest:highest?`${highest.dimension} ${highest.value} (${highest.deltaVsPeer>=0?'+':''}${highest.deltaVsPeer} vs peer baseline)`:null,
     primaryDrag:lowest?`${lowest.dimension} ${lowest.value} (${lowest.deltaVsPeer>=0?'+':''}${lowest.deltaVsPeer} vs peer baseline)`:null,
-    blockers:[]
+    blockers:[],breakdown
   };
 }
 
@@ -170,7 +181,7 @@ export function scoreReliabilityProfiles(ledgers,{policy=RELIABILITY_POLICY}={})
     const coverage=Object.entries(weights).reduce((s,[d,w])=>s+(components[d]?.status==='scored'?Number(w):0),0);
     const traceRows=scored.map(c=>{
       const normalizedWeight=scoredBaseWeight>0?Number(weights[c.dimension]||0)/scoredBaseWeight:0;
-      return{dimension:c.dimension,componentValue:c.value,baseWeight:Number(weights[c.dimension]||0),effectiveWeight:round(normalizedWeight,4),contribution:round(c.value*normalizedWeight,3)};
+      return{dimension:c.dimension,componentValue:c.value,baseWeight:Number(weights[c.dimension]||0),effectiveWeight:round(normalizedWeight,4),contribution:round(c.value*normalizedWeight,3),why:c.why};
     });
     const shadowValue=traceRows.length?round(traceRows.reduce((s,r)=>s+Number(r.contribution||0),0),1):null;
     const confidence=confidenceForProfile(profile,components,coverage,policy);
@@ -214,7 +225,8 @@ export function compareReliabilityProfiles(a,b,{policy=RELIABILITY_POLICY}={}){
   const minRank=confidenceRank[policy.comparison.minimumConfidence]||2;
   const confidenceOk=(confidenceRank[a.confidence?.level]||0)>=minRank&&(confidenceRank[b.confidence?.level]||0)>=minRank;
   const integrityOk=a.dataIntegrity?.ok!==false&&b.dataIntegrity?.ok!==false;
-  const comparable=integrityOk&&(!policy.comparison.requireSameScoredDimensions||sameDims)&&confidenceOk;
+  const published=a.status==='published'&&b.status==='published'&&a.value!=null&&b.value!=null;
+  const comparable=published&&integrityOk&&(!policy.comparison.requireSameScoredDimensions||sameDims)&&confidenceOk;
   const dimensions={};
   for(const d of [...new Set([...aDims,...bDims])]){
     const av=a.components?.[d]?.value,bv=b.components?.[d]?.value;
@@ -223,10 +235,10 @@ export function compareReliabilityProfiles(a,b,{policy=RELIABILITY_POLICY}={}){
   return{
     status:comparable?'comparable':'context-mismatch',
     comparable,
-    reason:comparable?null:!integrityOk?'At least one profile has a Reliability data-integrity error.':!sameDims?'Players do not have the same scored Reliability dimensions.':'Both players need at least medium confidence for overall comparison.',
-    a:{key:a.identity?.key,name:a.identity?.name,value:a.value,confidence:a.confidence?.level},
-    b:{key:b.identity?.key,name:b.identity?.name,value:b.value,confidence:b.confidence?.level},
-    overallDelta:comparable&&a.value!=null&&b.value!=null?round(Number(a.value)-Number(b.value),1):null,
+    reason:comparable?null:!published?'Both players need a published Reliability score before overall comparison.':!integrityOk?'At least one profile has a Reliability data-integrity error.':!sameDims?'Players do not have the same scored Reliability dimensions.':'Both players need at least medium confidence for overall comparison.',
+    a:{key:a.identity?.key,name:a.identity?.name,value:a.value,confidence:a.confidence?.level,status:a.status},
+    b:{key:b.identity?.key,name:b.identity?.name,value:b.value,confidence:b.confidence?.level,status:b.status},
+    overallDelta:comparable?round(Number(a.value)-Number(b.value),1):null,
     dimensions
   };
 }
