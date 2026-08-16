@@ -117,7 +117,7 @@ One actor + mechanic occurrence can score at most once, regardless of how many d
 
 Survival denominator is **eligible pulls actually attended by the player**, never guild pull count.
 
-The source must be a complete meaningful-death population using the same wipe-cutoff semantics across all players. If that source is incomplete, Survival is PENDING rather than interpreting missing deaths as survival.
+The source must be a complete meaningful-death population using the same wipe-cutoff semantics across all players. If that source is incomplete or completeness is unproven, Survival is PENDING rather than interpreting missing deaths as survival.
 
 Per attended pull:
 
@@ -135,7 +135,7 @@ failureMass     = sum(per-pull incident penalty)
 successMass     = opportunityMass - failureMass
 ```
 
-Survival measures raid availability, not moral blame. A probable mechanic cause can explain the incident but does not add another Survival penalty.
+Survival measures **raid availability, not proven blame**. A probable mechanic cause can explain the incident but does not add another Survival penalty.
 
 ## 7. Defensives formula
 
@@ -245,6 +245,7 @@ No overall Reliability is published unless **all** gates pass:
 
 - >=15 pulls attended;
 - >=2 raid nights;
+- confidence >= **MEDIUM**;
 - stable cross-report player identity;
 - Mechanics scored;
 - Survival scored;
@@ -263,7 +264,7 @@ Until then `value=null`; engineering may expose a `shadowValue`, but the UI must
 
 `Reliability 86 · HIGH` means two separate things.
 
-Confidence depends on sample size, raid nights, effective scored opportunities, weight coverage and identity quality. It does not modify the score.
+Confidence depends on sample size, raid nights, effective scored opportunities, weight coverage and identity quality. It does not modify the score itself; it only controls how confidently the score can be published/compared.
 
 A report-scoped actor identity caps confidence at LOW. A provisional name+realm identity caps it at MEDIUM. Strong longitudinal confidence requires canonical identity.
 
@@ -324,7 +325,7 @@ These can never reduce Reliability:
 - absent Healthstone/potion cast without availability proof;
 - a defensive row with unknown outcome;
 - post-wipe deaths;
-- an incomplete death stream interpreted as clean survival;
+- an incomplete/unverified death stream interpreted as clean survival;
 - unverified corpus mechanic relations;
 - raw DPS/HPS/parse/ranking;
 - raw interrupt/dispels counts without assigned opportunity;
