@@ -7,7 +7,12 @@ const finitePositive = value => {
 };
 
 export function homeGuildId() {
-  return finitePositive(process.env.AVOID_HOME_GUILD_ID) || DEFAULT_HOME_GUILD_ID;
+  // AVOID_HOME_GUILD_ID is the explicit knowledge-boundary override. WCL_GUILD_ID is
+  // the established runtime guild setting, so use it as the compatibility fallback
+  // instead of allowing report analysis and knowledge isolation to drift apart.
+  return finitePositive(process.env.AVOID_HOME_GUILD_ID)
+    || finitePositive(process.env.WCL_GUILD_ID)
+    || DEFAULT_HOME_GUILD_ID;
 }
 
 export function bossKnowledgeScope({ encounterId, difficulty = 5, partition = 0 } = {}) {
