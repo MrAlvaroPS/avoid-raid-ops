@@ -5,7 +5,8 @@ import { selectEncounter } from '../wcl/normalization/fights.mjs';
 import { paginatorEvents,eventTargetId,eventAbilityId,eventSourceId } from '../wcl/normalization/events.mjs';
 import { getEncounterRulePack } from '../rule-packs/encounters/registry.mjs';
 import { filtersForPack } from '../rule-packs/encounters/filters.mjs';
-import { loadPublishedEncounterModel } from '../corpus/service.mjs';
+import { loadPublishedEncounterModelV2 } from '../corpus/service-v2.mjs';
+import { homeGuildId } from '../knowledge/scopes.mjs';
 import { analyzeEncounterMechanics } from '../analysis/mechanics/encounter-rule-engine.mjs';
 import { buildDeathChains,findCurrentBlocker } from '../analysis/root-cause/death-chains.mjs';
 import { buildReliabilityEvidenceLedger } from '../analysis/reliability/evidence-ledger-v1.mjs';
@@ -112,7 +113,7 @@ function buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight
   return{
     modelVersion:RELIABILITY_MODEL_VERSION,
     status:'shadow',
-    scope:'report-encounter',
+    scope:'home-raid-report-encounter',
     parseIndependent:true,
     profiles,
     summary:{
@@ -128,16 +129,30 @@ function buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight
   };
 }
 
+function externalReliabilityDisabled(){
+  return{
+    modelVersion:RELIABILITY_MODEL_VERSION,
+    status:'not-applicable',
+    scope:'external-report',
+    parseIndependent:true,
+    profiles:[],
+    summary:{players:0,published:0,pending:0,mechanicFailuresObserved:0,playerMechanicOpportunities:0,confirmedDefensiveOpportunities:0,provenDutyOpportunities:0},
+    publicationPolicy:'Player/Reliability knowledge is home-guild-only. External raid players are never admitted to the AvoiD player model.'
+  };
+}
+
 export async function getEncounterIntelligence({reportCode,encounterId}){
   const meta=await wclGraphql(ENCOUNTER_META_QUERY,{code:reportCode});const report=meta?.reportData?.report;if(!report)return null;
+  const reportGuildId=Number(report?.guild?.id)||null;
+  const homeRaidEligible=reportGuildId===homeGuildId();
   const selected=selectEncounter(report.fights,encounterId);const rawClosed=selected.filter(f=>!f.inProgress);const initialSplit=splitAnalyticalPulls(rawClosed);const closed=initialSplit.eligible;const encounter=closed.at(-1)||rawClosed.at(-1)||selected.at(-1);
   if(!encounter)return{generatedAt:Date.now(),engineVersion:'3.8.0',status:'no-encounter'};
-  if(!closed.length)return{generatedAt:Date.now(),engineVersion:'3.8.0',status:'no-eligible-pulls',encounter:{id:encounter.encounterID,name:encounter.name,pulls:0,rawPulls:rawClosed.length},analysisPopulation:{rawPulls:rawClosed.length,eligiblePulls:0,excludedPulls:initialSplit.excluded,eligibleFightIds:[],policy:'called-wipe/reset pulls remain in WCL history but are excluded from product analytics'},dataTruth:{policy:'real-derived-or-explicit-pending',pullEligibility:'first-class called-wipe/reset exclusion',reliability:'shadow-v1'}};
+  if(!closed.length)return{generatedAt:Date.now(),engineVersion:'3.8.0',status:'no-eligible-pulls',encounter:{id:encounter.encounterID,name:encounter.name,pulls:0,rawPulls:rawClosed.length},raidKnowledge:{scope:homeRaidEligible?'home-raid':'external-evaluation-only',homeRaidEligible,reportGuildId},analysisPopulation:{rawPulls:rawClosed.length,eligiblePulls:0,excludedPulls:initialSplit.excluded,eligibleFightIds:[],policy:'called-wipe/reset pulls remain in WCL history but are excluded from product analytics'},dataTruth:{policy:'real-derived-or-explicit-pending',pullEligibility:'first-class called-wipe/reset exclusion',reliability:homeRaidEligible?'shadow-v1':'disabled-external-guild'}};
 
-  const generatedModel=await loadPublishedEncounterModel({encounterId:encounter.encounterID,difficulty:encounter.difficulty||5,partition:0}).catch(()=>null);
+  const generatedModel=await loadPublishedEncounterModelV2({encounterId:encounter.encounterID,difficulty:encounter.difficulty||5,partition:0}).catch(()=>null);
   const pack=generatedModel?.pack||getEncounterRulePack(encounter.encounterID);
-  const packSource=generatedModel?'generated-wcl-corpus':pack?'manual-fallback':null;
-  if(!pack)return{generatedAt:Date.now(),engineVersion:'3.8.0',encounter:{id:encounter.encounterID,name:encounter.name,pulls:closed.length,rawPulls:rawClosed.length},analysisPopulation:{rawPulls:rawClosed.length,eligiblePulls:closed.length,excludedPulls:initialSplit.excluded},status:'no-rule-pack',corpusModel:{status:'missing',action:'Build the encounter corpus from the Mechanics page.'},dataTruth:{policy:'real-derived-or-explicit-pending',reliability:'shadow-v1-no-encounter-denominators'}};
+  const packSource=generatedModel?'generated-wcl-corpus-sampling-v2':pack?'manual-fallback':null;
+  if(!pack)return{generatedAt:Date.now(),engineVersion:'3.8.0',encounter:{id:encounter.encounterID,name:encounter.name,pulls:closed.length,rawPulls:rawClosed.length},raidKnowledge:{scope:homeRaidEligible?'home-raid':'external-evaluation-only',homeRaidEligible,reportGuildId},analysisPopulation:{rawPulls:rawClosed.length,eligiblePulls:closed.length,excludedPulls:initialSplit.excluded},status:'no-rule-pack',corpusModel:{status:'missing',action:'Build the encounter corpus from the Mechanics page.'},dataTruth:{policy:'real-derived-or-explicit-pending',reliability:homeRaidEligible?'shadow-v1-no-encounter-denominators':'disabled-external-guild'}};
 
   const filters=filtersForPack(pack);const fightIds=closed.map(f=>Number(f.id));
   const raw=await wclGraphql(ENCOUNTER_INTELLIGENCE_QUERY,{code:reportCode,all:fightIds,damageFilter:idsFilter(filters.damage),castFilter:idsFilter(filters.casts),enemyBuffFilter:idsFilter(filters.enemyBuffs),featherFilter:idsFilter(filters.friendlyAuras)});
@@ -155,8 +170,8 @@ export async function getEncounterIntelligence({reportCode,encounterId}){
   const blocker=findCurrentBlocker({mechanicsAnalysis:{...mechanicsRaw,mechanics},deathChains,recentFightIds});
 
   const telemetry=await getTelemetry({reportCode,encounterId:encounter.encounterID});
-  const reliability=buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight,reportCode,encounter});
-  const playerMatrix=buildPlayerMatrix({failures:mechanicsRaw.failures,deathChains,actors,recentFightIds});
+  const reliability=homeRaidEligible?buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight,reportCode,encounter}):externalReliabilityDisabled();
+  const playerMatrix=homeRaidEligible?buildPlayerMatrix({failures:mechanicsRaw.failures,deathChains,actors,recentFightIds}):[];
   const reliabilityByActor=new Map((reliability.profiles||[]).map(p=>[Number(p.identity?.actorId),p]));
   for(const row of playerMatrix){const rel=reliabilityByActor.get(Number(row.actorId));if(rel)row.reliability={status:rel.status,value:rel.value,confidence:rel.confidence?.level||'unknown',explanation:rel.explanation};}
   const calls=buildNextPullCalls({blocker,mechanics,playerMatrix,pullIntelligence:telemetry?.pullIntelligence});
@@ -166,9 +181,10 @@ export async function getEncounterIntelligence({reportCode,encounterId}){
   return{
     generatedAt:Date.now(),engineVersion:'3.8.0',status:'ready',
     encounter:{id:encounter.encounterID,name:encounter.name,pulls:closed.length,rawPulls:rawClosed.length},
+    raidKnowledge:{scope:homeRaidEligible?'home-raid':'external-evaluation-only',homeRaidEligible,reportGuildId,homeGuildId:homeGuildId()},
     analysisPopulation:{rawPulls:rawClosed.length,eligiblePulls:closed.length,excludedPulls:analyticalExcluded,eligibleFightIds:fightIds,policy:'called-wipe/reset pulls remain in WCL history but are excluded from product analytics'},
     rulePack:{slug:pack.slug,version:pack.version,mechanics:pack.mechanics.length,source:packSource},
-    corpusModel:generatedModel?{status:generatedModel.status,generatedAt:generatedModel.generatedAt,corpus:generatedModel.corpus,validation:generatedModel.validation}:{status:'manual-fallback'},
+    corpusModel:generatedModel?{status:generatedModel.status,generatedAt:generatedModel.generatedAt,corpus:generatedModel.corpus,validation:generatedModel.validation,sampling:generatedModel.sampling,knowledgeContract:generatedModel.knowledgeContract}:{status:'manual-fallback'},
     mechanics:{...mechanicsRaw,mechanics,summary:{...mechanicsRaw.summary,linkedDeaths:(deathChains.chains||[]).filter(c=>c.probableCause).length}},
     deathChains,blocker,playerMatrix,nextPullCalls:calls,latestPull,reliability,
     dataCompleteness:{
@@ -180,11 +196,11 @@ export async function getEncounterIntelligence({reportCode,encounterId}){
       meaningfulDeaths:{events:meaningfulDeathEvents.length,truncated:Boolean(r.meaningfulDeaths?.nextPageTimestamp)},
       reliability:{modelVersion:RELIABILITY_MODEL_VERSION,profiles:reliability.summary.players,published:reliability.summary.published,playerMechanicOpportunities:reliability.summary.playerMechanicOpportunities,confirmedDefensiveOpportunities:reliability.summary.confirmedDefensiveOpportunities,provenDutyOpportunities:reliability.summary.provenDutyOpportunities}
     },
-    dataTruth:{policy:'real-derived-or-explicit-pending',mechanicFailures:packSource==='generated-wcl-corpus'?'validated-generated-rule-derived-WCL-evidence':'manual-fallback-rule-derived-WCL-evidence',deathCausality:'probable-temporal-association',defensiveAvailability:'pending',reliability:'shadow-v1-parse-independent-publication-gated',pullEligibility:'first-class called-wipe/reset exclusion',encounterKnowledge:packSource},
+    dataTruth:{policy:'real-derived-or-explicit-pending',mechanicFailures:packSource==='generated-wcl-corpus-sampling-v2'?'validated-generated-rule-derived-WCL-evidence':'manual-fallback-rule-derived-WCL-evidence',deathCausality:'probable-temporal-association',defensiveAvailability:'pending',reliability:homeRaidEligible?'shadow-v1-parse-independent-publication-gated':'disabled-external-guild',pullEligibility:'first-class called-wipe/reset exclusion',encounterKnowledge:packSource},
     warnings:[
       'Death cause is an evidence-ranked temporal association, not proof of causation.',
-      packSource==='generated-wcl-corpus'?'Encounter semantics are auto-generated from a persisted WCL training/holdout corpus.':'Generated encounter model not published yet; using the curated fallback pack for this encounter.',
-      'Reliability v1 is running in shadow mode. Player mechanic failures remain unscored until clean player-opportunity denominators are proven; defensive availability and assigned-duty denominators are also publication gates.',
+      packSource==='generated-wcl-corpus-sampling-v2'?'Encounter semantics are auto-generated from the balanced public multi-guild WCL corpus.':'Generated encounter model not published under the sampling-v2 contract yet; using the curated fallback pack for this encounter.',
+      homeRaidEligible?'Reliability v1 is running in shadow mode. Player mechanic failures remain unscored until clean player-opportunity denominators are proven; defensive availability and assigned-duty denominators are also publication gates.':'External raid detected: boss execution may be evaluated, but external player identities are excluded from AvoiD player/Reliability knowledge.',
       'DPS/HPS/parse are explicitly excluded from the Reliability formula.'
     ]
   };
