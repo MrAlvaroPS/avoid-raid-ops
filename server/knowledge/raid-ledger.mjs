@@ -1,6 +1,6 @@
 import { corpusGet, corpusSet } from '../corpus/storage.mjs';
 import { homeRaidLedgerKey } from './keys.mjs';
-import { homeGuildId, raidKnowledgeScope } from './scopes.mjs';
+import { homeGuildId, isHomeSourceProfile, raidKnowledgeScope } from './scopes.mjs';
 
 const now=()=>Date.now();
 
@@ -20,6 +20,7 @@ function cleanPlayer(player={}){
 export async function writeHomeRaidEvidence({
   guildId=homeGuildId(),
   reportGuildId=guildId,
+  reportOwnerId=null,
   encounterId,
   difficulty=5,
   partition,
@@ -29,7 +30,11 @@ export async function writeHomeRaidEvidence({
   raid=null,
 }={}){
   const scope=raidKnowledgeScope({guildId,encounterId,difficulty,partition});
-  if(Number(reportGuildId)!==homeGuildId())throw new Error(`External guild ${reportGuildId} cannot enter the AvoiD raid/player knowledge ledger`);
+  const reportIdentity={
+    guild:Number(reportGuildId)>0?{id:Number(reportGuildId)}:null,
+    owner:Number(reportOwnerId)>0?{id:Number(reportOwnerId)}:null,
+  };
+  if(!isHomeSourceProfile(reportIdentity))throw new Error(`External report source cannot enter the AvoiD raid/player knowledge ledger`);
   if(!reportCode)throw new Error('reportCode is required for home raid evidence');
   const key=homeRaidLedgerKey(scope);
   const current=await corpusGet(key)||{
@@ -44,7 +49,8 @@ export async function writeHomeRaidEvidence({
   };
   current.reports[String(reportCode)]={
     reportCode:String(reportCode),
-    reportGuildId:Number(reportGuildId),
+    reportGuildId:Number(reportGuildId)>0?Number(reportGuildId):null,
+    reportOwnerId:Number(reportOwnerId)>0?Number(reportOwnerId):null,
     reportStartTime:Number.isFinite(Number(reportStartTime))?Number(reportStartTime):null,
     players:(players||[]).map(cleanPlayer),
     raid,
