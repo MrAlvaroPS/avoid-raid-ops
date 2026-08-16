@@ -25,4 +25,13 @@ jobs:
       - name: Syntax and Vercel contract
         run: npm run verify:vercel
       - name: Unit tests
-        run: npm test
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee test-output.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            excerpt=$(grep -E 'not ok|failureType:|error:|AssertionError|ERR_[A-Z_]+' test-output.log | tail -n 24 | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')
+            echo "::error title=Unit tests failed::$excerpt"
+          fi
+          exit "$code"
