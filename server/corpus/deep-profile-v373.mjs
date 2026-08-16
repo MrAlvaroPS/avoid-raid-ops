@@ -54,14 +54,16 @@ export function attachOriginEvidenceV373(profile,data){
   return profile;
 }
 
-export async function fetchDeepProfileV373({code,encounterId,difficulty=5}){
-  const header=await fetchReportHeader({code,encounterId,difficulty});
+export async function fetchDeepProfileV373({code,encounterId,difficulty=5,partition=0}){
+  const header=await fetchReportHeader({code,encounterId,difficulty,partition});
   if(!header||!header.fights?.length)return null;
   if(isHomeGuildId(header?.guild?.id))return null;
   const fightIDs=header.fights.map(f=>Number(f.id)).filter(Number.isFinite);if(!fightIDs.length)return null;
   const data=await wclGraphql(CORPUS_DEEP_EVENTS_QUERY,{code:String(code),fightIDs});
   // Provenance needs transient friendly actor ids; sanitization happens only after
   // origin classification so no player-id list survives in the persisted boss profile.
-  const withOrigin=attachOriginEvidenceV373(normalizeDeepProfile(header,data,{encounterId,difficulty}),data);
+  const normalized=normalizeDeepProfile(header,data,{encounterId,difficulty});
+  if(normalized)normalized.partition=Number(partition||header.partition||0);
+  const withOrigin=attachOriginEvidenceV373(normalized,data);
   return sanitizeGlobalBossProfile(withOrigin);
 }
