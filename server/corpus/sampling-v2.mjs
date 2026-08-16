@@ -227,8 +227,12 @@ export function buildBalancedBossSample(profiles = [], {
 }
 
 export function buildBossSamplingManifest({ scope, wideSample, deepSample, createdAt = Date.now() } = {}) {
-  const wide = wideSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {} };
-  const deep = deepSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {} };
+  const wide = wideSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {}, selected:[] };
+  const deep = deepSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {}, selected:[] };
+  const selected = [...(wide.selected || []), ...(deep.selected || [])];
+  const homeGuildSelectedReports = selected.filter(isHomeGuildProfile).length;
+  const selectedWrongScopeReports = selected.filter(profile => !profileMatchesBossScope(profile, scope)).length;
+  const selectedMissingSourceReports = selected.filter(profile => !bossProfileSourceKey(profile)).length;
   return {
     schemaVersion: 1,
     policyVersion: BOSS_SAMPLING_POLICY_VERSION,
@@ -236,11 +240,11 @@ export function buildBossSamplingManifest({ scope, wideSample, deepSample, creat
     scope: { kind: 'global-boss', encounterId: Number(scope?.encounterId), difficulty: Number(scope?.difficulty), partition: Number(scope?.partition) },
     homeGuildId: homeGuildId(),
     homeGuildExcluded: Number(wide?.excluded?.homeGuild || 0) + Number(deep?.excluded?.homeGuild || 0),
-    homeGuildSelectedReports: 0,
+    homeGuildSelectedReports,
     wrongScopeExcluded: Number(wide?.excluded?.wrongScope || 0) + Number(deep?.excluded?.wrongScope || 0),
-    selectedWrongScopeReports: 0,
+    selectedWrongScopeReports,
     missingSourceExcluded: Number(wide?.excluded?.missingSource || 0) + Number(deep?.excluded?.missingSource || 0),
-    selectedMissingSourceReports: 0,
+    selectedMissingSourceReports,
     wide: { ...wide.stats, available: wide.available, excluded: wide.excluded },
     deep: { ...deep.stats, available: deep.available, excluded: deep.excluded },
     outcomePolicy: {
