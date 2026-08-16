@@ -6,14 +6,15 @@ const median=values=>{
 };
 
 const same=(a,b)=>String(a??'').toLowerCase()===String(b??'').toLowerCase();
-const sameNumberOrNull=(a,b)=>a==null||b==null?true:Number(a)===Number(b);
+const knownNumber=v=>Number.isFinite(Number(v))?Number(v):null;
 
 function sameReliabilityContext(a,b,policy){
   if(!policy.peerSelection.requireSameEncounterContext)return true;
   const ac=a?.context||{},bc=b?.context||{};
-  return sameNumberOrNull(ac.encounterId,bc.encounterId)
-    && sameNumberOrNull(ac.difficulty,bc.difficulty)
-    && sameNumberOrNull(ac.partition,bc.partition);
+  const ae=knownNumber(ac.encounterId),be=knownNumber(bc.encounterId);
+  const ad=knownNumber(ac.difficulty),bd=knownNumber(bc.difficulty);
+  const ap=knownNumber(ac.partition),bp=knownNumber(bc.partition);
+  return ae!=null&&be!=null&&ad!=null&&bd!=null&&ap!=null&&bp!=null&&ae===be&&ad===bd&&ap===bp;
 }
 
 const componentValue=(profile,dimension)=>{
