@@ -43,13 +43,13 @@ function meaningfulRowsByFight(input){
   return new Map(Object.entries(input||{}).map(([k,v])=>[Number(k),arr(v)]));
 }
 
-function survivalLedger(player,fightIds,meaningfulByFight,{sourceComplete=true}={}){
+function survivalLedger(player,fightIds,meaningfulByFight,{sourceComplete=false}={}){
   const actorId=Number(player.actorId);
   if(!sourceComplete){
     return{
       sourceComplete:false,
       opportunities:[],
-      unscored:fightIds.map(fightId=>({actorId,fightId,kind:'survival',reason:'meaningful-death-stream-incomplete'}))
+      unscored:fightIds.map(fightId=>({actorId,fightId,kind:'survival',reason:'meaningful-death-stream-completeness-unproven'}))
     };
   }
   const rows=[];
@@ -173,7 +173,7 @@ export function validateReliabilityLedger(ledger){
   for(const row of duties)if(row.assigned!==true||row.observable!==true||row.sourceComplete!==true)errors.push('scored duty opportunity without proven assignment/completeness/outcome');
   for(const row of mechanics)if(row.assigned!==true||row.observable!==true||row.sourceComplete!==true)errors.push('scored mechanic opportunity without proven player assignment/completeness/outcome');
 
-  if(ledger?.survival?.sourceComplete===false)warnings.push('meaningful-death source is incomplete; Survival is unscored');
+  if(ledger?.survival?.sourceComplete===false)warnings.push('meaningful-death source completeness is unproven; Survival is unscored');
   if(arr(ledger?.mechanics?.unscoredFailures).length)warnings.push('classified mechanic failures exist without player-level clean denominators');
   if(arr(ledger?.mechanics?.unscoredOpportunities).length)warnings.push('mechanic opportunity candidates exist without complete assignment/outcome evidence');
   if(arr(ledger?.defensives?.unscored).length)warnings.push('defensive observations exist with unknown/unscoreable availability or outcome');
@@ -186,7 +186,7 @@ export function validateReliabilityLedger(ledger){
 export function buildReliabilityEvidenceLedger({
   players=[],fights=[],mechanicFailures=[],mechanicOpportunities=[],meaningfulDeathsByFight={},
   defensiveOpportunities=[],dutyOpportunities=[],reportCode=null,encounter=null,nights=1,partition=null,
-  survivalSourceComplete=true
+  survivalSourceComplete=false
 }={}){
   const meaningful=meaningfulRowsByFight(meaningfulDeathsByFight);
   return arr(players).map(player=>{
