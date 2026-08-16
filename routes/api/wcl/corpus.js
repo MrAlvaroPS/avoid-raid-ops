@@ -7,14 +7,16 @@ import {
   resumeCorpus,
   resetCorpus,
   loadAnyEncounterModel,
-  recompileCorpusModel,
 } from '../../../server/corpus/service.mjs';
+import { recompileCorpusModelV2, getBossSamplingManifest } from '../../../server/corpus/service-v2.mjs';
 import { assertCorpusStorage, corpusGet, corpusStorageErrorInfo } from '../../../server/corpus/storage.mjs';
 import { launchCorpusExecution, corpusExecutionDescriptor } from '../../../server/corpus/execution.mjs';
 import { aggregateKey, jobKey } from '../../../server/corpus/keys.mjs';
 import { aggregateSummary } from '../../../server/corpus/aggregate.mjs';
-import { applyEncounterPolicyV375, modelDiagnosticsV375 } from '../../../server/corpus/model-policy-v375.mjs';
+import { applyBossSamplingPolicyV376, modelDiagnosticsV376 } from '../../../server/corpus/model-policy-v376.mjs';
 import { startTargetedDeepV373 } from '../../../server/corpus/targeted-deep-v373.mjs';
+import { IRIS_KNOWLEDGE_CONTRACT_VERSION, homeGuildId } from '../../../server/knowledge/scopes.mjs';
+import { BOSS_SAMPLING_POLICY_VERSION } from '../../../server/corpus/sampling-v2.mjs';
 
 const ENGINE_VERSION = '3.7.6';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -50,19 +52,22 @@ async function decorateStatus(input, status) {
   return {
     ...status,
     engineVersion: ENGINE_VERSION,
+    knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
+    samplingPolicyVersion: BOSS_SAMPLING_POLICY_VERSION,
+    homeGuildId: homeGuildId(),
     deepTargetReports: Number(job?.deepTargetReports || 0) || null,
     targetReports: Number(job?.targetReports || 0) || null,
     aggregate: aggregate ? aggregateSummary(aggregate) : status.aggregate,
-    model: raw ? modelDiagnosticsV375(raw, aggregate) : (status.model || null),
+    model: raw ? modelDiagnosticsV376(raw, aggregate) : (status.model || null),
   };
 }
 
 async function policyModel(input) {
   const {raw,aggregate} = await policyContext(input);
-  const model=applyEncounterPolicyV375(raw, aggregate);
+  const model=applyBossSamplingPolicyV376(raw, aggregate);
   if(model){
     model.engineVersion=ENGINE_VERSION;
-    if(model.validation) model.validation.publicationMode='manual-review-hold-v3.7.6';
+    if(model.validation) model.validation.publicationMode='manual-review-hold-v3.7.6-sampling-v2';
   }
   return model;
 }
@@ -116,7 +121,10 @@ export default defineHandler(async (event) => {
           ...corpusExecutionDescriptor(),
           ...health,
           engineVersion: ENGINE_VERSION,
-          policyVersion: 'relation-provenance-v2',
+          policyVersion: 'relation-provenance-v2+boss-sampling-v2',
+          knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
+          samplingPolicyVersion: BOSS_SAMPLING_POLICY_VERSION,
+          homeGuildId: homeGuildId(),
           intelligenceName:'Iris',
           storage,
         });
@@ -125,6 +133,10 @@ export default defineHandler(async (event) => {
       if (actionFromQuery === 'model') {
         const model = await policyModel(input);
         return json({ ok:Boolean(model), model }, model ? 200 : 404);
+      }
+      if (actionFromQuery === 'sampling') {
+        const sampling = await getBossSamplingManifest(input);
+        return json({ ok:Boolean(sampling), sampling }, sampling ? 200 : 404);
       }
       return json({ ok:true, status:await decorateStatus(input, await getCorpusStatus(input)) });
     }
@@ -157,11 +169,12 @@ export default defineHandler(async (event) => {
       return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, executionMode:launched.executionMode }, 202);
     }
     if (action === 'recompile') {
-      const status = await recompileCorpusModel(input);
-      return json({ ok:true, status:await decorateStatus(input, status), model:await policyModel(input) });
+      const status = await recompileCorpusModelV2(input);
+      return json({ ok:true, status:await decorateStatus(input, status), model:await policyModel(input), sampling:await getBossSamplingManifest(input) });
     }
     if (action === 'reset') return json({ ok:true, ...(await resetCorpus(input)) });
     if (action === 'model') return json({ ok:true, model:await policyModel(input) });
+    if (action === 'sampling') return json({ ok:true, sampling:await getBossSamplingManifest(input) });
     if (action === 'status') return json({ ok:true, status:await decorateStatus(input, await getCorpusStatus(input)) });
 
     return json({ ok:false, error:`Unsupported corpus action: ${action}` }, 400);
