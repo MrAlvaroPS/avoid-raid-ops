@@ -47,6 +47,7 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
   }) : {
     homeGuildExcluded: false,
     scopeIsolation: false,
+    sourceIdentityComplete: false,
     sourceReportBalance: false,
     sourcePullBalance: false,
     deepSourceBalance: false,
@@ -58,20 +59,21 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
   let scorePct = num(model?.learning?.scorePct);
   const caps = [...(model?.learning?.caps || [])];
   if (!manifest) { scorePct = Math.min(scorePct, 49); caps.push('sampling-manifest-missing'); }
+  if (!samplingChecks.sourceIdentityComplete) { scorePct = Math.min(scorePct, 49); caps.push('source-identity-incomplete'); }
   if (!samplingChecks.sourceReportBalance || !samplingChecks.sourcePullBalance) { scorePct = Math.min(scorePct, 74); caps.push('source-concentration'); }
   if (!samplingChecks.outcomeCoverage) { scorePct = Math.min(scorePct, 69); caps.push('outcome-strata-under-covered'); }
   if (!samplingChecks.deepSourceBalance || !samplingChecks.deepOutcomeCoverage) { scorePct = Math.min(scorePct, 79); caps.push('deep-sample-under-balanced'); }
   if (Number(manifest?.homeGuildSelectedReports || 0) > 0) { scorePct = 0; caps.push('home-guild-contamination'); }
 
   const previousRec = model?.learning?.enrichmentRecommendation || {};
-  const samplingBlocked = !samplingChecks.sourceReportBalance || !samplingChecks.sourcePullBalance || !samplingChecks.outcomeCoverage || !samplingChecks.deepOutcomeCoverage;
+  const samplingBlocked = !samplingChecks.sourceIdentityComplete || !samplingChecks.sourceReportBalance || !samplingChecks.sourcePullBalance || !samplingChecks.outcomeCoverage || !samplingChecks.deepOutcomeCoverage;
   const recommendation = samplingBlocked ? {
     ...previousRec,
     priority: 'high',
     mode: 'diversity-first',
     suggestedAdditionalWidePulls: Math.max(500, num(previousRec.suggestedAdditionalWidePulls)),
     suggestedAdditionalDeepPulls: Math.max(100, num(previousRec.suggestedAdditionalDeepPulls)),
-    reason: 'Canonical boss sampling is not yet balanced across independent sources and progression outcomes. Add diverse guild reports before increasing confidence.',
+    reason: 'Canonical boss sampling is not yet balanced across trusted independent sources and progression outcomes. Add diverse guild reports before increasing confidence.',
   } : previousRec;
 
   const checks = {
@@ -79,6 +81,7 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     samplingManifest: Boolean(manifest),
     homeGuildExcluded: Boolean(samplingChecks.homeGuildExcluded) && Number(manifest?.homeGuildSelectedReports || 0) === 0,
     scopeIsolation: Boolean(samplingChecks.scopeIsolation),
+    sourceIdentityComplete: Boolean(samplingChecks.sourceIdentityComplete),
     sourceReportBalance: Boolean(samplingChecks.sourceReportBalance),
     sourcePullBalance: Boolean(samplingChecks.sourcePullBalance),
     deepSourceBalance: Boolean(samplingChecks.deepSourceBalance),
@@ -101,10 +104,12 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     scope: manifest.scope,
     wide: manifest.wide,
     deep: manifest.deep,
+    outcomePolicy: manifest.outcomePolicy,
     homeGuildId: manifest.homeGuildId,
     homeGuildExcluded: manifest.homeGuildExcluded,
     homeGuildSelectedReports: Number(manifest.homeGuildSelectedReports || 0),
     wrongScopeExcluded: manifest.wrongScopeExcluded,
+    missingSourceExcluded: manifest.missingSourceExcluded,
     cachedWideReports: manifest.cachedWideReports,
     cachedDeepReports: manifest.cachedDeepReports,
   } : null;
@@ -122,7 +127,7 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
       outcomeCoveragePct: Math.round(q.outcomes * 1000) / 10,
       deepOutcomeCoveragePct: Math.round(q.deepOutcomes * 1000) / 10,
       checks: samplingChecks,
-      meaning: 'Measures independent-source balance plus kill/deep-wipe/mid-wipe/early-wipe coverage in the canonical global boss sample.',
+      meaning: 'Measures trusted independent-source balance plus actual kill/deep-wipe/mid-wipe/early-wipe pull coverage in the canonical global boss sample.',
     },
   };
   model.evaluatedAt = Date.now();
