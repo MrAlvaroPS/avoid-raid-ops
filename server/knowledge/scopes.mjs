@@ -53,12 +53,13 @@ export function isHomeGuildProfile(profile = {}) {
 
 export function profileMatchesBossScope(profile = {}, scope = {}) {
   return Number(profile?.encounterId) === Number(scope?.encounterId)
-    && Number(profile?.difficulty) === Number(scope?.difficulty);
+    && Number(profile?.difficulty) === Number(scope?.difficulty)
+    && Number(profile?.partition) === Number(scope?.partition);
 }
 
 export function assertProfileAllowedInGlobalBossKnowledge(profile = {}, scope = {}) {
   if (!profileMatchesBossScope(profile, scope)) {
-    throw new Error(`Boss corpus scope mismatch for report ${profile?.code || 'unknown'}: expected encounter ${scope?.encounterId} d${scope?.difficulty}`);
+    throw new Error(`Boss corpus scope mismatch for report ${profile?.code || 'unknown'}: expected encounter ${scope?.encounterId} d${scope?.difficulty} p${scope?.partition}`);
   }
   if (isHomeGuildProfile(profile)) {
     throw new Error(`Home guild ${homeGuildId()} is excluded from global boss training/holdout`);
