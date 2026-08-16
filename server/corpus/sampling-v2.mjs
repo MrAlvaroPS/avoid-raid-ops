@@ -1,7 +1,8 @@
 import {
   IRIS_KNOWLEDGE_CONTRACT_VERSION,
   homeGuildId,
-  isHomeGuildProfile,
+  isHomeSourceProfile,
+  normalizeHomeOwnerIds,
   profileMatchesBossScope,
   sanitizeGlobalBossProfile,
 } from '../knowledge/scopes.mjs';
@@ -104,22 +105,28 @@ function selectionStats(selected = []) {
   };
 }
 
-function normalizeProfiles(profiles = [], scope = {}) {
+function normalizeProfiles(profiles = [], scope = {}, additionalHomeOwnerIds = []) {
   const accepted = [];
-  const excluded = { homeGuild: 0, wrongScope: 0, missingSource: 0, duplicateCode: 0 };
+  const excluded = { homeSource: 0, homeGuild: 0, homeOwner: 0, wrongScope: 0, missingSource: 0, duplicateCode: 0 };
   const seen = new Set();
+  const ownerIds = normalizeHomeOwnerIds(additionalHomeOwnerIds);
   for (const raw of profiles || []) {
     if (!raw || !raw.code) continue;
     const code = String(raw.code);
     if (seen.has(code)) { excluded.duplicateCode++; continue; }
     seen.add(code);
     if (!profileMatchesBossScope(raw, scope)) { excluded.wrongScope++; continue; }
-    if (isHomeGuildProfile(raw)) { excluded.homeGuild++; continue; }
+    if (isHomeSourceProfile(raw, ownerIds)) {
+      excluded.homeSource++;
+      if (Number(raw?.guild?.id) === Number(homeGuildId())) excluded.homeGuild++;
+      else excluded.homeOwner++;
+      continue;
+    }
     const clean = sanitizeGlobalBossProfile(raw);
     if (!bossProfileSourceKey(clean)) { excluded.missingSource++; continue; }
     accepted.push(clean);
   }
-  return { accepted, excluded };
+  return { accepted, excluded, homeOwnerIds:ownerIds };
 }
 
 function buildSourceQueues(profiles = []) {
@@ -167,8 +174,9 @@ export function buildBalancedBossSample(profiles = [], {
   targetPulls = Number.POSITIVE_INFINITY,
   targetReports = Number.POSITIVE_INFINITY,
   mode = 'wide',
+  homeOwnerIds = [],
 } = {}) {
-  const normalized = normalizeProfiles(profiles, scope);
+  const normalized = normalizeProfiles(profiles, scope, homeOwnerIds);
   const queues = buildSourceQueues(normalized.accepted);
   const available = selectionStats(normalized.accepted);
   const selected = [];
@@ -217,6 +225,7 @@ export function buildBalancedBossSample(profiles = [], {
     mode,
     scope: { encounterId: Number(scope?.encounterId), difficulty: Number(scope?.difficulty), partition: Number(scope?.partition) },
     homeGuildId: homeGuildId(),
+    homeOwnerIds: normalized.homeOwnerIds,
     selected,
     selectedCodes: selected.map(profile => String(profile.code)),
     stats,
@@ -227,10 +236,13 @@ export function buildBalancedBossSample(profiles = [], {
 }
 
 export function buildBossSamplingManifest({ scope, wideSample, deepSample, createdAt = Date.now() } = {}) {
-  const wide = wideSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {}, selected:[] };
-  const deep = deepSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {}, selected:[] };
+  const wide = wideSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {}, selected:[], homeOwnerIds:[] };
+  const deep = deepSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {}, selected:[], homeOwnerIds:[] };
   const selected = [...(wide.selected || []), ...(deep.selected || [])];
-  const homeGuildSelectedReports = selected.filter(isHomeGuildProfile).length;
+  const homeOwnerIds = normalizeHomeOwnerIds([...(wide.homeOwnerIds || []), ...(deep.homeOwnerIds || [])]);
+  const homeSourceSelectedReports = selected.filter(profile => isHomeSourceProfile(profile, homeOwnerIds)).length;
+  const homeGuildSelectedReports = selected.filter(profile => Number(profile?.guild?.id) === Number(homeGuildId())).length;
+  const homeOwnerSelectedReports = selected.filter(profile => !profile?.guild?.id && isHomeSourceProfile(profile, homeOwnerIds)).length;
   const selectedWrongScopeReports = selected.filter(profile => !profileMatchesBossScope(profile, scope)).length;
   const selectedMissingSourceReports = selected.filter(profile => !bossProfileSourceKey(profile)).length;
   return {
@@ -239,8 +251,13 @@ export function buildBossSamplingManifest({ scope, wideSample, deepSample, creat
     contractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
     scope: { kind: 'global-boss', encounterId: Number(scope?.encounterId), difficulty: Number(scope?.difficulty), partition: Number(scope?.partition) },
     homeGuildId: homeGuildId(),
+    homeOwnerIds,
+    homeSourceExcluded: Number(wide?.excluded?.homeSource || 0) + Number(deep?.excluded?.homeSource || 0),
     homeGuildExcluded: Number(wide?.excluded?.homeGuild || 0) + Number(deep?.excluded?.homeGuild || 0),
+    homeOwnerExcluded: Number(wide?.excluded?.homeOwner || 0) + Number(deep?.excluded?.homeOwner || 0),
+    homeSourceSelectedReports,
     homeGuildSelectedReports,
+    homeOwnerSelectedReports,
     wrongScopeExcluded: Number(wide?.excluded?.wrongScope || 0) + Number(deep?.excluded?.wrongScope || 0),
     selectedWrongScopeReports,
     missingSourceExcluded: Number(wide?.excluded?.missingSource || 0) + Number(deep?.excluded?.missingSource || 0),
@@ -256,6 +273,7 @@ export function buildBossSamplingManifest({ scope, wideSample, deepSample, creat
     identityPolicy: {
       globalBossStoresPlayerIdentity: false,
       homeGuildParticipatesInBossTrainOrHoldout: false,
+      knownHomeUploadersParticipateInBossTrainOrHoldout: false,
       homeRaidPlayerKnowledgeScope: 'home-guild-only',
     },
     createdAt,
@@ -277,6 +295,7 @@ export function samplingPublicationChecks(manifest, {
   const allDeepOutcomes = OUTCOME_STRATA.every(key => Number(deepStrata?.[key]?.sources || 0) >= minDeepSourcesPerOutcome);
   return {
     homeGuildExcluded: Number(manifest?.homeGuildSelectedReports || 0) === 0,
+    homeSourceExcluded: Number(manifest?.homeSourceSelectedReports || 0) === 0,
     scopeIsolation: Number(manifest?.selectedWrongScopeReports || 0) === 0,
     sourceIdentityComplete: Number(manifest?.selectedMissingSourceReports || 0) === 0,
     sourceReportBalance: Number(wide.maxSourceReportShare || 0) <= maxSourceReportShare,
