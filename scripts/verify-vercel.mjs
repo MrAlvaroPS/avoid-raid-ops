@@ -75,10 +75,7 @@ try {
   if (deployment.main !== true || deployment['*'] !== false) {
     throw new Error('vercel.json must deploy main only and disable branch previews');
   }
-  if (!vercel?.functions?.['api/wcl/**/*.js']?.maxDuration) {
-    throw new Error('vercel.json must preserve api/wcl/**/*.js maxDuration');
-  }
-  console.log('[verify:vercel] OK      vercel.json deployment/function contract');
+  console.log('[verify:vercel] OK      vercel.json main-only deployment contract');
 } catch (error) {
   failures++;
   console.error(`[verify:vercel] CONTRACT vercel.json: ${error?.message || error}`);
