@@ -1,5 +1,6 @@
 import { wclGraphql } from '../wcl/client/graphql-client.mjs';
 import { CORPUS_REPORT_HEADER_QUERY, CORPUS_WIDE_TABLES_QUERY } from '../wcl/queries/corpus.mjs';
+import { isHomeGuildId, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null;};
 function unwrap(v){let x=v;for(let i=0;i<4;i++){if(x&&typeof x==='object'&&!Array.isArray(x)&&x.data&&typeof x.data==='object'){x=x.data;continue;}break;}return x||{};}
@@ -37,7 +38,9 @@ export function summarizeAbilityTable(value,maps){
   };walk(root);return Object.fromEntries([...out].map(([id,v])=>[String(id),v]));
 }
 
-export function compactFight(f){return{id:num(f.id),startTime:num(f.startTime),endTime:num(f.endTime),durationMs:num(f.endTime)!=null&&num(f.startTime)!=null?num(f.endTime)-num(f.startTime):null,kill:Boolean(f.kill),fightPercentage:num(f.fightPercentage),bossPercentage:num(f.bossPercentage),averageItemLevel:num(f.averageItemLevel),friendlyPlayers:(f.friendlyPlayers||[]).map(Number).filter(Number.isFinite),phaseTransitions:(f.phaseTransitions||[]).map(p=>({id:num(p.id),startTime:num(p.startTime)}))};}
+// Player actor ids are report-local implementation detail and are deliberately not
+// persisted in GLOBAL BOSS KNOWLEDGE. Raid/player identity lives in the home-raid scope.
+export function compactFight(f){return{id:num(f.id),startTime:num(f.startTime),endTime:num(f.endTime),durationMs:num(f.endTime)!=null&&num(f.startTime)!=null?num(f.endTime)-num(f.startTime):null,kill:Boolean(f.kill),fightPercentage:num(f.fightPercentage),bossPercentage:num(f.bossPercentage),averageItemLevel:num(f.averageItemLevel),phaseTransitions:(f.phaseTransitions||[]).map(p=>({id:num(p.id),startTime:num(p.startTime)}))};}
 
 export function normalizeReportHeader(data,{encounterId,difficulty}){
   const report=data?.reportData?.report;if(!report)return null;
@@ -61,12 +64,15 @@ export function normalizeWideProfile(header,tableData,{encounterId,difficulty}){
   if(!header)return null;const report=tableData?.reportData?.report||{};const fights=header.fights||[],kills=fights.filter(f=>f.kill),wipes=fights.filter(f=>!f.kill);const maps=masterAbilityMaps(header.masterData);
   const tables={};
   for(const kind of ['Casts','Damage','Debuffs','Buffs','Interrupts','Deaths'])for(const cohort of ['kill','wipe']){const key=`${cohort}${kind}`;tables[key]=summarizeAbilityTable(report[key],maps);}
-  return{schemaVersion:2,kind:'wide',code:header.code,title:header.title||null,startTime:header.startTime,endTime:header.endTime,visibility:header.visibility||null,zone:header.zone||null,guild:header.guild||null,owner:header.owner||null,encounterId:Number(encounterId),difficulty:Number(difficulty),fights,kills:kills.length,wipes:wipes.length,tables,abilities:Object.fromEntries([...maps.byId].map(([id,v])=>[String(id),v])),rateLimit:tableData?.rateLimitData||header.rateLimit||null,generatedAt:Date.now()};
+  return sanitizeGlobalBossProfile({schemaVersion:2,kind:'wide',code:header.code,title:header.title||null,startTime:header.startTime,endTime:header.endTime,visibility:header.visibility||null,zone:header.zone||null,guild:header.guild||null,owner:header.owner||null,encounterId:Number(encounterId),difficulty:Number(difficulty),fights,kills:kills.length,wipes:wipes.length,tables,abilities:Object.fromEntries([...maps.byId].map(([id,v])=>[String(id),v])),rateLimit:tableData?.rateLimitData||header.rateLimit||null,generatedAt:Date.now()});
 }
 
 export async function fetchWideProfile({code,encounterId,difficulty=5}){
   const header=await fetchReportHeader({code,encounterId,difficulty});
   if(!header||!header.fights?.length)return null;
+  // Double guard: the home guild is an application/evaluation cohort, never boss training/holdout.
+  // Returning null here avoids the expensive Wide tables query as well as persistence/merge.
+  if(isHomeGuildId(header?.guild?.id))return null;
   const killFightIDs=header.fights.filter(f=>f.kill).map(f=>f.id),wipeFightIDs=header.fights.filter(f=>!f.kill).map(f=>f.id);
   const tableData=await wclGraphql(CORPUS_WIDE_TABLES_QUERY,{code:String(code),killFightIDs,wipeFightIDs,hasKills:killFightIDs.length>0,hasWipes:wipeFightIDs.length>0});
   return normalizeWideProfile(header,tableData,{encounterId,difficulty});
