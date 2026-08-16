@@ -10,11 +10,19 @@ const dedupeBy=(rows,keyFn)=>{
   return [...map.values()];
 };
 
+const duplicateKeys=(rows,keyFn)=>{
+  const seen=new Set(),dupes=[];
+  for(const row of rows||[]){const key=keyFn(row);if(key==null)continue;if(seen.has(key))dupes.push(key);else seen.add(key);}
+  return [...new Set(dupes)];
+};
+
 const playerServerKey=player=>{
   const server=player?.server||player?.realm||null;
-  const region=server?.region?.slug||server?.region?.compactName||player?.region||null;
-  const realm=server?.slug||server?.name||player?.serverName||null;
-  return region&&realm?`${String(region).toLowerCase()}:${String(realm).toLowerCase()}`:null;
+  const region=server&&typeof server==='object'?(server?.region?.slug||server?.region?.compactName||player?.region||null):(player?.region||null);
+  const realm=server&&typeof server==='object'?(server?.slug||server?.name||player?.serverName||null):(typeof server==='string'?server:player?.serverName||null);
+  if(region&&realm)return`${String(region).toLowerCase()}:${String(realm).toLowerCase()}`;
+  if(realm)return`unknown-region:${String(realm).toLowerCase()}`;
+  return null;
 };
 
 export function reliabilityIdentity(player,{reportCode=null}={}){
@@ -125,6 +133,36 @@ function adaptationSignal(mechanicRows){
   };
 }
 
+export function validateReliabilityLedger(ledger){
+  const errors=[],warnings=[];
+  const attended=arr(ledger?.participation?.fightIds),survival=arr(ledger?.survival?.opportunities),mechanics=arr(ledger?.mechanics?.opportunities),defensives=arr(ledger?.defensives?.opportunities),duties=arr(ledger?.duties?.opportunities);
+  const uniqueAttendance=new Set(attended.map(Number));
+  if(uniqueAttendance.size!==attended.length)errors.push('duplicate attended fight IDs');
+  if(Number(ledger?.participation?.pullsAttended)!==uniqueAttendance.size)errors.push('pullsAttended does not equal unique attended fight count');
+  if(survival.length!==uniqueAttendance.size)errors.push('survival opportunity count does not equal attended pull count');
+  const survivalFightIds=new Set(survival.map(x=>Number(x.fightId)));
+  if(survivalFightIds.size!==survival.length)errors.push('duplicate survival opportunity for a pull');
+  for(const row of survival)if(!uniqueAttendance.has(Number(row.fightId)))errors.push(`survival opportunity references unattended fight ${row.fightId}`);
+
+  const dupMechanics=duplicateKeys(mechanics,x=>x.key||`${x.actorId}:${x.occurrenceKey}`);
+  if(dupMechanics.length)errors.push(`duplicate mechanic opportunity keys: ${dupMechanics.slice(0,3).join(', ')}`);
+  const dupDefensives=duplicateKeys(defensives,x=>x.key||`${x.actorId}:${x.opportunityKey}`);
+  if(dupDefensives.length)errors.push(`duplicate defensive opportunity keys: ${dupDefensives.slice(0,3).join(', ')}`);
+  const dupDuties=duplicateKeys(duties,x=>x.key||`${x.actorId}:${x.opportunityKey}`);
+  if(dupDuties.length)errors.push(`duplicate duty opportunity keys: ${dupDuties.slice(0,3).join(', ')}`);
+
+  for(const row of defensives)if(String(row.availability)!=='confirmed')errors.push('scored defensive opportunity without confirmed availability');
+  for(const row of duties)if(row.assigned!==true||row.observable!==true)errors.push('scored duty opportunity without proven assignment/outcome');
+  for(const row of mechanics)if(row.assigned!==true||row.observable!==true)errors.push('scored mechanic opportunity without proven player assignment/outcome');
+
+  if(arr(ledger?.mechanics?.unscoredFailures).length)warnings.push('classified mechanic failures exist without player-level clean denominators');
+  if(arr(ledger?.defensives?.unscored).length)warnings.push('defensive observations exist with unknown/unscoreable availability');
+  if(arr(ledger?.duties?.unscored).length)warnings.push('duty observations exist without proven assignment/outcome');
+  if(ledger?.identity?.status==='report-scoped')warnings.push('player identity is report-scoped and cannot publish longitudinal Reliability');
+
+  return{ok:errors.length===0,status:errors.length?'data-error':'valid',errors,warnings};
+}
+
 export function buildReliabilityEvidenceLedger({
   players=[],fights=[],mechanicFailures=[],mechanicOpportunities=[],meaningfulDeathsByFight={},
   defensiveOpportunities=[],dutyOpportunities=[],reportCode=null,encounter=null,nights=1
@@ -136,7 +174,7 @@ export function buildReliabilityEvidenceLedger({
     const defensives=defensiveLedger(player,defensiveOpportunities);
     const duties=dutyLedger(player,dutyOpportunities);
     const identity=reliabilityIdentity(player,{reportCode});
-    return{
+    const ledger={
       schemaVersion:1,
       identity:{...identity,actorId:Number(player.actorId),name:player.name||null,className:player.className||null,spec:player.spec||null,role:roleKey(player.role)},
       context:{reportCode,encounterId:encounter?.id??encounter?.encounterID??null,difficulty:encounter?.difficulty??null,nights:Number(nights)||1},
@@ -153,5 +191,7 @@ export function buildReliabilityEvidenceLedger({
         dutyDenominatorComplete:duties.scored.length>0&&duties.unscored.length===0
       }
     };
+    ledger.validation=validateReliabilityLedger(ledger);
+    return ledger;
   });
 }
