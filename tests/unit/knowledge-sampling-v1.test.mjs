@@ -32,6 +32,7 @@ function profile(code,guildId,hist={deep:2,mid:2,early:1}) {
     code,
     encounterId:3182,
     difficulty:5,
+    partition:4,
     guild:guildId?{id:guildId,name:`Guild ${guildId}`}:null,
     owner:guildId?{id:guildId+100000}:null,
     fights:fights(hist),
@@ -57,18 +58,20 @@ test('home raid persistence guard rejects external report guild before touching 
 test('persisted global profile sanitization removes friendly player actor ids',()=>{
   const clean=sanitizeGlobalBossProfile(profile('safe1',900001,{kill:1,deep:1}));
   assert.equal(clean.knowledgeScope,'global-boss');
+  assert.equal(clean.partition,4);
   assert.ok(clean.fights.every(f=>!Object.hasOwn(f,'friendlyPlayers')));
 });
 
-test('canonical sampler excludes home guild, wrong difficulty and unknown source identity',()=>{
+test('canonical sampler excludes home guild, wrong difficulty, wrong partition and unknown source identity',()=>{
   const external=profile('ext1',900001,{deep:2,mid:1});
   const home=profile('home1',homeGuildId(),{deep:4});
-  const wrong={...profile('wrong1',900002,{mid:3}),difficulty:4};
+  const wrongDifficulty={...profile('wrongd1',900002,{mid:3}),difficulty:4};
+  const wrongPartition={...profile('wrongp1',900003,{mid:3}),partition:3};
   const missing={...profile('missing1',null,{early:3}),owner:null};
-  const sample=buildBalancedBossSample([external,home,wrong,missing],{scope,targetPulls:100});
+  const sample=buildBalancedBossSample([external,home,wrongDifficulty,wrongPartition,missing],{scope,targetPulls:100});
   assert.deepEqual(sample.selectedCodes,['ext1']);
   assert.equal(sample.excluded.homeGuild,1);
-  assert.equal(sample.excluded.wrongScope,1);
+  assert.equal(sample.excluded.wrongScope,2);
   assert.equal(sample.excluded.missingSource,1);
 });
 
