@@ -1,8 +1,8 @@
-import { corpusDelete, corpusGet, corpusList } from './storage.mjs';
+import { corpusDelete, corpusGet, corpusList, corpusSet } from './storage.mjs';
 import { aggregateKey, corpusId, modelKey, profileKey, deepProfileKey } from './keys.mjs';
 import { createAggregate, mergeWideProfile, mergeDeepProfile } from './aggregate.mjs';
 import { compileEncounterModel } from './compiler.mjs';
-import { bossKnowledgeScope, isHomeGuildProfile } from '../knowledge/scopes.mjs';
+import { bossKnowledgeScope, isHomeGuildProfile, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 import { globalBossSamplingKey } from '../knowledge/keys.mjs';
 import { buildBalancedBossSample, buildBossSamplingManifest } from './sampling-v2.mjs';
 
@@ -34,6 +34,27 @@ export function compilerOptionsFromCorpusConfig(config = {}) {
   };
 }
 
+async function migrateLegacyRowsToPartition(rows = [], args = {}) {
+  let migrated = 0;
+  for (const row of rows) {
+    if (!row?.value) continue;
+    let value = row.value;
+    let changed = false;
+    // The key prefix is already partition-scoped. Old profile schemas predated a
+    // partition field inside the JSON, so inherit pN only from this exact storage path.
+    if (!(Number(value.partition) > 0)) {
+      value = { ...value, partition:Number(args.partition), partitionProvenance:'partition-scoped-storage-key-v1' };
+      changed = true;
+      migrated++;
+    }
+    const sanitized = sanitizeGlobalBossProfile(value);
+    if ((value.fights || []).some(fight => Object.hasOwn(fight || {}, 'friendlyPlayers')) || value.knowledgeScope !== 'global-boss') changed = true;
+    row.value = sanitized;
+    if (changed) await corpusSet(row.key, sanitized);
+  }
+  return migrated;
+}
+
 async function purgeHomeGuildRows(rows = []) {
   const home = rows.filter(row => row?.value && isHomeGuildProfile(row.value));
   for (const row of home) await corpusDelete(row.key);
@@ -50,6 +71,10 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
   if (!wideKeys.length) throw new Error('No persisted wide profiles are available to build the canonical boss corpus');
 
   const [wideRows, deepRows] = await Promise.all([readJsonKeys(wideKeys), readJsonKeys(deepKeys)]);
+  const [migratedWide, migratedDeep] = await Promise.all([
+    migrateLegacyRowsToPartition(wideRows, args),
+    migrateLegacyRowsToPartition(deepRows, args),
+  ]);
   const wideProfiles = wideRows.map(row => row.value).filter(Boolean);
   const deepProfiles = deepRows.map(row => row.value).filter(Boolean);
 
@@ -71,6 +96,7 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
   manifest.selectedDeepCodes = deepSample.selectedCodes;
   manifest.cachedWideReports = wideProfiles.length;
   manifest.cachedDeepReports = deepProfiles.length;
+  manifest.migratedLegacyPartitionProfiles = migratedWide + migratedDeep;
 
   const aggregate = createAggregate({
     ...args,
