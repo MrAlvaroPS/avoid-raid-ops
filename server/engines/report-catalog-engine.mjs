@@ -15,6 +15,18 @@ const publicReport=(report,selectedCode)=>({
   selected:report.code===selectedCode,
 });
 
+export function filterCurrentRaidReports(reports,{zoneId,selectedCode}={}){
+  const exactZone=Number(zoneId);
+  const byCode=new Map();
+  for(const report of reports||[]){
+    if(!report?.code||Number(report?.zone?.id)!==exactZone)continue;
+    byCode.set(report.code,report);
+  }
+  return [...byCode.values()]
+    .sort((a,b)=>Number(b.startTime)-Number(a.startTime))
+    .map(report=>publicReport(report,selectedCode));
+}
+
 async function anchorReport(reportCode){
   const data=await wclGraphql(REPORT_CATALOG_ANCHOR_QUERY,{code:reportCode});
   return data?.reportData?.report||null;
@@ -23,15 +35,13 @@ async function anchorReport(reportCode){
 async function listPages({guildId,zoneId,start,end,maxPages=10}){
   const reports=[];let page=1,total=null,hasMore=true;
   while(hasMore&&page<=maxPages){
-    const data=await wclGraphql(REPORT_CATALOG_LIST_QUERY,{guildId,zoneId,start,end,limit:100,page});
+    const data=await wclGraphql(REPORT_CATALOG_LIST_QUERY,{guildId,start,end,zoneId,limit:100,page});
     const result=data?.reportData?.reports;if(!result)break;
     total=result.total??total;
     reports.push(...(result.data||[]));
     hasMore=Boolean(result.has_more_pages);page++;
   }
-  const byCode=new Map();
-  for(const report of reports)if(report?.code)byCode.set(report.code,report);
-  return {reports:[...byCode.values()],total:total??byCode.size,pagesScanned:page-1,truncated:hasMore};
+  return {reports,total:total??reports.length,pagesScanned:page-1,truncated:hasMore};
 }
 
 /**
@@ -56,10 +66,7 @@ export async function getAvoidReportCatalog({reportCode,guildId,days=120,force=f
   const end=Math.max(Date.now(),Number(anchor.endTime)||Date.now());
   const start=end-windowDays*DAY;
   const listed=await listPages({guildId:Number(guildId),zoneId,start,end});
-  const reports=listed.reports
-    .filter(report=>Number(report?.zone?.id)===zoneId)
-    .sort((a,b)=>Number(b.startTime)-Number(a.startTime))
-    .map(report=>publicReport(report,reportCode));
+  const reports=filterCurrentRaidReports(listed.reports,{zoneId,selectedCode:reportCode});
 
   if(!reports.some(report=>report.code===reportCode))reports.push(publicReport(anchor,reportCode));
   reports.sort((a,b)=>b.startTime-a.startTime);
