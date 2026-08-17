@@ -7,6 +7,11 @@ import { bossKnowledgeScope, homeGuildId, isHomeSourceProfile, normalizeHomeOwne
 import { globalBossSamplingKey } from '../knowledge/keys.mjs';
 import { buildBalancedBossSample, buildBossSamplingManifest } from './sampling-v2.mjs';
 
+export const CANONICAL_DEEP_REQUIRED_STREAMS = Object.freeze(['enemyCasts','friendDamage','interrupts','debuffs','buffs','enemyBuffs','enemyDebuffs','deaths']);
+export function isCanonicalDeepComplete(profile = {}) {
+  return CANONICAL_DEEP_REQUIRED_STREAMS.every(key => profile?.completeness?.[key] === true);
+}
+
 const readJsonKeys = async (keys, { concurrency = 24 } = {}) => {
   const out = [];
   for (let i = 0; i < keys.length; i += concurrency) {
@@ -41,8 +46,6 @@ async function migrateLegacyRowsToPartition(rows = [], args = {}) {
     if (!row?.value) continue;
     let value = row.value;
     let changed = false;
-    // The key prefix is already partition-scoped. Old profile schemas predated a
-    // partition field inside the JSON, so inherit pN only from this exact storage path.
     if (!(Number(value.partition) > 0)) {
       value = { ...value, partition:Number(args.partition), partitionProvenance:'partition-scoped-storage-key-v1' };
       changed = true;
@@ -87,9 +90,6 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
     migrateLegacyRowsToPartition(wideRows, args),
     migrateLegacyRowsToPartition(deepRows, args),
   ]);
-  // This is what makes the already-running pre-v2 Belo'ren cache safely reusable:
-  // any persisted AvoiD guild profile teaches the recompiler its uploader owner id,
-  // then personal/un-guilded profiles by that same owner are excluded too. No WCL call.
   const homeOwnerIds = deriveHomeOwnerIds([...wideRows, ...deepRows], job?.homeOwnerIds || []);
   if (job) job.homeOwnerIds = homeOwnerIds;
   const wideProfiles = wideRows.map(row => row.value).filter(Boolean);
@@ -106,7 +106,9 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
     },
   });
   const selectedWideCodes = new Set(wideSample.selectedCodes);
-  const deepEligible = deepProfiles.filter(profile => selectedWideCodes.has(String(profile?.code || '')));
+  const deepScopeEligible = deepProfiles.filter(profile => selectedWideCodes.has(String(profile?.code || '')));
+  const incompleteDeepProfiles = deepScopeEligible.filter(profile => !isCanonicalDeepComplete(profile));
+  const deepEligible = deepScopeEligible.filter(isCanonicalDeepComplete);
   const deepSample = buildBalancedBossSample(deepEligible, {
     scope,
     targetPulls: Number(job?.deepTargetPulls) || Number.POSITIVE_INFINITY,
@@ -123,6 +125,12 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
   manifest.selectedDeepCodes = deepSample.selectedCodes;
   manifest.cachedWideReports = wideProfiles.length;
   manifest.cachedDeepReports = deepProfiles.length;
+  manifest.incompleteDeepProfilesExcluded = incompleteDeepProfiles.length;
+  manifest.deepCompletenessPolicy = {
+    requiredStreams:[...CANONICAL_DEEP_REQUIRED_STREAMS],
+    incompleteProfilesCountTowardCanonicalDeep:false,
+    meaning:'A Deep report/pull only counts toward canonical coverage when every required event stream is complete. Partial streams may remain cached for diagnostics but cannot inflate Deep publication gates.',
+  };
   manifest.migratedLegacyPartitionProfiles = migratedWide + migratedDeep;
   manifest.homeOwnerIdsRecoveredFromCache = homeOwnerIds.length;
 
@@ -139,9 +147,6 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
   for (const profile of deepSample.selected) mergeDeepProfile(aggregate, profile, { validationFraction: config.validationFraction });
 
   const compiled = compileEncounterModel(aggregate, compilerOptionsFromCorpusConfig(config));
-  // Publication policy is part of persistence, not a UI decoration. This guarantees
-  // an old compiler-level `published` result cannot sit on disk and later bypass the
-  // new population/sampling gates through another consumer.
   const model = applyBossSamplingPolicyV376(compiled, aggregate);
   model.knowledgeContract = {
     ...(model.knowledgeContract || {}),
