@@ -41,8 +41,7 @@ export const IRIS_EXTERNAL_SOURCE_REGISTRY=Object.freeze({
         }),
       }),
       recommendedFor:Object.freeze(['combat-events','fight-identity','raid-history','player-presence','mechanic-evidence','death-analysis','rankings','guild-attendance','game-ids','world-scope','rate-budget']),
-      prohibited:Object.freeze(['website-scraping-to-bypass-api','private-data-exposure-without-opt-in','credentials-in-client-or-repo','assuming-public-readability-permits-permanent-copy']),
-      persistence:Object.freeze({status:'provider-terms-governed',rule:'Obey RPGLogs API Terms and cache headers; do not assume third-party API content may be stored permanently. Document permission/basis before durable raw external storage.'}),
+      prohibited:Object.freeze(['website-scraping-to-bypass-api','private-data-exposure-without-opt-in','credentials-in-client-or-repo']),
       notes:'ArchonViewModels exists in the schema but is largely undocumented JSON; prefer documented typed GraphQL roots.',
     }),
     source('wowanalyzer',{
