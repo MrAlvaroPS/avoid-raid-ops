@@ -96,11 +96,11 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
   const encounterReports=asFightReports(reports,'encounterFights');
   const raidReports=asFightReports(reports,'raidFights');
 
-  // Progress remains encounter-scoped. Attendance intentionally uses all boss
-  // pulls in the zone/history window so it never masquerades boss presence as
-  // raid attendance.
+  // Progress remains encounter-scoped and analytical. Attendance intentionally
+  // uses every closed boss pull in the zone/history window so an early reset is
+  // still proof the player attended raid, without contaminating Progress.
   const clustered=clusterRaidSessions(encounterReports,{currentReportCode:reportCode}).sort((a,b)=>a.startTime-b.startTime);
-  const raidClustered=clusterRaidSessions(raidReports,{currentReportCode:reportCode}).sort((a,b)=>a.startTime-b.startTime);
+  const raidClustered=clusterRaidSessions(raidReports,{currentReportCode:reportCode,includeAllClosed:true}).sort((a,b)=>a.startTime-b.startTime);
   const playerAttendance={
     ...buildPlayerAttendance(raidClustered,attendanceDirectory(reports)),
     scope:'raid-zone-history-window',
@@ -108,7 +108,7 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
     historyWindowDays:daysBefore,
     windowStart:start,
     windowEnd:end,
-    semantics:'Raid attendance across canonical boss pulls in the indexed zone/history window; denominator starts at first indexed appearance, not an inferred guild join date.'
+    semantics:'Raid attendance across all canonical closed boss pulls in the indexed zone/history window; denominator starts at first indexed appearance, not an inferred guild join date.'
   };
   const rawProgressionPulls=clustered
     .flatMap(n=>(n.progressionPulls||[]).map(p=>({...p,sessionId:n.sessionId,sessionIndex:n.sessionIndex,sessionStartTime:n.startTime,sessionTitle:n.title})))
@@ -157,7 +157,7 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
       progressionPullSeries:'canonical-deduped-from-history-reports',
       progressMetrics:'server-derived-single-source-v2-data-integrity',
       progressMetricEligibility:'versioned-and-auditable',
-      playerAttendance:'canonical-deduped-all-raid-boss-pulls-since-first-indexed-appearance',
+      playerAttendance:'canonical-deduped-all-closed-raid-boss-pulls-since-first-indexed-appearance',
       playerAttendanceScope:'raid-zone-history-window',
       playerAttendanceJoinDate:'not-claimed-by-wcl',
       queryStrategy:'two-stage-paginated-dual-population',
