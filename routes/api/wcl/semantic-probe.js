@@ -11,7 +11,7 @@ import {
   semanticProbeRunKey,
 } from '../../../server/corpus/semantic-surgical-probe-executor-v1.mjs';
 
-const API_VERSION='semantic-probe-api-v1';
+const API_VERSION='semantic-probe-api-v2';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 
 function inputFrom(request,body={}){
@@ -73,8 +73,9 @@ async function context(input){
 async function preview(input){
   const ctx=await context(input);
   const cacheKeys=await corpusList(`semantic-probes/${corpusId(ctx.args)}/evidence/`);
+  const cacheEntries=(await Promise.all(cacheKeys.map(async key=>({key,value:await corpusGet(key).catch(()=>null)})))).filter(row=>row.value);
   const config=executionConfig(input);
-  return{...ctx,config,preview:buildSemanticProbeExecutionPreview({plan:ctx.plan,cacheKeys,config})};
+  return{...ctx,config,preview:buildSemanticProbeExecutionPreview({plan:ctx.plan,cacheEntries,config})};
 }
 
 export default defineHandler(async event=>{
@@ -110,8 +111,6 @@ export default defineHandler(async event=>{
     if(action!=='execute')return json({ok:false,error:`Unsupported semantic probe action: ${action}`},400);
     if(body.confirmExecution!==true)return json({ok:false,error:'confirmExecution:true is required; no WCL call was made',wclCallsExecuted:0},400);
 
-    // Regenerate immediately before execution. The caller must echo this exact
-    // fingerprint so a stale plan/config cannot spend against a different corpus state.
     const row=await preview(input);
     const supplied=String(body.previewFingerprint||body.fingerprint||'');
     if(!supplied||supplied!==row.preview.fingerprint){
