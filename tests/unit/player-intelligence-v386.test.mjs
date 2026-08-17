@@ -40,7 +40,7 @@ test('overlapping logger reports keep one pull and union player identities',()=>
   assert.deepEqual(pulls[0].rosterIdentities.map(x=>x.name).sort(),['Alpha','Beta']);
 });
 
-test('v3.8.8 Players renders full roster and cannot self-trigger an infinite MutationObserver loop under v3.8.13 package',async()=>{
+test('v3.8.8 Players renders full roster and cannot self-trigger an infinite MutationObserver loop under v3.8.14 package',async()=>{
   const [runtime,css,index,pkg]=await Promise.all([
     read('public/player-intelligence-v386.js'),read('public/raidops-v386.css'),read('index.html'),read('package.json')
   ]);
@@ -56,5 +56,5 @@ test('v3.8.8 Players renders full roster and cannot self-trigger an infinite Mut
   assert.match(css,/player-list-v386\{[^}]*overflow-y:auto/);
   assert.match(index,/player-intelligence-v386\.js\?v=3\.8\.8/);
   assert.match(index,/raidops-v386\.css\?v=3\.8\.6/);
-  assert.equal(JSON.parse(pkg).version,'0.3.8-13-vercel.0');
+  assert.equal(JSON.parse(pkg).version,'0.3.8-14-vercel.0');
 });
