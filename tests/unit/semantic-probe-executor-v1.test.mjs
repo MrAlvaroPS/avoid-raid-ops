@@ -46,7 +46,7 @@ function fakeFetcher(log){
     const rateLimitData={limitPerHour:3600,pointsSpentThisHour:200+log.length,pointsResetIn:1200};
     if(query.includes('AvoidCorpusRateLimit'))return{rateLimitData};
     const report=emptyReport();
-    if(Number.isFinite(Number(variables.abilityID))){
+    if(variables.abilityID!==null&&variables.abilityID!==undefined&&Number.isFinite(Number(variables.abilityID))){
       const fight=Number(variables.fightIDs[0]);
       report.enemyCasts={data:[
         {timestamp:10000+fight*100,fight,abilityGameID:TARGET,type:'cast',sourceID:9000,targetID:1},
@@ -113,7 +113,7 @@ test('executor uses exact fights, reproduces a generic pattern across sources, p
 
 test('semantic execution surface is isolated from corpus Improve and remains POST-confirmed',async()=>{
   const route=await readFile(new URL('../../routes/api/wcl/semantic-probe.js',import.meta.url),'utf8');
-  assert.match(route,/action==='execute'/);
+  assert.match(route,/action!=='execute'/);
   assert.match(route,/confirmExecution!==true/);
   assert.match(route,/Preview fingerprint is missing or stale/);
   assert.match(route,/GET supports only preview or result/);
