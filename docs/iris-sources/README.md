@@ -23,15 +23,14 @@ This directory tells Iris where to look when developing raid intelligence, what 
 
 1. **Warcraft Logs observed evidence remains the combat source of truth.** Third-party interpretation cannot override an event, actor, fight, timestamp, cast, aura or result observed in WCL.
 2. **Do not invent endpoints.** If an API is undocumented or explicitly unavailable, Iris treats the site as reference-only until a supported contract is discovered and reviewed.
-3. **Do not scrape RPGLogs/Archon/WCL/Wipefest pages to bypass an API.** Use documented APIs and respect their terms, quotas and cache headers.
+3. **Do not scrape RPGLogs/Archon/WCL/Wipefest pages to bypass an API.** Use documented APIs and respect their authentication and rate constraints.
 4. **Third-party aggregates are derived evidence.** Lorrgs/WoWAnalyzer/Wipefest/Archon/Mythic Trap may inspire algorithms or provide contextual benchmarks, but their outputs require provenance and must not silently become canonical evidence.
 5. **Open source does not mean unrestricted code reuse.** WoWAnalyzer is AGPL-3.0-or-later. Iris may study its architecture/patterns, but copying code requires an explicit licensing decision.
-6. **A public API does not imply permission for unlimited calls or permanent storage.** Provider terms and cache behavior remain part of the contract.
-7. **Home-raid data and global research stay separated.** External benchmarks may inform comparisons; they never become AvoiD player facts.
+6. **Home-raid data and global research stay separated.** External benchmarks may inform comparisons; they never become AvoiD player facts.
 
 ## Source-specific documentation
 
-- [`WARCRAFT-LOGS.md`](./WARCRAFT-LOGS.md) — official API, schema families, request strategy, permissions, rate budget and data-use constraints.
+- [`WARCRAFT-LOGS.md`](./WARCRAFT-LOGS.md) — official API, schema families, request strategy, permissions and rate budget.
 - [`WOWANALYZER.md`](./WOWANALYZER.md) — open-source analyzer architecture, event/normalizer patterns and licensing boundary.
 - [`WIPEFEST.md`](./WIPEFEST.md) — mechanical-analysis reference and explicit no-public-API boundary.
 - [`ARCHON.md`](./ARCHON.md) — Archon/WCL relationship, scripts, Report Components and unsupported/internal surfaces.
@@ -68,7 +67,7 @@ Need WCL scripting/report-component capability or Archon product context?
 Recheck this directory when any of these occur:
 
 - new WoW patch/season;
-- WCL schema or API Terms change;
+- WCL schema or API contract changes;
 - provider announces an API;
 - provider changes ownership/host/terms;
 - Iris gains a new direct integration;
