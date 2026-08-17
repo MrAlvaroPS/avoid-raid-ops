@@ -7,11 +7,15 @@ import {
   sanitizeGlobalBossProfile,
 } from '../knowledge/scopes.mjs';
 
-export const BOSS_SAMPLING_POLICY_VERSION = 'boss-corpus-sampling-v2';
+export const BOSS_SAMPLING_POLICY_VERSION = 'boss-corpus-sampling-v3';
 export const OUTCOME_STRATA = Object.freeze(['kill', 'deepWipe', 'midWipe', 'earlyWipe']);
 export const OUTCOME_TARGET_WEIGHTS = Object.freeze({ kill: 0.20, deepWipe: 0.30, midWipe: 0.30, earlyWipe: 0.20 });
 // Retained as an auditable human-readable policy order; selection itself is pull-deficit aware.
 export const OUTCOME_ROUND_ROBIN = Object.freeze(['deepWipe', 'midWipe', 'kill', 'deepWipe', 'midWipe', 'earlyWipe']);
+export const CANONICAL_SOURCE_CAPS = Object.freeze({
+  wide: Object.freeze({ maxReportShare:0.10, maxPullShare:0.12 }),
+  deep: Object.freeze({ maxReportShare:0.20, maxPullShare:0.25 }),
+});
 
 const num = value => Number.isFinite(Number(value)) ? Number(value) : null;
 const stableHash = value => {
@@ -169,12 +173,142 @@ function bestProfileForSource(queue, currentStrata, desired) {
   )[0];
 }
 
+function normalizedCaps(mode, overrides = null) {
+  const defaults = CANONICAL_SOURCE_CAPS[mode === 'deep' ? 'deep' : 'wide'];
+  return {
+    maxReportShare: Math.max(0.01, Math.min(1, Number(overrides?.maxReportShare ?? defaults.maxReportShare))),
+    maxPullShare: Math.max(0.01, Math.min(1, Number(overrides?.maxPullShare ?? defaults.maxPullShare))),
+  };
+}
+
+function capEnforcement(availableStats, caps) {
+  const sources = Number(availableStats?.sources || 0);
+  const reportMinSources = Math.ceil(1 / caps.maxReportShare);
+  const pullMinSources = Math.ceil(1 / caps.maxPullShare);
+  const reportApplicable = sources >= reportMinSources;
+  const pullApplicable = sources >= pullMinSources;
+  return {
+    reportApplicable,
+    pullApplicable,
+    reportMinSources,
+    pullMinSources,
+    minSourcesToPreserve: Math.max(reportApplicable ? reportMinSources : 0, pullApplicable ? pullMinSources : 0),
+  };
+}
+
+function concentrationPenalty(stats, caps, enforcement) {
+  let penalty = 0;
+  const sources = new Set([...Object.keys(stats?.sourceReports || {}), ...Object.keys(stats?.sourcePulls || {})]);
+  for (const source of sources) {
+    if (enforcement.reportApplicable && Number(stats.reports || 0) > 0) {
+      const share = Number(stats.sourceReports?.[source] || 0) / Number(stats.reports || 1);
+      penalty += Math.max(0, share - caps.maxReportShare) / caps.maxReportShare;
+    }
+    if (enforcement.pullApplicable && Number(stats.pulls || 0) > 0) {
+      const share = Number(stats.sourcePulls?.[source] || 0) / Number(stats.pulls || 1);
+      penalty += Math.max(0, share - caps.maxPullShare) / caps.maxPullShare;
+    }
+  }
+  return penalty;
+}
+
+function deficitCost(stats, desired) {
+  let cost = 0;
+  for (const key of OUTCOME_STRATA) {
+    const goal = Math.max(1, Number(desired?.[key] || 0));
+    cost += Math.max(0, goal - Number(stats?.strata?.[key]?.pulls || 0)) / goal;
+  }
+  return cost;
+}
+
+function trimSourceConcentration(inputSelected, { mode, desired, sourceCaps } = {}) {
+  const selected = [...(inputSelected || [])];
+  const caps = normalizedCaps(mode, sourceCaps);
+  const availableStats = selectionStats(selected);
+  const enforcement = capEnforcement(availableStats, caps);
+  const trimmed = [];
+  const trimmedPullsBySource = {};
+  const epsilon = 1e-12;
+
+  for (let guard = 0; guard < Math.max(1, inputSelected.length * 2); guard++) {
+    const before = selectionStats(selected);
+    const beforePenalty = concentrationPenalty(before, caps, enforcement);
+    if (beforePenalty <= epsilon || selected.length <= 1) break;
+    const beforeDeficit = deficitCost(before, desired);
+    const violatingSources = new Set();
+    for (const source of Object.keys(before.sourceReports || {})) {
+      const reportShare = before.reports ? Number(before.sourceReports[source] || 0) / before.reports : 0;
+      const pullShare = before.pulls ? Number(before.sourcePulls[source] || 0) / before.pulls : 0;
+      if ((enforcement.reportApplicable && reportShare > caps.maxReportShare + epsilon)
+          || (enforcement.pullApplicable && pullShare > caps.maxPullShare + epsilon)) violatingSources.add(source);
+    }
+    if (!violatingSources.size) break;
+
+    const candidates = [];
+    for (let index = 0; index < selected.length; index++) {
+      const profile = selected[index];
+      const source = bossProfileSourceKey(profile);
+      if (!violatingSources.has(source)) continue;
+      const next = selected.slice(0, index).concat(selected.slice(index + 1));
+      const after = selectionStats(next);
+      if (after.sources < enforcement.minSourcesToPreserve) continue;
+      const afterPenalty = concentrationPenalty(after, caps, enforcement);
+      if (!(afterPenalty < beforePenalty - epsilon)) continue;
+      candidates.push({
+        index,
+        profile,
+        source,
+        afterPenalty,
+        sourceLost: after.sources < before.sources ? 1 : 0,
+        deficitDelta: deficitCost(after, desired) - beforeDeficit,
+        pulls: bossProfilePullCount(profile),
+      });
+    }
+    candidates.sort((a, b) =>
+      a.afterPenalty - b.afterPenalty
+      || a.sourceLost - b.sourceLost
+      || a.deficitDelta - b.deficitDelta
+      || b.pulls - a.pulls
+      || stableHash(a.profile.code) - stableHash(b.profile.code)
+    );
+    const pick = candidates[0];
+    if (!pick) break;
+    const [removed] = selected.splice(pick.index, 1);
+    const removedPulls = bossProfilePullCount(removed);
+    trimmed.push(String(removed.code));
+    trimmedPullsBySource[pick.source] = Number(trimmedPullsBySource[pick.source] || 0) + removedPulls;
+  }
+
+  const stats = selectionStats(selected);
+  const remainingPenalty = concentrationPenalty(stats, caps, enforcement);
+  return {
+    selected,
+    stats,
+    balance: {
+      policy: 'hard-source-concentration-caps-v1',
+      caps,
+      enforcement,
+      trimmedReports: trimmed.length,
+      trimmedPulls: trimmed.reduce((sum, code) => {
+        const profile = inputSelected.find(row => String(row.code) === code);
+        return sum + bossProfilePullCount(profile || {});
+      }, 0),
+      trimmedCodes: trimmed,
+      trimmedPullsBySource,
+      hardCapsSatisfied: remainingPenalty <= epsilon,
+      remainingPenalty,
+      meaning: 'Source round-robin is followed by a deterministic concentration trim. When enough independent sources exist to make a cap mathematically achievable, raw pull targets may not override source-balance safety.',
+    },
+  };
+}
+
 export function buildBalancedBossSample(profiles = [], {
   scope,
   targetPulls = Number.POSITIVE_INFINITY,
   targetReports = Number.POSITIVE_INFINITY,
   mode = 'wide',
   homeOwnerIds = [],
+  sourceCaps = null,
 } = {}) {
   const normalized = normalizeProfiles(profiles, scope, homeOwnerIds);
   const queues = buildSourceQueues(normalized.accepted);
@@ -218,7 +352,7 @@ export function buildBalancedBossSample(profiles = [], {
     for (const key of OUTCOME_STRATA) currentStrata[key] += Number(histogram[key] || 0);
   }
 
-  const stats = selectionStats(selected);
+  const trimmed = trimSourceConcentration(selected, { mode, desired, sourceCaps });
   return {
     policyVersion: BOSS_SAMPLING_POLICY_VERSION,
     contractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
@@ -226,18 +360,19 @@ export function buildBalancedBossSample(profiles = [], {
     scope: { encounterId: Number(scope?.encounterId), difficulty: Number(scope?.difficulty), partition: Number(scope?.partition) },
     homeGuildId: homeGuildId(),
     homeOwnerIds: normalized.homeOwnerIds,
-    selected,
-    selectedCodes: selected.map(profile => String(profile.code)),
-    stats,
+    selected: trimmed.selected,
+    selectedCodes: trimmed.selected.map(profile => String(profile.code)),
+    stats: trimmed.stats,
     available,
     excluded: normalized.excluded,
+    balance: trimmed.balance,
     targetPullWeights: { ...OUTCOME_TARGET_WEIGHTS },
   };
 }
 
 export function buildBossSamplingManifest({ scope, wideSample, deepSample, createdAt = Date.now() } = {}) {
-  const wide = wideSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {}, selected:[], homeOwnerIds:[] };
-  const deep = deepSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {}, selected:[], homeOwnerIds:[] };
+  const wide = wideSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {}, selected:[], homeOwnerIds:[], balance:null };
+  const deep = deepSample || { stats: selectionStats([]), available: selectionStats([]), excluded: {}, selected:[], homeOwnerIds:[], balance:null };
   const selected = [...(wide.selected || []), ...(deep.selected || [])];
   const homeOwnerIds = normalizeHomeOwnerIds([...(wide.homeOwnerIds || []), ...(deep.homeOwnerIds || [])]);
   const homeSourceSelectedReports = selected.filter(profile => isHomeSourceProfile(profile, homeOwnerIds)).length;
@@ -246,7 +381,7 @@ export function buildBossSamplingManifest({ scope, wideSample, deepSample, creat
   const selectedWrongScopeReports = selected.filter(profile => !profileMatchesBossScope(profile, scope)).length;
   const selectedMissingSourceReports = selected.filter(profile => !bossProfileSourceKey(profile)).length;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     policyVersion: BOSS_SAMPLING_POLICY_VERSION,
     contractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
     scope: { kind: 'global-boss', encounterId: Number(scope?.encounterId), difficulty: Number(scope?.difficulty), partition: Number(scope?.partition) },
@@ -262,13 +397,13 @@ export function buildBossSamplingManifest({ scope, wideSample, deepSample, creat
     selectedWrongScopeReports,
     missingSourceExcluded: Number(wide?.excluded?.missingSource || 0) + Number(deep?.excluded?.missingSource || 0),
     selectedMissingSourceReports,
-    wide: { ...wide.stats, available: wide.available, excluded: wide.excluded },
-    deep: { ...deep.stats, available: deep.available, excluded: deep.excluded },
+    wide: { ...wide.stats, available: wide.available, excluded: wide.excluded, balance: wide.balance },
+    deep: { ...deep.stats, available: deep.available, excluded: deep.excluded, balance: deep.balance },
     outcomePolicy: {
       strata: [...OUTCOME_STRATA],
       targetPullWeights: { ...OUTCOME_TARGET_WEIGHTS },
       roundRobin: [...OUTCOME_ROUND_ROBIN],
-      meaning: 'Canonical sampling is source-round-robin first and fills deficits using actual pull outcomes. A mixed report contributes each fight to its real kill/deep/mid/early stratum.',
+      meaning: 'Canonical sampling is source-round-robin first, hard-capped against source concentration, and then judged against actual pull-outcome deficits. A mixed report contributes each fight to its real kill/deep/mid/early stratum.',
     },
     identityPolicy: {
       globalBossStoresPlayerIdentity: false,
@@ -284,6 +419,7 @@ export function samplingPublicationChecks(manifest, {
   maxSourceReportShare = 0.10,
   maxSourcePullShare = 0.12,
   maxDeepSourceReportShare = 0.20,
+  maxDeepSourcePullShare = 0.25,
   minSourcesPerOutcome = 8,
   minDeepSourcesPerOutcome = 3,
 } = {}) {
@@ -301,6 +437,7 @@ export function samplingPublicationChecks(manifest, {
     sourceReportBalance: Number(wide.maxSourceReportShare || 0) <= maxSourceReportShare,
     sourcePullBalance: Number(wide.maxSourcePullShare || 0) <= maxSourcePullShare,
     deepSourceBalance: Number(deep.maxSourceReportShare || 0) <= maxDeepSourceReportShare,
+    deepSourcePullBalance: Number(deep.maxSourcePullShare || 0) <= maxDeepSourcePullShare,
     outcomeCoverage: allWideOutcomes,
     deepOutcomeCoverage: allDeepOutcomes,
   };
