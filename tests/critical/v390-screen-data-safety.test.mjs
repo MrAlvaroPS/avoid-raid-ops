@@ -34,6 +34,12 @@ test('CRITICAL UI RHYTHM: runtime cards use the same 12px spacing contract and n
   assert.match(css,/\.corpus-workbench \.encounter-intelligence-v375\{margin:0\}/);
 });
 
+test('CRITICAL PLAYERS UX: roster is not trapped in the legacy short internal scroller before using its column height',async()=>{
+  const [css,index]=await Promise.all([read('public/raidops-v390.css'),read('index.html')]);
+  assert.match(css,/\.layout-player>\.player-list\{[^}]*max-height:none!important[^}]*overflow:visible!important[^}]*\}/s);
+  assert.ok(index.indexOf('/raidops-v390.css?v=3.9.0')>index.indexOf('/raidops-v386.css?v=3.8.6'),'v3.9 Players override must load after the legacy 570px roster cap');
+});
+
 test('CRITICAL LOAD UX: Data Hub supports stored fallback, visible activity and controllable live polling',async()=>{
   const source=await read('public/data-hub-v390.js');
   new vm.Script(source,{filename:'data-hub-v390.js'});
@@ -175,13 +181,18 @@ test('CRITICAL IRIS DOCUMENTATION: architecture and operations docs explicitly b
   assert.match(agents,/Read `IRIS-ARCHITECTURE\.md` and `IRIS-OPERATIONS\.md`/);
 });
 
-test('CRITICAL RELEASE WIRING: v3.9 activity/data runtime and styles are active before report consumers',async()=>{
-  const index=await read('index.html');
+test('CRITICAL RELEASE WIRING: v3.9.0 package, runtime contracts and assets agree before report consumers',async()=>{
+  const [index,pkgText,hub,reindex]=await Promise.all([read('index.html'),read('package.json'),read('public/data-hub-v390.js'),read('public/knowledge-reindex-v390.js')]);
+  const pkg=JSON.parse(pkgText);
   const bootstrap=index.indexOf('/wcl-bootstrap-v389.js?v=3.8.9.1');
-  const hub=index.indexOf('/data-hub-v390.js?v=3.9.0-refactor');
-  const reindex=index.indexOf('/knowledge-reindex-v390.js?v=3.9.0-refactor');
+  const dataHub=index.indexOf('/data-hub-v390.js?v=3.9.0');
+  const knowledgeReindex=index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const runtime=index.indexOf('/wcl-runtime.js?v=3.8.5');
-  assert.ok(index.includes('/raidops-v390.css?v=3.9.0-refactor'));
-  assert.ok(bootstrap>=0&&hub>bootstrap&&reindex>hub&&runtime>reindex);
+  assert.equal(pkg.version,'0.3.9-0-vercel.0');
+  assert.equal(getIrisCapabilityContract().release,'3.9.0');
+  assert.match(hub,/const RELEASE='3\.9\.0'/);
+  assert.match(reindex,/const RELEASE='3\.9\.0'/);
+  assert.ok(index.includes('/raidops-v390.css?v=3.9.0'));
+  assert.ok(bootstrap>=0&&dataHub>bootstrap&&knowledgeReindex>dataHub&&runtime>knowledgeReindex);
   assert.ok(index.includes('/corpus-ui-stability-v1.js?v=1.1.0'));
 });
