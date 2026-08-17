@@ -78,6 +78,8 @@ When WCL static metadata is explicitly requested, up to 20 ability IDs are alias
 
 When a `bossSlug` is supplied, Iris first requests the boss spell catalogue once. IDs found there get both metadata and explicit secondary boss-membership support. Only IDs not present in that response fall back to individual `/spells/{id}` lookups.
 
+Boss slugs are discovered from Lorrgs' own boss catalogue and passed into the resolver at runtime; they are never hard-coded into generic learning logic. The first real operational validation confirmed that this lookup can reconcile a Lorrgs boss entry with the same numeric encounter ID used by AvoiD/WCL, which is the intended discovery path for future tiers as well.
+
 ## Semantic-probe relationship
 
 This layer complements, rather than replaces, the semantic probe:
