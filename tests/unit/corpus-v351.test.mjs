@@ -47,7 +47,7 @@ test('deep aggregate tracks deep pulls separately from wide pulls',()=>{
 });
 
 test('deploy runtime labels corpus targets as pulls, not ranked reports',async()=>{
-  const runtime=await readFile(new URL('../../deploy-preview/public/wcl-runtime.js',import.meta.url),'utf8');
+  const runtime=await readFile(new URL('../../public/wcl-runtime.js',import.meta.url),'utf8');
   assert.match(runtime,/target pulls/);
   assert.match(runtime,/ENRICH \+/);
   assert.doesNotMatch(runtime,/ranked reports/);
