@@ -1,6 +1,7 @@
 import { corpusGet, corpusList, corpusStorageStatus } from '../server/corpus/storage.mjs';
 import { activateCorpusExecution } from '../server/corpus/service.mjs';
 import { stepCorpusV376 } from '../server/corpus/corpus-step-v376.mjs';
+import { IRIS_CAPABILITY_CONTRACT_VERSION, IRIS_CAPABILITY_CONTRACT } from '../server/iris/capability-contract-v390.mjs';
 
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const POLL_MS=Math.max(500,Number(process.env.IRIS_LOCAL_POLL_MS)||2000);
@@ -69,10 +70,13 @@ async function main(){
     throw new Error(`Iris local worker refuses non-local corpus storage (${storage.kind}).`);
   }
 
+  const availableDomains=[...new Set(IRIS_CAPABILITY_CONTRACT.capabilities.filter(item=>item.status!=='planned').map(item=>item.domain))];
   console.log('IRIS LOCAL WORKER');
   console.log(`Storage: ${storage.localDir}`);
   console.log(`Poll: ${POLL_MS}ms · batch: ${BATCH_STEPS} steps`);
+  console.log(`Operations: ${IRIS_CAPABILITY_CONTRACT_VERSION} · ${availableDomains.join(' / ')}`);
   console.log('Knowledge: GLOBAL BOSS = encounter+difficulty+partition · HOME RAID kept separate');
+  console.log('Management truth: raw WCL evidence immutable · derived knowledge versioned/rederivable');
   console.log('Waiting for local corpus jobs. Ctrl+C stops the worker safely; checkpoints stay on disk.');
 
   while(!stopping){
