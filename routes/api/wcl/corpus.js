@@ -24,6 +24,7 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
 });
+const explicitNonNegative=(value,fallback)=>Number.isFinite(Number(value))?Math.max(0,Number(value)):fallback;
 
 function requestInput(request, body = {}) {
   const url = new URL(request.url);
@@ -114,8 +115,8 @@ async function improveModel(input) {
   if (rec.mode === 'targeted-deep') {
     await startTargetedDeepV373({
       ...input,
-      addDeepPulls: Number(rec.suggestedAdditionalDeepPulls) || 0,
-      addDeepReports: Number(rec.suggestedAdditionalDeepReports) || 0,
+      addDeepPulls: explicitNonNegative(rec.suggestedAdditionalDeepPulls,0),
+      addDeepReports: explicitNonNegative(rec.suggestedAdditionalDeepReports,0),
       maxFightsPerReport:Number(rec.queryGuidance?.maxFightsPerReport) || 6,
       focusAbilityIds: model.learning?.enrichmentFocusAbilityIds || [],
     });
@@ -124,8 +125,8 @@ async function improveModel(input) {
   await startCorpus({
     ...input,
     mode:'enrich',
-    addPulls:Number(rec.suggestedAdditionalWidePulls) || 500,
-    addDeepPulls:Number(rec.suggestedAdditionalDeepPulls) || 100,
+    addPulls:explicitNonNegative(rec.suggestedAdditionalWidePulls,500),
+    addDeepPulls:explicitNonNegative(rec.suggestedAdditionalDeepPulls,100),
   });
   return launchCorpusExecution({ ...input, mode:'enrich' });
 }
