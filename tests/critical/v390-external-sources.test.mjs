@@ -16,7 +16,7 @@ test('CRITICAL IRIS SOURCES: reviewed registry contains every approved developme
   assert.equal(registry.policy.doNotInventEndpoints,true);
 });
 
-test('CRITICAL WCL SOURCE: official OAuth/GraphQL surfaces stay canonical and durable external storage remains terms-governed',()=>{
+test('CRITICAL WCL SOURCE: official OAuth/GraphQL surfaces stay canonical without imposing a permanent-storage guard',()=>{
   const wcl=findIrisSource('warcraftlogs');
   assert.equal(wcl.status,'official-api');
   assert.equal(wcl.runtimeIntegration,'available');
@@ -24,8 +24,8 @@ test('CRITICAL WCL SOURCE: official OAuth/GraphQL surfaces stay canonical and du
   assert.equal(wcl.api.publicGraphql,'https://www.warcraftlogs.com/api/v2/client');
   assert.equal(wcl.api.userGraphql,'https://www.warcraftlogs.com/api/v2/user');
   for(const root of ['reportData','characterData','guildData','gameData','worldData','rateLimitData'])assert.ok(wcl.api.roots[root],`${root} must remain documented for Iris`);
-  assert.equal(wcl.persistence.status,'provider-terms-governed');
-  assert.match(wcl.persistence.rule,/cache headers/i);
+  assert.equal(Object.hasOwn(wcl,'persistence'),false,'the removed permanent-storage guard must not silently return as a source-registry contract');
+  assert.equal(wcl.prohibited.includes('assuming-public-readability-permits-permanent-copy'),false);
   assert.ok(wcl.prohibited.includes('website-scraping-to-bypass-api'));
 });
 
@@ -66,7 +66,9 @@ test('CRITICAL IRIS SOURCE DOCS: source directory records provider-specific API 
     read('docs/iris-sources/README.md'),read('docs/iris-sources/WARCRAFT-LOGS.md'),read('docs/iris-sources/WOWANALYZER.md'),read('docs/iris-sources/WIPEFEST.md'),read('docs/iris-sources/ARCHON.md'),read('docs/iris-sources/LORRGS.md'),read('docs/iris-sources/MYTHIC-TRAP.md'),read('AGENTS.md')
   ]);
   assert.match(index,/Warcraft Logs observed evidence remains the combat source of truth/);
-  assert.match(wcl,/API terms and persistence guard/);
+  assert.match(wcl,/Operational API safety/);
+  assert.match(wcl,/no permanent-storage prohibition/i);
+  assert.doesNotMatch(wcl,/API terms and persistence guard/i);
   assert.match(wcl,/rateLimitData/);
   assert.match(wow,/AGPL-3\.0-or-later/);
   assert.match(wipe,/answers \*\*no\*\*/i);
