@@ -19,13 +19,13 @@ export async function corpusBuildWorkflow(input) {
 async function runCorpusBatch(input) {
   "use step";
 
-  const { stepCorpusV375 } = await import('../server/corpus/corpus-step-v375.mjs');
+  const { stepCorpusV376 } = await import('../server/corpus/corpus-step-v376.mjs');
   let state = null;
 
   // A small batch amortizes workflow overhead while still checkpointing frequently.
   for (let i = 0; i < 4; i++) {
     try {
-      state = await stepCorpusV375(input);
+      state = await stepCorpusV376(input);
     } catch (error) {
       if (/has not been started|resolved partition/i.test(String(error?.message || error))) {
         return { status:'reset', phase:null, pullCount:0, deepPullCount:0, processedWideCount:0, processedDeepCount:0, failedCount:0, resumeAt:null, waitSeconds:0, executionSuperseded:true };

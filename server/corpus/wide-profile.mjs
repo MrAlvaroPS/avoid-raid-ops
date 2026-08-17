@@ -1,5 +1,6 @@
 import { wclGraphql } from '../wcl/client/graphql-client.mjs';
 import { CORPUS_REPORT_HEADER_QUERY, CORPUS_WIDE_TABLES_QUERY } from '../wcl/queries/corpus.mjs';
+import { isHomeSourceProfile, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null;};
 function unwrap(v){let x=v;for(let i=0;i<4;i++){if(x&&typeof x==='object'&&!Array.isArray(x)&&x.data&&typeof x.data==='object'){x=x.data;continue;}break;}return x||{};}
@@ -37,9 +38,12 @@ export function summarizeAbilityTable(value,maps){
   };walk(root);return Object.fromEntries([...out].map(([id,v])=>[String(id),v]));
 }
 
+// friendlyPlayers is kept only in the transient header because Deep provenance needs
+// to distinguish friendly actor ids from encounter-side actor ids. Persisted Wide/Deep
+// profiles are sanitized before storage and never retain this player-id list.
 export function compactFight(f){return{id:num(f.id),startTime:num(f.startTime),endTime:num(f.endTime),durationMs:num(f.endTime)!=null&&num(f.startTime)!=null?num(f.endTime)-num(f.startTime):null,kill:Boolean(f.kill),fightPercentage:num(f.fightPercentage),bossPercentage:num(f.bossPercentage),averageItemLevel:num(f.averageItemLevel),friendlyPlayers:(f.friendlyPlayers||[]).map(Number).filter(Number.isFinite),phaseTransitions:(f.phaseTransitions||[]).map(p=>({id:num(p.id),startTime:num(p.startTime)}))};}
 
-export function normalizeReportHeader(data,{encounterId,difficulty}){
+export function normalizeReportHeader(data,{encounterId,difficulty,partition=0}){
   const report=data?.reportData?.report;if(!report)return null;
   const fights=(report.fights||[]).map(compactFight).filter(f=>f.id!=null);
   return{
@@ -47,27 +51,31 @@ export function normalizeReportHeader(data,{encounterId,difficulty}){
     zone:report.zone?{id:num(report.zone.id),name:report.zone.name||null}:null,
     guild:report.guild?{id:num(report.guild.id),name:report.guild.name||null}:null,
     owner:report.owner?{id:num(report.owner.id)}:null,
-    encounterId:Number(encounterId),difficulty:Number(difficulty),fights,
+    encounterId:Number(encounterId),difficulty:Number(difficulty),partition:Number(partition||0),fights,
     masterData:report.masterData||null,rateLimit:data?.rateLimitData||null
   };
 }
 
-export async function fetchReportHeader({code,encounterId,difficulty=5}){
+export async function fetchReportHeader({code,encounterId,difficulty=5,partition=0}){
   const data=await wclGraphql(CORPUS_REPORT_HEADER_QUERY,{code:String(code),encounter:Number(encounterId),difficulty:Number(difficulty)});
-  return normalizeReportHeader(data,{encounterId,difficulty});
+  return normalizeReportHeader(data,{encounterId,difficulty,partition});
 }
 
-export function normalizeWideProfile(header,tableData,{encounterId,difficulty}){
+export function normalizeWideProfile(header,tableData,{encounterId,difficulty,partition=header?.partition||0}){
   if(!header)return null;const report=tableData?.reportData?.report||{};const fights=header.fights||[],kills=fights.filter(f=>f.kill),wipes=fights.filter(f=>!f.kill);const maps=masterAbilityMaps(header.masterData);
   const tables={};
   for(const kind of ['Casts','Damage','Debuffs','Buffs','Interrupts','Deaths'])for(const cohort of ['kill','wipe']){const key=`${cohort}${kind}`;tables[key]=summarizeAbilityTable(report[key],maps);}
-  return{schemaVersion:2,kind:'wide',code:header.code,title:header.title||null,startTime:header.startTime,endTime:header.endTime,visibility:header.visibility||null,zone:header.zone||null,guild:header.guild||null,owner:header.owner||null,encounterId:Number(encounterId),difficulty:Number(difficulty),fights,kills:kills.length,wipes:wipes.length,tables,abilities:Object.fromEntries([...maps.byId].map(([id,v])=>[String(id),v])),rateLimit:tableData?.rateLimitData||header.rateLimit||null,generatedAt:Date.now()};
+  return sanitizeGlobalBossProfile({schemaVersion:2,kind:'wide',code:header.code,title:header.title||null,startTime:header.startTime,endTime:header.endTime,visibility:header.visibility||null,zone:header.zone||null,guild:header.guild||null,owner:header.owner||null,encounterId:Number(encounterId),difficulty:Number(difficulty),partition:Number(partition||0),fights,kills:kills.length,wipes:wipes.length,tables,abilities:Object.fromEntries([...maps.byId].map(([id,v])=>[String(id),v])),rateLimit:tableData?.rateLimitData||header.rateLimit||null,generatedAt:Date.now()});
 }
 
-export async function fetchWideProfile({code,encounterId,difficulty=5}){
-  const header=await fetchReportHeader({code,encounterId,difficulty});
+export async function fetchWideProfile({code,encounterId,difficulty=5,partition=0}){
+  const header=await fetchReportHeader({code,encounterId,difficulty,partition});
   if(!header||!header.fights?.length)return null;
+  // AvoiD guild reports and explicitly configured AvoiD uploader reports are an
+  // application/evaluation cohort, never GLOBAL BOSS train/holdout. Stop after the
+  // cheap header so the expensive Wide tables query is not spent on home evidence.
+  if(isHomeSourceProfile(header))return null;
   const killFightIDs=header.fights.filter(f=>f.kill).map(f=>f.id),wipeFightIDs=header.fights.filter(f=>!f.kill).map(f=>f.id);
   const tableData=await wclGraphql(CORPUS_WIDE_TABLES_QUERY,{code:String(code),killFightIDs,wipeFightIDs,hasKills:killFightIDs.length>0,hasWipes:wipeFightIDs.length>0});
-  return normalizeWideProfile(header,tableData,{encounterId,difficulty});
+  return normalizeWideProfile(header,tableData,{encounterId,difficulty,partition});
 }

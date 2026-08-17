@@ -1,5 +1,5 @@
 export const ENCOUNTER_META_QUERY=`
-query AvoidTelemetryMeta($code:String!){reportData{report(code:$code,allowUnlisted:true){code startTime endTime masterData{actors{id name type subType server} abilities{gameID name icon type}} fights(killType:Encounters){id encounterID name difficulty kill startTime endTime fightPercentage bossPercentage averageItemLevel inProgress lastPhaseAsAbsoluteIndex phaseTransitions{id startTime} friendlyPlayers friendlySpecs friendlyItemLevels wipeCalledTime}}}}`;
+query AvoidTelemetryMeta($code:String!){reportData{report(code:$code,allowUnlisted:true){code startTime endTime guild{id name} owner{id} masterData{actors{id name type subType server} abilities{gameID name icon type}} fights(killType:Encounters){id encounterID name difficulty kill startTime endTime fightPercentage bossPercentage averageItemLevel inProgress lastPhaseAsAbsoluteIndex phaseTransitions{id startTime} friendlyPlayers friendlySpecs friendlyItemLevels wipeCalledTime}}}}`;
 
 export const THROUGHPUT_QUERY=`
 query AvoidThroughput($code:String!,$all:[Int],$best:[Int],$compare:[Int],$p1s:Float,$p1e:Float,$p2s:Float,$p2e:Float,$p3s:Float,$p3e:Float){reportData{report(code:$code,allowUnlisted:true){
