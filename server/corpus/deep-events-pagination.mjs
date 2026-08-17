@@ -16,7 +16,7 @@ export const DEEP_STREAM_KEYS = Object.freeze([
 
 const finiteCursor = value => Number.isFinite(Number(value)) ? Number(value) : null;
 
-function continuationVariables({code,fightIDs,cursors,active}) {
+export function deepContinuationVariables({code,fightIDs,cursors,active}) {
   const vars = { code:String(code), fightIDs:[...(fightIDs || [])] };
   for (const key of DEEP_STREAM_KEYS) {
     vars[`${key}On`] = active.has(key);
@@ -47,11 +47,13 @@ export async function fetchCompleteDeepEventData({
   code,
   fightIDs = [],
   maxContinuationRounds = 12,
+  fetcher = wclGraphql,
 } = {}) {
   const ids = [...new Set((fightIDs || []).map(Number).filter(Number.isFinite))];
   if (!code || !ids.length) throw new Error('Deep event pagination requires report code and exact fightIDs');
+  if (typeof fetcher !== 'function') throw new Error('Deep event pagination requires a GraphQL fetcher');
 
-  const first = await wclGraphql(CORPUS_DEEP_EVENTS_QUERY, { code:String(code), fightIDs:ids });
+  const first = await fetcher(CORPUS_DEEP_EVENTS_QUERY, { code:String(code), fightIDs:ids });
   const firstReport = first?.reportData?.report;
   if (!firstReport) {
     return {
@@ -87,7 +89,7 @@ export async function fetchCompleteDeepEventData({
     if (!active.size) break;
 
     const before = Object.fromEntries([...active].map(key => [key, Number(cursors[key])]));
-    const page = await wclGraphql(CORPUS_DEEP_EVENTS_CONTINUATION_QUERY, continuationVariables({
+    const page = await fetcher(CORPUS_DEEP_EVENTS_CONTINUATION_QUERY, deepContinuationVariables({
       code,
       fightIDs:ids,
       cursors,
