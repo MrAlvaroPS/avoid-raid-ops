@@ -24,6 +24,7 @@ export const CORPUS_DEFAULTS = Object.freeze({
   maxSourceReportShareToPublish: 0.10,
   maxSourcePullShareToPublish: 0.12,
   maxDeepSourceReportShareToPublish: 0.20,
+  maxDeepSourcePullShareToPublish: 0.25,
   minSourcesPerOutcomeToPublish: 8,
   minDeepSourcesPerOutcomeToPublish: 3,
   // v3.7.1 safety hold: the legacy compiler persists candidates, while the
