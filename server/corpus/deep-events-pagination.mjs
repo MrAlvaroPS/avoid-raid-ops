@@ -14,7 +14,14 @@ export const DEEP_STREAM_KEYS = Object.freeze([
   'deaths',
 ]);
 
-const finiteCursor = value => Number.isFinite(Number(value)) ? Number(value) : null;
+// Number(null) and Number('') are both 0, but WCL uses null to mean there is no next
+// page. Never coerce an absent cursor into timestamp zero or every completed stream will
+// be treated as paginated forever.
+const finiteCursor = value => {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
 
 export function deepContinuationVariables({code,fightIDs,cursors,active}) {
   const vars = { code:String(code), fightIDs:[...(fightIDs || [])] };
