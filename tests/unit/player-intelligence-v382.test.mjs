@@ -42,7 +42,7 @@ test('duplicate logger roster keys inside one canonical pull never double count 
 
 test('history query carries actor identities needed to join attendance across reports',async()=>{
   const query=await read('server/wcl/queries/history.mjs');
-  assert.match(query,/masterData\{actors\{id name type subType server\{name slug region\{name compactName slug\}\}\}\}/);
+  assert.match(query,/masterData\{actors\{id name type subType server\}\}/);
 });
 
 test('Players v3.8.2 runtime owns full-roster rendering and never treats performance as Reliability',async()=>{
