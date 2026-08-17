@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { getIrisSourceRegistry,findIrisSource } from '../../server/iris/external-source-registry-v390.mjs';
 import { findIrisCapability } from '../../server/iris/capability-contract-v390.mjs';
+import irisSourcesService from '../../server/services/iris-sources-service.mjs';
 
 const read=file=>readFile(new URL(`../../${file}`,import.meta.url),'utf8');
 
@@ -43,6 +44,21 @@ test('CRITICAL LORRGS SOURCE: public read API is documented but provider mutatio
   assert.equal(lorrgs.trust,'secondary-derived-from-warcraftlogs');
   for(const path of ['/spec_ranking/{spec_slug}/{boss_slug}','/comp_ranking/{boss_slug}','/bosses/{boss_slug}/spells','/specs/{spec_slug}/spells'])assert.ok(lorrgs.readEndpoints.some(x=>x.path===path),`${path} must remain discoverable`);
   for(const path of ['/spec_ranking/load','/comp_ranking/load/{boss_slug}','/user_reports/{report_id}/load'])assert.ok(lorrgs.forbiddenEndpoints.some(x=>x.path===path),`${path} must remain prohibited`);
+});
+
+test('CRITICAL IRIS SOURCE API: registry and single-provider lookup are actually callable through the service contract',async()=>{
+  const allResponse=await irisSourcesService(new Request('http://localhost/api/iris/sources'));
+  assert.equal(allResponse.status,200);
+  const all=await allResponse.json();
+  assert.equal(all.ok,true);assert.equal(all.version,'iris-source-registry-v1');assert.equal(all.sources.length,6);
+
+  const oneResponse=await irisSourcesService(new Request('http://localhost/api/iris/sources?id=lorrgs'));
+  assert.equal(oneResponse.status,200);
+  const one=await oneResponse.json();
+  assert.equal(one.ok,true);assert.equal(one.source.id,'lorrgs');assert.equal(one.source.runtimeIntegration,'planned');
+
+  const missingResponse=await irisSourcesService(new Request('http://localhost/api/iris/sources?id=does-not-exist'));
+  assert.equal(missingResponse.status,404);
 });
 
 test('CRITICAL IRIS SOURCE DOCS: source directory records provider-specific API and evidence boundaries',async()=>{
