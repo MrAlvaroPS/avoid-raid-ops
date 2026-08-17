@@ -69,5 +69,5 @@ test('v3.8.8 Players remains historical while v3.9.2 owns the active dossier and
   assert.deepEqual(styles.filter(src=>['/raidops-v386.css?v=3.8.6','/raidops-v390.css?v=3.9.0','/raidops-v392.css?v=3.9.2'].includes(src)),['/raidops-v386.css?v=3.8.6','/raidops-v390.css?v=3.9.0','/raidops-v392.css?v=3.9.2']);
   assert.match(index,/raidops-active\.css\?v=3\.9\.2-css1/);
   assert.doesNotMatch(index,/raidops-v(?:386|390|392)\.css/);
-  assert.equal(JSON.parse(pkg).version,'0.3.9-2-vercel.0');
+  assert.equal(JSON.parse(pkg).version,'0.3.9-4-vercel.0');
 });
