@@ -198,7 +198,7 @@ test('CRITICAL IRIS DOCUMENTATION: architecture and operations docs explicitly b
   assert.match(agents,/Semantic probe execution is explicit and diagnostic/);
 });
 
-test('CRITICAL RELEASE WIRING: v3.9.2 Players hotfix overlays the v3.9.1 Iris semantic contract without changing it',async()=>{
+test('CRITICAL RELEASE WIRING: v3.9.3 provider knowledge overlays v3.9.2 Players without changing screen ownership',async()=>{
   const [index,pkgText,hub,reindex]=await Promise.all([read('index.html'),read('package.json'),read('public/data-hub-v390.js'),read('public/knowledge-reindex-v390.js')]);
   const pkg=JSON.parse(pkgText);
   const bootstrap=index.indexOf('/wcl-bootstrap-v389.js?v=3.8.9.1');
@@ -206,8 +206,8 @@ test('CRITICAL RELEASE WIRING: v3.9.2 Players hotfix overlays the v3.9.1 Iris se
   const knowledgeReindex=index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const runtime=index.indexOf('/wcl-runtime.js?v=3.8.5');
   const players=index.indexOf('/player-intelligence-v392.js?v=3.9.2');
-  assert.equal(pkg.version,'0.3.9-2-vercel.0');
-  assert.equal(getIrisCapabilityContract().release,'3.9.1');
+  assert.equal(pkg.version,'0.3.9-3-vercel.0');
+  assert.equal(getIrisCapabilityContract().release,'3.9.3');
   assert.match(hub,/const RELEASE='3\.9\.0'/);
   assert.match(reindex,/const RELEASE='3\.9\.0'/);
   assert.ok(index.includes('/raidops-v390.css?v=3.9.0'));

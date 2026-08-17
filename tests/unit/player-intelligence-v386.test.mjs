@@ -40,7 +40,7 @@ test('overlapping logger reports keep one pull and union player identities',()=>
   assert.deepEqual(pulls[0].rosterIdentities.map(x=>x.name).sort(),['Alpha','Beta']);
 });
 
-test('v3.8.8 Players remains historical while v3.9.2 owns the active dossier and Reliability presentation',async()=>{
+test('v3.8.8 Players remains historical while v3.9.2 owns the active dossier and Reliability presentation under v3.9.3',async()=>{
   const [historical,active,legacyCss,releaseCss,hotfixCss,index,pkg]=await Promise.all([
     read('public/player-intelligence-v386.js'),read('public/player-intelligence-v392.js'),read('public/raidops-v386.css'),read('public/raidops-v390.css'),read('public/raidops-v392.css'),read('index.html'),read('package.json')
   ]);
@@ -67,5 +67,5 @@ test('v3.8.8 Players remains historical while v3.9.2 owns the active dossier and
   assert.match(index,/raidops-v386\.css\?v=3\.8\.6/);
   assert.match(index,/raidops-v390\.css\?v=3\.9\.0/);
   assert.match(index,/raidops-v392\.css\?v=3\.9\.2/);
-  assert.equal(JSON.parse(pkg).version,'0.3.9-2-vercel.0');
+  assert.equal(JSON.parse(pkg).version,'0.3.9-3-vercel.0');
 });
