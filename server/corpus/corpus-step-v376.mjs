@@ -1,15 +1,18 @@
 import { stepCorpusV375 } from './corpus-step-v375.mjs';
 import { getCorpusStatus } from './service.mjs';
 import { corpusGet, corpusSet } from './storage.mjs';
-import { aggregateKey, corpusAliasKey, jobKey, modelKey } from './keys.mjs';
+import { aggregateKey, corpusAliasKey, jobKey, modelKey, deepProfileKey } from './keys.mjs';
 import { globalBossSamplingKey } from '../knowledge/keys.mjs';
 import { homeGuildId, normalizeHomeOwnerIds } from '../knowledge/scopes.mjs';
 import { clampCorpusConfig } from './config.mjs';
 import { rebuildCanonicalBossCorpus } from './canonical-rebuild-v2.mjs';
+import { mergeDeepProfile } from './aggregate.mjs';
+import { fetchQueryGuidedDeepProfile, QUERY_GUIDED_DEEP_POLICY_VERSION } from './query-guided-deep-v1.mjs';
 
 const now = () => Date.now();
 const sourceKey = source => source?.type && source?.id != null ? `${source.type}:${source.id}` : null;
 const uniq = values => [...new Set((values || []).map(Number).filter(value => Number.isFinite(value) && value > 0))];
+const deepPullCount = aggregate => Number(aggregate?.deepKillPulls || 0) + Number(aggregate?.deepWipePulls || 0);
 
 async function resolveArgs(input = {}) {
   const args = { encounterId: Number(input.encounterId), difficulty: Number(input.difficulty || 5), partition: Number(input.partition || 0) };
@@ -101,9 +104,6 @@ async function recordDiscoverySourceAndRotate(args, before, input, state) {
       current.candidateSourceByCode[String(code)] = key;
       changed = true;
     }
-    // A guild-associated AvoiD report tells us the WCL uploader id as well. Keep that
-    // source identity on the job so a later personal/un-guilded report by the same
-    // uploader cannot leak into GLOBAL BOSS KNOWLEDGE.
     if (added?.type === 'guild' && Number(added.id) === homeGuildId() && Number(added.ownerId) > 0) {
       const nextOwners = uniq([...(current.homeOwnerIds || []), Number(added.ownerId)]);
       if (nextOwners.length !== current.homeOwnerIds.length) {
@@ -124,8 +124,6 @@ async function recordDiscoverySourceAndRotate(args, before, input, state) {
           changed = true;
         }
       }
-      // The legacy expansion drained one source page-after-page. Rotate the source
-      // that just produced a page to the end so future pages are fetched round-robin.
       if (current.phase === 'expand-sources') {
         const index = (current.sourceQueue || []).findIndex(row => sourceKey(row) === key);
         if (index >= 0) {
@@ -144,6 +142,90 @@ async function recordDiscoverySourceAndRotate(args, before, input, state) {
     current.updatedAt = now();
     await corpusSet(jobKey(args), current);
   }
+  return getCorpusStatus(args);
+}
+
+function protectRateBudget(job, rate, config) {
+  if (!rate) return false;
+  const limit = Number(rate.limitPerHour) || 0;
+  const spent = Number(rate.pointsSpentThisHour) || 0;
+  const remaining = Math.max(0, limit - spent);
+  job.rateLimit = {
+    limitPerHour: limit,
+    pointsSpentThisHour: spent,
+    pointsRemaining: remaining,
+    pointsResetIn: Number(rate.pointsResetIn) || 0,
+    remainingPct: limit ? remaining / limit : null,
+  };
+  if (!limit) return false;
+  const reserve = Math.max(Number(config.minimumRateLimitReservePoints) || 0, limit * (Number(config.minimumRateLimitReservePct) || 0));
+  if (remaining > reserve) return false;
+  job.status = 'rate-limited';
+  job.resumeAt = now() + Math.max(60, Number(rate.pointsResetIn) || 60) * 1000;
+  job.message = 'WCL rate budget protected during query-guided Deep. Persistent checkpoint retained until the hourly budget resets.';
+  return true;
+}
+
+async function stepQueryGuidedDeep(args, job, input) {
+  const aggregate = await corpusGet(aggregateKey(args));
+  if (!aggregate) return stepCorpusV375(input);
+  const executionToken = input.executionToken ? String(input.executionToken) : null;
+  if (executionToken && job.activeExecutionToken && String(job.activeExecutionToken) !== executionToken) {
+    const state = await getCorpusStatus(args);
+    return { ...state, executionSuperseded: true };
+  }
+  const config = clampCorpusConfig(input);
+  const currentPulls = deepPullCount(aggregate);
+  const currentReports = Number(aggregate.deepReports || 0);
+  const targetPulls = Number(job.deepTargetPulls || 0);
+  const targetReports = Number(job.deepTargetReports || 0);
+  const pullsMet = targetPulls <= 0 || currentPulls >= targetPulls;
+  const reportsMet = targetReports <= 0 || currentReports >= targetReports;
+  if (pullsMet && reportsMet) {
+    job.phase = 'compile';
+    job.message = `QUERY-GUIDED DEEP complete · ${currentReports.toLocaleString()} / ${targetReports.toLocaleString()} reports · ${currentPulls.toLocaleString()} / ${targetPulls.toLocaleString()} pulls. Rebuilding canonical boss model.`;
+    job.updatedAt = now();
+    await corpusSet(jobKey(args), job);
+    return getCorpusStatus(args);
+  }
+
+  const done = new Set(job.processedDeep || []);
+  const next = (job.queryGuidedDeepPlan?.selected || []).find(row => !done.has(String(row.code)));
+  if (!next) {
+    job.phase = 'compile';
+    job.message = `QUERY-GUIDED DEEP candidates exhausted at ${currentReports.toLocaleString()} reports / ${currentPulls.toLocaleString()} pulls. Compile will expose any remaining evidence deficit instead of fabricating coverage.`;
+    job.updatedAt = now();
+    await corpusSet(jobKey(args), job);
+    return getCorpusStatus(args);
+  }
+
+  try {
+    const profile = await fetchQueryGuidedDeepProfile({
+      code:String(next.code),
+      ...args,
+      fightIDs:next.fightIDs || job.deepFightIDsByCode?.[String(next.code)] || [],
+    });
+    job.processedDeep = [...new Set([...(job.processedDeep || []), String(next.code)])];
+    if (!profile) {
+      job.message = `QUERY-GUIDED DEEP filtered ${next.code}: selected fightIDs no longer resolve for the locked encounter/difficulty.`;
+    } else {
+      await corpusSet(deepProfileKey(args, String(next.code)), profile);
+      mergeDeepProfile(aggregate, profile, { validationFraction:config.validationFraction });
+      const complete = Object.values(profile.completeness || {}).filter(Boolean).length;
+      const total = Object.keys(profile.completeness || {}).length;
+      if (complete < total) job.queryGuidedIncompleteReports = Number(job.queryGuidedIncompleteReports || 0) + 1;
+      job.message = `QUERY-GUIDED DEEP · ${Number(aggregate.deepReports || 0).toLocaleString()} / ${targetReports.toLocaleString()} reports · ${deepPullCount(aggregate).toLocaleString()} / ${targetPulls.toLocaleString()} exact fights · ${next.source || 'source'} · streams ${complete}/${total} complete.`;
+      protectRateBudget(job, profile.rateLimit, config);
+    }
+  } catch (error) {
+    job.processedDeep = [...new Set([...(job.processedDeep || []), String(next.code)])];
+    job.failedCountTotal = Number(job.failedCountTotal || 0) + 1;
+    job.failed = [...(job.failed || []), { code:String(next.code), stage:'query-guided-deep', reason:String(error?.message || error).slice(0,500), at:now() }].slice(-100);
+    job.message = `QUERY-GUIDED DEEP skipped ${next.code}: ${String(error?.message || error).slice(0,160)}`;
+  }
+  job.queryGuidedDeepProcessed = Number(job.queryGuidedDeepProcessed || 0) + 1;
+  job.updatedAt = now();
+  await Promise.all([corpusSet(jobKey(args), job), corpusSet(aggregateKey(args), aggregate)]);
   return getCorpusStatus(args);
 }
 
@@ -183,6 +265,9 @@ export async function stepCorpusV376(input = {}) {
   if (!args) return stepCorpusV375(input);
   let job = await corpusGet(jobKey(args));
   if (job?.status === 'running' && job?.phase === 'compile') return finalizeCanonicalCorpus(input);
+  if (job?.status === 'running' && job?.phase === 'deep' && job?.queryGuidedDeepPlan?.policyVersion === QUERY_GUIDED_DEEP_POLICY_VERSION) {
+    return stepQueryGuidedDeep(args, job, input);
+  }
   if (job?.status === 'running' && job?.phase === 'wide') job = await prioritizeWideCandidate(args, job);
   const before = job ? structuredClone(job) : null;
   const state = await stepCorpusV375(input);
