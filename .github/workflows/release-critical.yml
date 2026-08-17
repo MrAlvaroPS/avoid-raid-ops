@@ -30,4 +30,4 @@ jobs:
       - name: Full unit regression
         run: npm test
       - name: Production build contract
-        run: vite build
+        run: npx vite build
