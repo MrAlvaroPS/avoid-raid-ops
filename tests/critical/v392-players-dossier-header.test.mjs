@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { CSS_BUNDLE_SOURCES } from '../../config/active-assets.mjs';
 
 const read=file=>readFile(new URL(`../../${file}`,import.meta.url),'utf8');
 
@@ -21,7 +22,10 @@ test('CRITICAL v3.9.2 PLAYERS: dossier remains column owner, is reacquired after
   assert.match(runtime,/matrixNode!==ownedMatrix/);
   assert.match(runtime,/if\(!force&&sig===last&&!domRebuilt\)/);
   assert.match(runtime,/playerDossierOwned='true'/);
-  assert.ok(index.indexOf('/raidops-v392.css?v=3.9.2')>index.indexOf('/raidops-v390.css?v=3.9.0'));
+  const styleSources=CSS_BUNDLE_SOURCES.map(asset=>asset.src);
+  assert.ok(styleSources.indexOf('/raidops-v392.css?v=3.9.2')>styleSources.indexOf('/raidops-v390.css?v=3.9.0'),'v3.9.2 Players correction must remain after v3.9.0 in the generated cascade source order');
+  assert.ok(index.includes('/raidops-active.css?v=3.9.2-css1'),'production must load the verified generated compatibility stylesheet');
+  assert.ok(!index.includes('/raidops-v392.css?v=3.9.2'),'v3.9.2 CSS is a retained bundle source, not an individual production transport');
   assert.match(index,/player-intelligence-v392\.js\?v=3\.9\.2/);
 });
 
