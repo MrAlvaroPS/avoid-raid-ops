@@ -45,11 +45,23 @@ test('history query carries actor identities needed to join attendance across re
   assert.match(query,/masterData\{actors\{id name type subType server\}\}/);
 });
 
+test('meaningful deaths are pageable and only a complete stream unlocks Survival opportunities',async()=>{
+  const [queries,engine]=await Promise.all([
+    read('server/wcl/queries/intelligence.mjs'),
+    read('server/engines/intelligence-engine.mjs')
+  ]);
+  assert.match(queries,/MEANINGFUL_DEATH_PAGE_QUERY/);
+  assert.match(queries,/meaningfulDeaths:events\(dataType:Deaths,fightIDs:\$all,hostilityType:Friendlies,startTime:\$start,limit:10000,wipeCutoff:5/);
+  assert.match(engine,/MEANINGFUL_DEATH_PAGE_QUERY/);
+  assert.match(engine,/survivalSourceComplete:!deathPage\.truncated/);
+  assert.match(engine,/meaningfulDeaths:\{events:meaningfulDeathEvents\.length,truncated:deathPage\.truncated,pages:deathPage\.pages,sourceComplete:!deathPage\.truncated\}/);
+});
+
 test('Players v3.8.2 runtime owns full-roster rendering and never treats performance as Reliability',async()=>{
   const runtime=await read('public/player-intelligence-v382.js');
   assert.match(runtime,/performanceDoesNotScore/);
   assert.match(runtime,/player-list-scroll/);
-  assert.match(runtime,/reliability-table/);
+  assert.match(runtime,/reliability-table-v382/);
   assert.match(runtime,/first indexed appearance/i);
   assert.match(runtime,/classified failures/i);
   assert.doesNotMatch(runtime,/itemLevel|talentImport|gearCount/);
