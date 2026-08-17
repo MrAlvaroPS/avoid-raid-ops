@@ -10,16 +10,24 @@ test('semantic surgical planning is portable to arbitrary encounters and ability
   const model={
     learning:{
       localMechanicSynthesis:{
-        signals:[{
-          id:targetId,
-          name:'Synthetic Encounter Signal',
-          importance:.91,
-          state:'external-evidence-needed',
-          missingEvidence:['deterministic-structural-pattern'],
-          nextQuestion:'Resolve only the missing semantic structure.',
-          origin:{classification:'encounter'},
-          context:{accepted:[],rejected:[],variantFamilies:[]},
-        }],
+        signals:[
+          {
+            id:targetId,
+            name:'Synthetic Encounter Signal',
+            importance:.91,
+            state:'external-evidence-needed',
+            missingEvidence:['deterministic-structural-pattern'],
+            nextQuestion:'Resolve only the missing semantic structure.',
+            origin:{classification:'encounter'},
+            context:{accepted:[],rejected:[],variantFamilies:[]},
+          },
+          {
+            id:700099,
+            name:'Already Solved Synthetic Signal',
+            state:'local-evidence-sufficient',
+            origin:{classification:'encounter'},
+          },
+        ],
       },
     },
     discovery:{
@@ -54,6 +62,16 @@ test('semantic surgical planning is portable to arbitrary encounters and ability
   assert.equal(plan.signals[0].verificationContract.minimumIndependentSources,3);
   assert.equal(plan.wclCallsExecuted,0);
   assert.equal(plan.safety.executorImplemented,false);
+});
+
+test('semantic probe API remains an explicit zero-WCL planning action',async()=>{
+  const route=await readFile(new URL('../../routes/api/wcl/corpus.js',import.meta.url),'utf8');
+  assert.match(route,/actionFromQuery==='semantic-probe-plan'/);
+  assert.match(route,/action === 'semantic-probe-plan'/);
+  assert.match(route,/buildSemanticSurgicalProbePlanV1/);
+  assert.match(route,/semanticProbePlanVersion:SEMANTIC_SURGICAL_PROBE_PLAN_VERSION/);
+  assert.match(route,/bossAgnosticLearningContract:'iris-boss-agnostic-learning-pipeline-v1'/);
+  assert.doesNotMatch(route,/semantic-probe-execute/);
 });
 
 test('generic Iris learning modules contain no current validation-boss constants',async()=>{
