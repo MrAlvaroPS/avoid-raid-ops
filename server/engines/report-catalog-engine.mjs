@@ -45,50 +45,58 @@ async function listPages({guildId,zoneId,start,end,maxPages=10}){
 }
 
 /**
- * Report catalog is intentionally scoped by the selected report's exact WCL
- * zone. That makes Mythic+ and unrelated/old raids structurally ineligible
- * instead of trying to filter noise later by title heuristics.
+ * Report catalog is hard-scoped to the configured current raid zone when
+ * available. Otherwise the deployment's default/current report resolves that
+ * zone. The user-selected report never gets to redefine what "current raid"
+ * means, so opening an old report cannot pull old raid or Mythic+ noise into
+ * the catalogue.
  */
-export async function getAvoidReportCatalog({reportCode,guildId,days=120,force=false}){
+export async function getAvoidReportCatalog({reportCode,guildId,days=120,force=false,scopeReportCode=reportCode,currentRaidZoneId=null}){
   if(!reportCode)throw new Error('reportCode is required');
   if(!Number.isFinite(Number(guildId))||Number(guildId)<=0)throw new Error('guildId is required');
   const windowDays=clampDays(days);
-  const anchor=await anchorReport(reportCode);
-  if(!anchor?.zone?.id)return null;
+  const scopeAnchor=await anchorReport(scopeReportCode||reportCode);
+  const explicitZone=Number(currentRaidZoneId);
+  const zoneId=Number.isFinite(explicitZone)&&explicitZone>0?explicitZone:Number(scopeAnchor?.zone?.id);
+  if(!Number.isFinite(zoneId)||zoneId<=0)return null;
 
-  const zoneId=Number(anchor.zone.id);
   const key=`${Number(guildId)}:${zoneId}:${windowDays}`;
   const existing=cache.get(key);
   if(!force&&existing&&Date.now()-existing.at<CACHE_TTL_MS){
-    return {...existing.value,cache:{kind:'server-memory',hit:true,ttlMs:CACHE_TTL_MS}};
+    const reports=existing.value.reports.map(report=>({...report,selected:report.code===reportCode}));
+    return {...existing.value,selectedReportCode:reportCode,selectedEligible:reports.some(report=>report.selected),reports,cache:{kind:'server-memory',hit:true,ttlMs:CACHE_TTL_MS}};
   }
 
-  const end=Math.max(Date.now(),Number(anchor.endTime)||Date.now());
+  const end=Math.max(Date.now(),Number(scopeAnchor?.endTime)||Date.now());
   const start=end-windowDays*DAY;
   const listed=await listPages({guildId:Number(guildId),zoneId,start,end});
   const reports=filterCurrentRaidReports(listed.reports,{zoneId,selectedCode:reportCode});
 
-  if(!reports.some(report=>report.code===reportCode))reports.push(publicReport(anchor,reportCode));
+  if(scopeAnchor&&Number(scopeAnchor?.zone?.id)===zoneId&&!reports.some(report=>report.code===scopeAnchor.code))reports.push(publicReport(scopeAnchor,reportCode));
   reports.sort((a,b)=>b.startTime-a.startTime);
+  const selectedEligible=reports.some(report=>report.code===reportCode);
 
   const value={
     generatedAt:Date.now(),
     modelVersion:'report-catalog-v1',
     guildId:Number(guildId),
     selectedReportCode:reportCode,
-    zone:{id:zoneId,name:anchor.zone.name},
+    selectedEligible,
+    zone:{id:zoneId,name:Number(scopeAnchor?.zone?.id)===zoneId?scopeAnchor.zone.name:null},
     window:{days:windowDays,start,end},
     reports,
     latestReport:reports[0]||null,
     pagination:{total:listed.total,pagesScanned:listed.pagesScanned,truncated:listed.truncated},
     filterPolicy:{
       id:'current-raid-zone-v1',
-      include:'exact selected-report WCL zone only',
+      include:'exact configured/default-current WCL raid zone only',
+      scopeOwner:Number.isFinite(explicitZone)&&explicitZone>0?'WCL_CURRENT_RAID_ZONE_ID':'defaultReportCode',
+      selectedReportCannotChangeScope:true,
       mythicPlus:'excluded by exact raid zone scope',
       unrelatedRaids:'excluded by exact raid zone scope',
       titleHeuristics:false,
     },
   };
-  cache.set(key,{at:Date.now(),value});
+  cache.set(key,{at:Date.now(),value:{...value,selectedReportCode:null,selectedEligible:null,reports:reports.map(report=>({...report,selected:false}))}});
   return {...value,cache:{kind:'server-memory',hit:false,ttlMs:CACHE_TTL_MS}};
 }
