@@ -3,7 +3,7 @@
 Status: **required architectural contract**
 
 Contract id: `iris-knowledge-contract-v1`
-Sampling policy: `boss-corpus-sampling-v2`
+Sampling policy: `boss-corpus-sampling-v3`
 
 ## Purpose
 
@@ -92,17 +92,28 @@ Round-robin invariant:
 
 Within the current source round, the report that best fills missing progression-outcome coverage is selected first. Ties are deterministic.
 
-This prevents a 2,000-pull corpus from silently becoming a corpus dominated by a few prolific guilds.
-
 Source-history discovery also rotates source pages instead of draining one source first, and Wide acquisition prefers sources with fewer already-processed reports when provenance is known. Canonical compile-time balancing remains the final authority.
 
-### Source concentration publication gates
+### Hard source-concentration caps
 
-Default publication requirements:
+Round-robin alone is insufficient when many small sources exhaust after one report while one prolific source still has dozens available. Therefore `boss-corpus-sampling-v3` applies a deterministic concentration trim after round-robin selection.
+
+When the available independent-source count is large enough for the cap to be mathematically achievable, raw pull targets MUST NOT override these limits:
 
 - max one-source share of canonical Wide reports: `10%`;
 - max one-source share of canonical Wide pulls: `12%`;
-- max one-source share of canonical Deep reports: `20%`.
+- max one-source share of canonical Deep reports: `20%`;
+- max one-source share of canonical Deep pulls: `25%`.
+
+If satisfying a cap requires selecting fewer total pulls than the requested raw pull target, the balanced smaller sample wins. Cached reports are retained; they are not deleted merely because they are excluded from the canonical sample.
+
+If too few independent sources exist to make a cap possible, the sampler MUST NOT delete honest evidence merely to manufacture a compliant percentage. In that case the manifest records that the cap was not applicable and the publication gates remain responsible for blocking maturity/publication.
+
+The concentration trim is outcome-aware: among removable reports from an overrepresented source, it prefers removals that least damage the missing kill/deep/mid/early target coverage. Ties are deterministic.
+
+### Source concentration publication gates
+
+The hard canonical caps and the publication checks intentionally use the same default thresholds. Publication additionally verifies the persisted manifest rather than trusting the sampling path implicitly.
 
 These gates complement the existing minimum independent-source and isolated-holdout requirements.
 
@@ -132,7 +143,7 @@ These are sampling targets, not fabricated counts and not a claim that the natur
 
 A mixed report is handled correctly. Example: a report containing one kill, twenty deep wipes and ten early wipes contributes `1 / 20 / 0 / 10` to the strata. It is not treated as a pure kill report merely because it contains a kill.
 
-The sampler first preserves source round-robin fairness, then selects the report in that source that best reduces the current pull-level stratum deficits.
+The sampler first preserves source round-robin fairness, then selects the report in that source that best reduces the current pull-level stratum deficits. The source-concentration trim may then remove overrepresented-source reports while minimizing additional outcome deficit.
 
 ### Outcome publication gates
 
@@ -204,7 +215,8 @@ The sampling policy adds a `samplingBalancePct` learning component and publicati
 - complete trusted source identity;
 - Wide report concentration;
 - Wide pull concentration;
-- Deep source concentration;
+- Deep report concentration;
+- Deep pull concentration;
 - all four Wide outcome strata;
 - all four Deep outcome strata.
 
@@ -237,12 +249,14 @@ It must:
 6. reject wrong-scope profiles;
 7. reject reports without trustworthy source identity;
 8. source-round-robin the Wide sample;
-9. balance the sample using actual pull outcome deficits;
-10. restrict Deep selection to reports present in the canonical Wide sample;
-11. balance Deep by the same source/outcome policy;
-12. rebuild train/holdout aggregate from the selected profiles;
-13. compile and apply sampling publication policy;
-14. persist a sampling manifest for audit.
+9. fill pull-outcome deficits using actual fights;
+10. hard-trim overrepresented Wide sources when the configured caps are achievable;
+11. restrict Deep selection to reports present in the canonical Wide sample;
+12. source-round-robin and outcome-balance Deep;
+13. hard-trim Deep report and pull concentration when achievable;
+14. rebuild train/holdout aggregate from the selected profiles;
+15. compile and apply sampling publication policy;
+16. persist a sampling manifest including hard-cap applicability, trims and resulting concentration.
 
 No WCL query is required for those steps.
 
@@ -262,15 +276,17 @@ The following are testable product invariants:
 6. Same source cannot be represented as multiple fake independent sources.
 7. Train/holdout never split reports from the same source.
 8. Source round-robin keeps selected report counts per active source within one round of each other until sources exhaust.
-9. Outcome statistics are pull-level, not report-label-level.
-10. Mixed kill/progression reports contribute to every actual fight stratum they contain.
-11. Persisted global profiles contain no `friendlyPlayers` list.
-12. External source/player evidence cannot be written through the home-raid scope guard.
-13. Recompile/rebalance uses persisted evidence and makes zero WCL requests.
-14. Unverified corpus evidence still cannot raise player Reliability directly.
-15. Global boss knowledge never stores or derives a Reliability score for an external player.
-16. Runtime cannot consume a legacy published boss model that lacks the current knowledge/sampling contract.
-17. Sampling contamination counters are derived from selected evidence, not trusted as caller-supplied flags.
+9. When enough sources exist for configured concentration caps to be achievable, an exhausted-source pattern cannot allow one prolific source to exceed the canonical cap merely to hit the raw pull target.
+10. If caps are mathematically impossible because there are too few independent sources, the sampler does not delete evidence to fake compliance.
+11. Outcome statistics are pull-level, not report-label-level.
+12. Mixed kill/progression reports contribute to every actual fight stratum they contain.
+13. Persisted global profiles contain no `friendlyPlayers` list.
+14. External source/player evidence cannot be written through the home-raid scope guard.
+15. Recompile/rebalance uses persisted evidence and makes zero WCL requests.
+16. Unverified corpus evidence still cannot raise player Reliability directly.
+17. Global boss knowledge never stores or derives a Reliability score for an external player.
+18. Runtime cannot consume a legacy published boss model that lacks the current knowledge/sampling contract.
+19. Sampling contamination counters are derived from selected evidence, not trusted as caller-supplied flags.
 
 ---
 
