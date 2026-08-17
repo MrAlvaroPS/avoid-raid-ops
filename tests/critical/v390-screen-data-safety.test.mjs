@@ -147,7 +147,7 @@ test('CRITICAL IRIS CAPABILITIES: management permissions are machine-readable, v
   const contract=getIrisCapabilityContract();
   assert.equal(contract.version,'iris-capabilities-v1');
   assert.ok(contract.documentation.includes('IRIS-OPERATIONS.md'));
-  for(const id of ['activity.inspect','data.use-stored','logs.sync-latest','logs.load-history','logs.select-report','live.start','live.pause','live.stop','knowledge.inspect','knowledge.stage-refresh','knowledge.activate','knowledge.reindex-browser','knowledge.reindex-durable','corpus.inspect-stored','corpus.semantic-probe.preview','corpus.semantic-probe.execute','corpus.mutate'])assert.ok(findIrisCapability(id),`${id} must remain discoverable by Iris`);
+  for(const id of ['activity.inspect','data.use-stored','logs.sync-latest','logs.load-history','logs.select-report','live.start','live.pause','live.stop','knowledge.inspect','knowledge.stage-refresh','knowledge.activate','knowledge.reindex-browser','knowledge.reindex-durable','corpus.inspect-stored','corpus.semantic-probe.preview','corpus.semantic-probe.execute','corpus.semantic-probe.reverify','corpus.mutate'])assert.ok(findIrisCapability(id),`${id} must remain discoverable by Iris`);
   assert.equal(findIrisCapability('logs.sync-latest').autonomy,'bounded');
   assert.equal(findIrisCapability('logs.select-report').autonomy,'operatorRequested');
   assert.equal(findIrisCapability('knowledge.activate').autonomy,'explicitApproval');
@@ -161,15 +161,21 @@ test('CRITICAL IRIS CAPABILITIES: management permissions are machine-readable, v
   assert.equal(findIrisCapability('corpus.semantic-probe.execute').effect,'diagnostic-network-read');
   assert.match(findIrisCapability('corpus.semantic-probe.execute').description,/0 Deep reports/);
   assert.match(findIrisCapability('corpus.semantic-probe.execute').description,/no automatic mechanic promotion/i);
+  assert.equal(findIrisCapability('corpus.semantic-probe.reverify').autonomy,'automatic');
+  assert.equal(findIrisCapability('corpus.semantic-probe.reverify').effect,'stored-evidence-analysis');
+  assert.match(findIrisCapability('corpus.semantic-probe.reverify').description,/0 WCL/i);
   assert.equal(contract.invariants.rawEvidence,'immutable');
   assert.match(contract.invariants.semanticProbeEvidence,/diagnostic-only/i);
+  assert.match(contract.invariants.semanticSpecificity,/null\/control evidence/i);
 });
 
-test('CRITICAL SEMANTIC PROBE GATE: execution remains fingerprinted/manual while preview remains a 0-WCL surface',async()=>{
+test('CRITICAL SEMANTIC PROBE GATE: execution remains fingerprinted/manual while preview and stored re-verification are zero-WCL surfaces',async()=>{
   const route=await read('routes/api/wcl/semantic-probe.js');
   assert.match(route,/GET supports only preview or result/);
   assert.match(route,/confirmExecution!==true/);
   assert.match(route,/Preview fingerprint is missing or stale/);
+  assert.match(route,/action==='reverify'/);
+  assert.match(route,/providerNetworkCallsExecuted:0/);
   assert.match(route,/wclCallsExecuted:0/);
   assert.doesNotMatch(route,/startCorpus|launchCorpusExecution|improveModel/);
 });
@@ -198,7 +204,7 @@ test('CRITICAL IRIS DOCUMENTATION: architecture and operations docs explicitly b
   assert.match(agents,/Semantic probe execution is explicit and diagnostic/);
 });
 
-test('CRITICAL RELEASE WIRING: v3.9.3 provider knowledge overlays v3.9.2 Players without changing screen ownership',async()=>{
+test('CRITICAL RELEASE WIRING: v3.9.4 semantic specificity overlays v3.9.3 provider knowledge and v3.9.2 Players',async()=>{
   const [index,pkgText,hub,reindex]=await Promise.all([read('index.html'),read('package.json'),read('public/data-hub-v390.js'),read('public/knowledge-reindex-v390.js')]);
   const pkg=JSON.parse(pkgText);
   const bootstrap=index.indexOf('/wcl-bootstrap-v389.js?v=3.8.9.1');
@@ -206,8 +212,8 @@ test('CRITICAL RELEASE WIRING: v3.9.3 provider knowledge overlays v3.9.2 Players
   const knowledgeReindex=index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const runtime=index.indexOf('/wcl-runtime.js?v=3.8.5');
   const players=index.indexOf('/player-intelligence-v392.js?v=3.9.2');
-  assert.equal(pkg.version,'0.3.9-3-vercel.0');
-  assert.equal(getIrisCapabilityContract().release,'3.9.3');
+  assert.equal(pkg.version,'0.3.9-4-vercel.0');
+  assert.equal(getIrisCapabilityContract().release,'3.9.4');
   assert.match(hub,/const RELEASE='3\.9\.0'/);
   assert.match(reindex,/const RELEASE='3\.9\.0'/);
   assert.ok(index.includes('/raidops-v390.css?v=3.9.0'));
