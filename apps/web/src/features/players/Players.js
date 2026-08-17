@@ -24,9 +24,9 @@ export function Players(){
         className:"banner-stat",children:[jsx("label",{
           children:"ROSTER RELIABILITY"
         }),jsx("b",{
-          children:"91%"
+          children:"—"
         }),jsx("small",{
-          children:"Peer median 84%"
+          children:"Evidence gates pending"
         })]
       })]
     }),jsxs("section",{
