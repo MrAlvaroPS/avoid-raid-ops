@@ -1,6 +1,7 @@
 import { median } from '../../wcl/normalization/primitives.mjs';
 import { stageCount } from '../../wcl/normalization/fights.mjs';
 import { classifyPullForAnalysis } from '../pulls/pull-eligibility.mjs';
+import { canonicalActorIdentity } from '../reliability/attendance-history-v1.mjs';
 
 const absStart=(report,fight)=>Number(report.startTime||0)+Number(fight.startTime||0);
 const absEnd=(report,fight)=>Number(report.startTime||0)+Number(fight.endTime||0);
@@ -15,7 +16,19 @@ function samePull(a,b){
   return true;
 }
 
+function fightRosterIdentities(report,fight){
+  const actors=new Map((report?.masterData?.actors||[]).map(a=>[Number(a.id),a]));
+  const byKey=new Map();
+  for(const id of fight?.friendlyPlayers||[]){
+    const actor=actors.get(Number(id));
+    const identity=canonicalActorIdentity(actor);
+    if(identity)byKey.set(identity.key,identity);
+  }
+  return [...byKey.values()];
+}
+
 function normalizePull(report,fight){
+  const rosterIdentities=fightRosterIdentities(report,fight);
   return {
     reportCodes:[report.code],
     fightIds:[fight.id],
@@ -29,7 +42,8 @@ function normalizePull(report,fight){
     kill:Boolean(fight.kill),
     fightPercentage:Number.isFinite(Number(fight.fightPercentage))?Number(fight.fightPercentage):null,
     bossPercentage:Number.isFinite(Number(fight.bossPercentage))?Number(fight.bossPercentage):null,
-    rosterSize:(fight.friendlyPlayers||[]).length
+    rosterSize:(fight.friendlyPlayers||[]).length,
+    rosterIdentities
   };
 }
 
@@ -47,7 +61,9 @@ export function dedupeSessionPulls(reports){
     if(match){
       match.reportCodes=[...new Set([...match.reportCodes,...pull.reportCodes])];
       match.fightIds=[...match.fightIds,...pull.fightIds];
-      if(pull.rosterSize>match.rosterSize)match.rosterSize=pull.rosterSize;
+      const identities=new Map([...(match.rosterIdentities||[]),...(pull.rosterIdentities||[])].map(x=>[x.key,x]));
+      match.rosterIdentities=[...identities.values()];
+      match.rosterSize=Math.max(match.rosterSize,pull.rosterSize,match.rosterIdentities.length);
       match.kill=match.kill||pull.kill;
       match.stageCount=Math.max(Number(match.stageCount)||1,Number(pull.stageCount)||1);
       if(Number.isFinite(pull.fightPercentage)&&(!Number.isFinite(match.fightPercentage)||pull.fightPercentage<match.fightPercentage))match.fightPercentage=pull.fightPercentage;
