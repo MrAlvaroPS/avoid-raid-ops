@@ -40,9 +40,17 @@ test('duplicate logger roster keys inside one canonical pull never double count 
   assert.equal(a.pullAttendancePct,100);
 });
 
-test('history query carries actor identities needed to join attendance across reports',async()=>{
-  const query=await read('server/wcl/queries/history.mjs');
+test('history query carries actor identities and separates encounter from raid attendance populations',async()=>{
+  const [query,engine]=await Promise.all([
+    read('server/wcl/queries/history.mjs'),
+    read('server/engines/history-engine.mjs')
+  ]);
   assert.match(query,/masterData\{actors\{id name type subType server\}\}/);
+  assert.match(query,/encounterFights:fights\(encounterID:\$encounterId,difficulty:\$difficulty/);
+  assert.match(query,/raidFights:fights\(killType:Encounters\)/);
+  assert.match(engine,/const raidClustered=clusterRaidSessions\(raidReports/);
+  assert.match(engine,/scope:'raid-zone-history-window'/);
+  assert.match(engine,/not an inferred guild join date/);
 });
 
 test('meaningful deaths are pageable and only a complete stream unlocks Survival opportunities',async()=>{
