@@ -49,6 +49,21 @@ test('CRITICAL LOAD UX: Data Hub supports stored fallback, visible activity and 
   assert.match(source,/location\.assign\(u\.href\)/);
 });
 
+test('CRITICAL STORED MODE: report/history/intelligence and Encounter Corpus GETs are cache-backed without making POST actions offline',async()=>{
+  const source=await read('public/data-hub-v390.js');
+  for(const endpoint of ['/api/wcl/report','/api/wcl/history','/api/wcl/intelligence','/api/wcl/corpus'])assert.ok(source.includes(`'${endpoint}'`),`${endpoint} must be available to stored mode`);
+  assert.match(source,/method==='GET'&&CACHEABLE\.has\(url\.pathname\)/,'only GET requests may use the offline cache');
+  assert.match(source,/No stored snapshot for/);
+});
+
+test('CRITICAL LIVE BUDGET: rich refresh is change-driven after a closed pull, never unconditional on every 30s status tick',async()=>{
+  const source=await read('public/data-hub-v390.js');
+  assert.match(source,/changed=lastLiveFingerprint!==null&&fingerprint!==lastLiveFingerprint/);
+  assert.match(source,/if\(changed&&!inProgress\)document\.querySelector\('\.wcl button'\)\?\.click\(\)/);
+  assert.doesNotMatch(source,/if\(!status\?\.encounter\?\.latestFight\?\.inProgress\)document\.querySelector\('\.wcl button'\)\?\.click\(\)/,'closed status alone must not trigger a rich refresh every tick');
+  assert.match(source,/liveTickCount%4===0/,'catalogue refresh should stay slower than live status polling');
+});
+
 test('CRITICAL REPORT SCOPE: only exact current-raid zone survives; dungeon/old-raid noise cannot leak in',()=>{
   const reports=filterCurrentRaidReports([
     {code:'CURRENT',title:'Raid night',startTime:300,zone:{id:44,name:'Current Raid'}},
@@ -64,6 +79,7 @@ test('CRITICAL REPORT SCOPE: catalogue query uses exact zone and forbids title h
   const engine=await read('server/engines/report-catalog-engine.mjs');
   const query=await read('server/wcl/queries/report-catalog.mjs');
   assert.match(query,/zoneID:\$zoneId/);
+  assert.match(engine,/selectedReportCannotChangeScope:true/);
   assert.match(engine,/mythicPlus:'excluded by exact raid zone scope'/);
   assert.match(engine,/unrelatedRaids:'excluded by exact raid zone scope'/);
   assert.match(engine,/titleHeuristics:false/);
@@ -104,10 +120,20 @@ test('CRITICAL KNOWLEDGE ACTIVATION: activating a candidate persists revision an
 test('CRITICAL KNOWLEDGE REINDEX: activation invalidates derived browser snapshots and refreshes the current screen',async()=>{
   const source=await read('public/knowledge-reindex-v390.js');
   new vm.Script(source,{filename:'knowledge-reindex-v390.js'});
-  for(const path of ['/api/wcl/report','/api/wcl/status','/api/wcl/telemetry','/api/wcl/history','/api/wcl/intelligence'])assert.ok(source.includes(`'${path}'`));
+  for(const endpoint of ['/api/wcl/report','/api/wcl/status','/api/wcl/telemetry','/api/wcl/history','/api/wcl/intelligence'])assert.ok(source.includes(`'${endpoint}'`));
   assert.match(source,/cache\.delete\(request\)/);
   assert.match(source,/document\.querySelector\('\.wcl button'\)\?\.click\(\)/);
   assert.match(source,/rawEvidence:'immutable'/);
+});
+
+test('CRITICAL KNOWLEDGE SCHEMA: revisioned entities and derived snapshot staleness have durable DB contracts',async()=>{
+  const schema=await read('server/storage/schema/001_game_knowledge.sql');
+  assert.match(schema,/create table if not exists knowledge_revision/i);
+  assert.match(schema,/create table if not exists game_entity/i);
+  assert.match(schema,/create table if not exists game_entity_reference/i);
+  assert.match(schema,/create table if not exists derived_snapshot_revision/i);
+  assert.match(schema,/knowledge_revision text references knowledge_revision\(revision\)/i);
+  assert.match(schema,/stale integer not null default 0/i);
 });
 
 test('CRITICAL RELEASE WIRING: v3.9 activity/data runtime and styles are active before report consumers',async()=>{
