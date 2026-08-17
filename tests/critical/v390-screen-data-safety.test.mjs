@@ -34,10 +34,25 @@ test('CRITICAL UI RHYTHM: runtime cards use the same 12px spacing contract and n
   assert.match(css,/\.corpus-workbench \.encounter-intelligence-v375\{margin:0\}/);
 });
 
-test('CRITICAL PLAYERS UX: roster is not trapped in the legacy short internal scroller before using its column height',async()=>{
-  const [css,index]=await Promise.all([read('public/raidops-v390.css'),read('index.html')]);
-  assert.match(css,/\.layout-player>\.player-list\{[^}]*max-height:none!important[^}]*overflow:visible!important[^}]*\}/s);
-  assert.ok(index.indexOf('/raidops-v390.css?v=3.9.0')>index.indexOf('/raidops-v386.css?v=3.8.6'),'v3.9 Players override must load after the legacy 570px roster cap');
+test('CRITICAL PLAYERS UX: dossier stays visible, roster consumes dossier height before scrolling, and no mock Reliability can flash',async()=>{
+  const [css,runtime,source,index]=await Promise.all([
+    read('public/raidops-v391.css'),read('public/player-intelligence-v391.js'),read('apps/web/src/features/players/Players.js'),read('index.html')
+  ]);
+  assert.match(css,/\.layout-player\{align-items:start!important\}/);
+  assert.match(css,/max-height:var\(--players-roster-max-height,none\)!important/);
+  assert.match(css,/overflow-y:var\(--players-roster-overflow,visible\)!important/);
+  assert.match(css,/\.layout-player>\.player-detail\{[^}]*width:100%!important/s);
+  assert.match(runtime,/function syncRosterHeight\(\)/);
+  assert.match(runtime,/dossier\.getBoundingClientRect\(\)\.height/);
+  assert.match(runtime,/--players-roster-max-height/);
+  assert.match(runtime,/list\.scrollHeight>target\+1\?'auto':'visible'/);
+  assert.match(runtime,/const isPublished=p=>p\?\.status==='published'&&p\?\.publication\?\.publishable===true&&Number\.isFinite\(Number\(p\?\.value\)\)/);
+  assert.match(runtime,/x\.dataset\.reliabilityOwned='true'/);
+  assert.match(css,/banner-stat:not\(\[data-reliability-owned="true"\]\)/);
+  assert.doesNotMatch(source,/children:"91%"/);
+  assert.doesNotMatch(source,/Peer median 84%/);
+  assert.ok(index.indexOf('/raidops-v391.css?v=3.9.1')>index.indexOf('/raidops-v390.css?v=3.9.0'),'v3.9.1 Players correction must override the v3.9.0 natural-height rule');
+  assert.match(index,/player-intelligence-v391\.js\?v=3\.9\.1/);
 });
 
 test('CRITICAL LOAD UX: Data Hub supports stored fallback, visible activity and controllable live polling',async()=>{
@@ -181,18 +196,21 @@ test('CRITICAL IRIS DOCUMENTATION: architecture and operations docs explicitly b
   assert.match(agents,/Read `IRIS-ARCHITECTURE\.md` and `IRIS-OPERATIONS\.md`/);
 });
 
-test('CRITICAL RELEASE WIRING: v3.9.0 package, runtime contracts and assets agree before report consumers',async()=>{
-  const [index,pkgText,hub,reindex]=await Promise.all([read('index.html'),read('package.json'),read('public/data-hub-v390.js'),read('public/knowledge-reindex-v390.js')]);
+test('CRITICAL RELEASE WIRING: v3.9.1 package and Players hotfix layer cleanly over v3.9.0 data contracts',async()=>{
+  const [index,pkgText,hub,reindex,players]=await Promise.all([read('index.html'),read('package.json'),read('public/data-hub-v390.js'),read('public/knowledge-reindex-v390.js'),read('public/player-intelligence-v391.js')]);
   const pkg=JSON.parse(pkgText);
   const bootstrap=index.indexOf('/wcl-bootstrap-v389.js?v=3.8.9.1');
   const dataHub=index.indexOf('/data-hub-v390.js?v=3.9.0');
   const knowledgeReindex=index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const runtime=index.indexOf('/wcl-runtime.js?v=3.8.5');
-  assert.equal(pkg.version,'0.3.9-0-vercel.0');
+  const playerRuntime=index.indexOf('/player-intelligence-v391.js?v=3.9.1');
+  assert.equal(pkg.version,'0.3.9-1-vercel.0');
   assert.equal(getIrisCapabilityContract().release,'3.9.0');
   assert.match(hub,/const RELEASE='3\.9\.0'/);
   assert.match(reindex,/const RELEASE='3\.9\.0'/);
+  assert.match(players,/const VERSION='3\.9\.1'/);
   assert.ok(index.includes('/raidops-v390.css?v=3.9.0'));
-  assert.ok(bootstrap>=0&&dataHub>bootstrap&&knowledgeReindex>dataHub&&runtime>knowledgeReindex);
+  assert.ok(index.includes('/raidops-v391.css?v=3.9.1'));
+  assert.ok(bootstrap>=0&&dataHub>bootstrap&&knowledgeReindex>dataHub&&runtime>knowledgeReindex&&playerRuntime>runtime);
   assert.ok(index.includes('/corpus-ui-stability-v1.js?v=1.1.0'));
 });
