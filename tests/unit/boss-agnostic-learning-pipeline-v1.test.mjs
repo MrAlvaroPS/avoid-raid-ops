@@ -100,17 +100,23 @@ test('semantic surgical planning is portable and prefers canonical Deep target e
   assert.equal(plan.safety.executorImplemented,false);
 });
 
-test('semantic probe v2 falls back to canonical Wide when no selected canonical Deep target evidence exists',()=>{
+test('semantic probe v2 does not pretend Deep is canonical when selectedDeepCodes is unavailable',()=>{
   const encounterId=4321,targetId=810001,neighborId=810002;
   const model=targetModel(targetId,neighborId);
   const aggregate={sampling:{selectedWideCodes:['ONLY_WIDE'],selectedDeepCodes:[]}};
   const wideProfiles=[{code:'ONLY_WIDE',owner:{id:55},fights:fights(50),tables:{wipeCasts:{[String(targetId)]:{count:3}}}}];
-  const deepProfiles=[];
+  const deepProfiles=[{
+    code:'ONLY_WIDE',owner:{id:55},fights:fights(60),completeness:COMPLETE,
+    originEvidence:{[String(targetId)]:{events:500,encounterOrUnknownSourceEvents:500}},
+  }];
   const plan=buildSemanticSurgicalProbePlanV2({model,aggregate,wideProfiles,deepProfiles,encounterId,partition:2,maxSourcesPerSignal:1});
+  assert.equal(plan.canonicalDeepManifestAvailable,false);
+  assert.equal(plan.canonicalDeepReportsInPool,0);
   assert.equal(plan.signals[0].anchorRequests[0].reportCode,'ONLY_WIDE');
   assert.equal(plan.signals[0].anchorRequests[0].selectionEvidence.selectionTier,'canonical-wide-report-presence');
   assert.equal(plan.signals[0].anchorRequests[0].selectionEvidence.persistedTargetEvents,0);
   assert.equal(plan.signals[0].anchorRequests[0].selectionEvidence.completeCanonicalDeep,false);
+  assert.equal(plan.signals[0].anchorRequests[0].selectionEvidence.canonicalDeepSelected,false);
 });
 
 test('semantic probe API loads Wide plus Deep and remains an explicit zero-WCL planning action',async()=>{
