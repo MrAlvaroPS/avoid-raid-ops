@@ -10,7 +10,11 @@ export default async req=>{
   const days=Number(u.searchParams.get('days')||120);
   const force=u.searchParams.get('force')==='1';
   try{
-    const catalog=await getAvoidReportCatalog({reportCode,guildId,days,force});
+    const catalog=await getAvoidReportCatalog({
+      reportCode,guildId,days,force,
+      scopeReportCode:runtimeConfig.defaultReportCode,
+      currentRaidZoneId:runtimeConfig.currentRaidZoneId,
+    });
     if(!catalog)return jsonResponse(404,{ok:false,error:'Unable to resolve current raid zone',reportCode,guildId});
     return jsonResponse(200,{ok:true,...catalog},force?'private, no-store':'private, max-age=15');
   }catch(error){
