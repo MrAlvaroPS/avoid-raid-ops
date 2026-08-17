@@ -81,6 +81,35 @@ query AvoidCorpusDeepEvents($code:String!,$fightIDs:[Int]!){
  }}
 }`;
 
+// Continuation pages for Deep streams. Every alias has its own cursor because WCL can
+// paginate DamageTaken/Buffs/Debuffs at different timestamps. @include lets one request
+// advance only the streams that still have a nextPageTimestamp, so already-complete
+// streams are never downloaded again.
+export const CORPUS_DEEP_EVENTS_CONTINUATION_QUERY = `
+query AvoidCorpusDeepEventsContinuation(
+ $code:String!,$fightIDs:[Int]!,
+ $enemyCastsOn:Boolean!,$enemyCastsStart:Float,
+ $friendDamageOn:Boolean!,$friendDamageStart:Float,
+ $interruptsOn:Boolean!,$interruptsStart:Float,
+ $debuffsOn:Boolean!,$debuffsStart:Float,
+ $buffsOn:Boolean!,$buffsStart:Float,
+ $enemyBuffsOn:Boolean!,$enemyBuffsStart:Float,
+ $enemyDebuffsOn:Boolean!,$enemyDebuffsStart:Float,
+ $deathsOn:Boolean!,$deathsStart:Float
+){
+ rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}
+ reportData{report(code:$code,allowUnlisted:false){
+  enemyCasts:events(dataType:Casts,fightIDs:$fightIDs,hostilityType:Enemies,startTime:$enemyCastsStart,limit:10000,useAbilityIDs:true,useActorIDs:true,translate:false) @include(if:$enemyCastsOn){data nextPageTimestamp}
+  friendDamage:events(dataType:DamageTaken,fightIDs:$fightIDs,hostilityType:Friendlies,startTime:$friendDamageStart,limit:10000,useAbilityIDs:true,useActorIDs:true,translate:false) @include(if:$friendDamageOn){data nextPageTimestamp}
+  interrupts:events(dataType:Interrupts,fightIDs:$fightIDs,hostilityType:Friendlies,startTime:$interruptsStart,limit:10000,useAbilityIDs:true,useActorIDs:true,translate:false) @include(if:$interruptsOn){data nextPageTimestamp}
+  debuffs:events(dataType:Debuffs,fightIDs:$fightIDs,hostilityType:Friendlies,startTime:$debuffsStart,limit:10000,useAbilityIDs:true,useActorIDs:true,translate:false) @include(if:$debuffsOn){data nextPageTimestamp}
+  buffs:events(dataType:Buffs,fightIDs:$fightIDs,hostilityType:Friendlies,startTime:$buffsStart,limit:10000,useAbilityIDs:true,useActorIDs:true,translate:false) @include(if:$buffsOn){data nextPageTimestamp}
+  enemyBuffs:events(dataType:Buffs,fightIDs:$fightIDs,hostilityType:Enemies,startTime:$enemyBuffsStart,limit:10000,useAbilityIDs:true,useActorIDs:true,translate:false) @include(if:$enemyBuffsOn){data nextPageTimestamp}
+  enemyDebuffs:events(dataType:Debuffs,fightIDs:$fightIDs,hostilityType:Enemies,startTime:$enemyDebuffsStart,limit:10000,useAbilityIDs:true,useActorIDs:true,translate:false) @include(if:$enemyDebuffsOn){data nextPageTimestamp}
+  deaths:events(dataType:Deaths,fightIDs:$fightIDs,startTime:$deathsStart,limit:10000,useAbilityIDs:true,useActorIDs:true,translate:false,wipeCutoff:5) @include(if:$deathsOn){data nextPageTimestamp}
+ }}
+}`;
+
 // Compatibility names retained so older imports/tests fail loudly only at runtime semantics,
 // not module resolution. New code uses the split header/table/event queries above.
 export const CORPUS_WIDE_PROFILE_QUERY = CORPUS_REPORT_HEADER_QUERY;
