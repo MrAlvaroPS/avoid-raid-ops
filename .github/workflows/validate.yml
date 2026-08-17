@@ -25,4 +25,15 @@ jobs:
       - name: Syntax and Vercel contract
         run: npm run verify:vercel
       - name: Unit tests
-        run: npm test
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee /tmp/avoid-unit-tests.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do
+              message=${line#not ok * - }
+              echo "::error title=Unit test failure::${message}"
+            done < <(grep '^not ok ' /tmp/avoid-unit-tests.log || true)
+            exit "$status"
+          fi
