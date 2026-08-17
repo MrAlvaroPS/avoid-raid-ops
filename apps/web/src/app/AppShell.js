@@ -1,5 +1,6 @@
 import { jsx, jsxs, Fragment } from "react/jsx-runtime";
 import { useState } from "react";
+import { PRODUCT_RELEASE_LABEL } from "@avoid/release";
 import { NAV_ITEMS } from "../data/goldenMocks.js";
 import { CommandCenter } from "../features/command-center/CommandCenter.js";
 import { Progress } from "../features/progress/Progress.js";
@@ -52,7 +53,7 @@ export function AppShell(){
         })]
       }),jsxs("div",{
         className:"division",children:["PERFORMANCE SYSTEM ",jsx("b",{
-          children:"01"
+          children:PRODUCT_RELEASE_LABEL
         })]
       }),jsx("nav",{
         children:NAV_ITEMS.map(([c,f])=>jsxs("button",{

@@ -10,6 +10,11 @@ pairs={
 intentional_data_truth_retirements={
  'I0':{'"91%"','"Peer median 84%"'},
 }
+# Architecture migrations may retire Golden implementation placeholders while preserving
+# the visual contract. The shell's static "01" is replaced by the canonical release label.
+intentional_architecture_retirements={
+ 'Xf':{'"01"'},
+}
 fail=[]
 # Compare literal payloads (strings) after decoding JS escapes conservatively by raw literal token.
 def strings(s): return set(re.findall(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'',s))
@@ -53,13 +58,13 @@ for symbol,rel in pairs.items():
    fail.append(str(exc)); continue
  src=(root/'apps/web/src'/rel).read_text()
  gs=strings(golden); ss=strings(src)
- retired=intentional_data_truth_retirements.get(symbol,set())
- # Every Golden literal must survive unless it is an explicitly reviewed obsolete mock fact.
+ retired=intentional_data_truth_retirements.get(symbol,set())|intentional_architecture_retirements.get(symbol,set())
+ # Every Golden literal must survive unless it is an explicitly reviewed obsolete fact or implementation placeholder.
  lost=sorted((gs-ss)-retired)
  if lost: fail.append(f'{symbol}: {len(lost)} golden string literals missing, e.g. {lost[:3]}')
 if fail:
  print('RECONSTRUCTION VERIFICATION: FAIL'); [print(' -',x) for x in fail]; sys.exit(1)
 print('RECONSTRUCTION VERIFICATION: PASS')
 print(' - every non-retired string literal from all 9 screens + AppShell survives the split')
-print(' - obsolete mock facts may be retired only through the explicit Data Truth allowlist')
+print(' - obsolete mock facts and implementation placeholders may retire only through explicit reviewed allowlists')
 print(' - missing case-collided extracts fall back to immutable golden-master/main.js')

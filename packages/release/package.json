@@ -1,0 +1,7 @@
+{
+  "name": "@avoid/release",
+  "private": true,
+  "version": "0.0.0-private.0",
+  "type": "module",
+  "exports": "./src/index.js"
+}

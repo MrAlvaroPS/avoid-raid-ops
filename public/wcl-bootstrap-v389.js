@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 
-const RELEASE='3.8.9';
+const BOOTSTRAP_VERSION='3.8.9';
 const SHELL_RELEASE_MS=900;
 const CORE_READY_POLL_MS=200;
 const GET_TIMEOUTS=Object.freeze({
@@ -18,6 +18,7 @@ const GET_TIMEOUTS=Object.freeze({
 const nativeFetch=window.fetch.bind(window);
 const diagnostics=window.__AVOID_WCL_REQUEST_DIAGNOSTICS__||{};
 window.__AVOID_WCL_REQUEST_DIAGNOSTICS__=diagnostics;
+let productReleasePromise=null;
 
 function requestUrl(input){
   try{return new URL(input instanceof Request?input.url:String(input),location.href)}catch{return null}
@@ -57,17 +58,46 @@ function root(){return document.getElementById('root')}
 function boot(){return document.getElementById('raidops-boot')}
 function statusCard(){return document.getElementById('raidops-wcl-bootstrap-status')}
 
+function ensureReleaseStyle(){
+  if(document.getElementById('raidops-product-release-style'))return;
+  const style=document.createElement('style');
+  style.id='raidops-product-release-style';
+  style.textContent='.division b[data-release]{font-size:0}.division b[data-release]::after{content:attr(data-release);font-size:11px}';
+  document.head.append(style);
+}
+
+function applyVisibleRelease(release){
+  const label=document.querySelector('.division b');
+  if(!label||!release?.label)return;
+  if(label.dataset.release!==release.label)label.dataset.release=release.label;
+  if(label.dataset.bootstrapRuntime!==BOOTSTRAP_VERSION)label.dataset.bootstrapRuntime=BOOTSTRAP_VERSION;
+}
+
+function loadProductRelease(){
+  const cached=window.__AVOID_RELEASE__;
+  if(cached?.label&&cached?.version)return Promise.resolve(cached);
+  if(productReleasePromise)return productReleasePromise;
+  productReleasePromise=nativeFetch('/api/release',{headers:{accept:'application/json'}})
+    .then(async response=>{
+      if(!response.ok)throw new Error(`Release metadata HTTP ${response.status}`);
+      const payload=await response.json(),release=payload?.release;
+      if(!release||!/^\d+\.\d+\.\d+$/.test(String(release.version||''))||release.label!==`v${release.version}`)throw new Error('Invalid product release metadata');
+      const normalized=Object.freeze({...release});
+      window.__AVOID_RELEASE__=normalized;
+      return normalized;
+    })
+    .catch(()=>null);
+  return productReleasePromise;
+}
+
 function patchVisibleRelease(){
   const label=document.querySelector('.division b');
   if(!label)return;
-  const release=`v${RELEASE}`;
-  if(label.dataset.release!==release)label.dataset.release=release;
-  if(!document.getElementById('raidops-release-v389-style')){
-    const style=document.createElement('style');
-    style.id='raidops-release-v389-style';
-    style.textContent='.division b[data-release]{font-size:0}.division b[data-release]::after{content:attr(data-release);font-size:11px}';
-    document.head.append(style);
-  }
+  ensureReleaseStyle();
+  const cached=window.__AVOID_RELEASE__;
+  if(cached?.label){applyVisibleRelease(cached);return;}
+  if(!label.dataset.release)label.dataset.release='v—';
+  loadProductRelease().then(release=>{if(release)applyVisibleRelease(release)});
 }
 
 function ensureStatusCard(){
