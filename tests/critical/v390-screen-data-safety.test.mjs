@@ -166,12 +166,17 @@ test('CRITICAL IRIS CAPABILITIES: management permissions are machine-readable, v
 });
 
 test('CRITICAL SEMANTIC PROBE GATE: execution remains fingerprinted/manual while preview remains a 0-WCL surface',async()=>{
-  const route=await read('routes/api/wcl/semantic-probe.js');
-  assert.match(route,/GET supports only preview or result/);
-  assert.match(route,/confirmExecution!==true/);
-  assert.match(route,/Preview fingerprint is missing or stale/);
-  assert.match(route,/wclCallsExecuted:0/);
-  assert.doesNotMatch(route,/startCorpus|launchCorpusExecution|improveModel/);
+  const [route,service]=await Promise.all([
+    read('routes/api/wcl/semantic-probe.js'),
+    read('server/services/semantic-probe-service.mjs'),
+  ]);
+  assert.match(route,/semantic-probe-service\.mjs/,'Nitro route must delegate to the semantic-probe service owner');
+  assert.doesNotMatch(route,/confirmExecution|Preview fingerprint|wclCallsExecuted/,'transport must stay free of semantic-probe policy');
+  assert.match(service,/GET supports only preview or result/);
+  assert.match(service,/confirmExecution!==true/);
+  assert.match(service,/Preview fingerprint is missing or stale/);
+  assert.match(service,/wclCallsExecuted:0/);
+  assert.doesNotMatch(service,/startCorpus|launchCorpusExecution|improveModel/);
 });
 
 test('CRITICAL IRIS OPERATIONS: browser bridge exposes the same log/live/knowledge controls without duplicating private DOM button behavior',async()=>{
