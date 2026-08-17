@@ -10,6 +10,7 @@ const OBSERVER_CONSTRUCTION = /\bnew\s+(?:window\.)?MutationObserver\s*\(/;
 // until the new runtime is deliberately reviewed and added here.
 const ACTIVE_OVERLAYS = [
   'public/wcl-bootstrap-v389.js',
+  'public/data-hub-v390.js',
   'public/wcl-runtime.js',
   'public/encounter-intelligence-v375.js',
   'public/corpus-ui-stability-v1.js',
@@ -31,23 +32,14 @@ test('CRITICAL SAFETY INVENTORY: every active local browser overlay is covered b
 
 test('CRITICAL DOM LIVENESS: active overlay runtimes cannot construct MutationObservers', async () => {
   for (const [path, source] of await activeSources()) {
-    assert.doesNotMatch(
-      source,
-      OBSERVER_CONSTRUCTION,
-      `${path} must not construct MutationObserver; active overlays use explicit state/data polling instead`,
-    );
+    assert.doesNotMatch(source, OBSERVER_CONSTRUCTION, `${path} must not construct MutationObserver; active overlays use explicit state/data polling instead`);
   }
 });
 
 test('CRITICAL RELEASE OWNERSHIP: bootstrap is the only active writer of the visible release marker', async () => {
   const sources = await activeSources();
   const writers = sources.filter(([, source]) => /\.dataset\.release\s*=/.test(source));
-  assert.deepEqual(
-    writers.map(([path]) => path),
-    ['public/wcl-bootstrap-v389.js'],
-    'exactly one active runtime may write data-release on the global sidebar release label',
-  );
-
+  assert.deepEqual(writers.map(([path]) => path), ['public/wcl-bootstrap-v389.js'], 'exactly one active runtime may write data-release on the global sidebar release label');
   const bootstrap = writers[0][1];
   assert.match(bootstrap, /function patchVisibleRelease\(\)/);
   assert.match(bootstrap, /\.division b/);
@@ -80,18 +72,21 @@ test('CRITICAL IRIS RELEASE GUARD: Iris component metadata cannot overwrite the 
   assert.doesNotMatch(source, /\.observe\s*\(/);
 });
 
-test('CRITICAL RELEASE WIRING: hotfix bootstrap loads before every shared data/component overlay', async () => {
+test('CRITICAL RELEASE WIRING: bootstrap and cache/data layer load before shared WCL/component overlays', async () => {
   const index = await read('index.html');
   const bootstrap = index.indexOf('/wcl-bootstrap-v389.js?v=3.8.9.1');
+  const dataHub = index.indexOf('/data-hub-v390.js?v=3.9.0-refactor');
   assert.ok(bootstrap >= 0, 'hotfix bootstrap must be wired into index.html');
+  assert.ok(dataHub > bootstrap, 'data hub must wrap the bootstrap fetch layer, not bypass it');
   for (const asset of [
     '/wcl-runtime.js?v=3.8.5',
     '/encounter-intelligence-v375.js?v=3.8.5',
+    '/corpus-ui-stability-v1.js?v=1.1.0',
     '/progress-runtime-v3713.js?v=3.8.5',
     '/iris-runtime-v3713.js?v=3.8.9.1',
     '/player-intelligence-v386.js?v=3.8.9.1',
   ]) {
     const position = index.indexOf(asset);
-    assert.ok(position > bootstrap, `${asset} must load after the release/liveness bootstrap`);
+    assert.ok(position > dataHub, `${asset} must load after the bootstrap + data platform layer`);
   }
 });
