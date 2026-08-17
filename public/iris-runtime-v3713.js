@@ -4,7 +4,6 @@
   const RAID_LEADER='Onie';
   let storageIssue=null;
   let actionIssue=null;
-  let versionObserver=null;
 
   window.__AVOID_IRIS__=Object.freeze({
     name:IRIS,
@@ -14,16 +13,15 @@
     corpusScope:'encounter+difficulty+partition',
   });
 
+  // Component runtimes must never own the global visible application release label.
+  // wcl-bootstrap is the single owner. The old Iris MutationObserver fought with the
+  // Players runtime and could create an endless v3.8.5 <-> v3.8.8 DOM mutation loop.
   function patchVersion(){
     const b=document.querySelector('.sidebar .division b,.division b');
     if(!b)return;
-    const wanted=`v${RELEASE}`;
-    if(b.textContent!==wanted)b.textContent=wanted;
-    b.title=`AvoiD Raid Operations ${wanted} · Iris intelligence`;
-    if(!versionObserver){
-      versionObserver=new MutationObserver(()=>{if(b.textContent!==wanted)b.textContent=wanted;});
-      versionObserver.observe(b,{childList:true,characterData:true,subtree:true});
-    }
+    const componentTitle=`Iris runtime v${RELEASE} · visible app release is owned by bootstrap`;
+    if(b.dataset.irisRuntime!==RELEASE)b.dataset.irisRuntime=RELEASE;
+    if(b.title!==componentTitle)b.title=componentTitle;
   }
 
   function patchRaidLeader(){
@@ -33,9 +31,9 @@
     const avatar=profile.querySelector('i');
     const name=profile.querySelector('span b,b');
     const role=profile.querySelector('span small,small');
-    if(avatar)avatar.textContent='ON';
-    if(name)name.textContent=RAID_LEADER;
-    if(role)role.textContent='Raid Leader · AvoiD';
+    if(avatar&&avatar.textContent!=='ON')avatar.textContent='ON';
+    if(name&&name.textContent!==RAID_LEADER)name.textContent=RAID_LEADER;
+    if(role&&role.textContent!=='Raid Leader · AvoiD')role.textContent='Raid Leader · AvoiD';
   }
 
   function patchIrisBrand(){
