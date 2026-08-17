@@ -12,17 +12,19 @@ test('v3.7.11 browser runtimes remain valid regression assets',async()=>{
   }
 });
 
-test('index preserves historical styles but activates v3.8.0 cache keys after legacy WCL adapter',async()=>{
+test('index preserves historical styles but activates v3.8.2 cache keys after legacy WCL adapter',async()=>{
   const index=await read('index.html');
   assert.match(index,/raidops-v3711\.css\?v=3\.7\.11/);
   assert.match(index,/raidops-v3712\.css\?v=3\.7\.12/);
   assert.match(index,/raidops-v3713\.css\?v=3\.8\.0/);
-  assert.match(index,/wcl-runtime\.js\?v=3\.8\.0/);
-  assert.match(index,/progress-runtime-v3713\.js\?v=3\.8\.0/);
-  assert.match(index,/iris-runtime-v3713\.js\?v=3\.8\.0/);
-  assert.doesNotMatch(index,/progress-runtime-v3712\.js\?v=3\.7\.12/);
-  assert.doesNotMatch(index,/iris-runtime-v3712\.js\?v=3\.7\.12/);
-  assert.ok(index.indexOf('/wcl-runtime.js?v=3.8.0')<index.indexOf('/progress-runtime-v3713.js?v=3.8.0'));
+  assert.match(index,/raidops-v382\.css\?v=3\.8\.2/);
+  assert.match(index,/wcl-runtime\.js\?v=3\.8\.2/);
+  assert.match(index,/progress-runtime-v3713\.js\?v=3\.8\.2/);
+  assert.match(index,/iris-runtime-v382\.js\?v=3\.8\.2/);
+  assert.match(index,/player-intelligence-v382\.js\?v=3\.8\.2/);
+  assert.doesNotMatch(index,/iris-runtime-v3713\.js\?v=3\.8\.0/);
+  assert.ok(index.indexOf('/wcl-runtime.js?v=3.8.2')<index.indexOf('/progress-runtime-v3713.js?v=3.8.2'));
+  assert.ok(index.indexOf('/progress-runtime-v3713.js?v=3.8.2')<index.indexOf('/player-intelligence-v382.js?v=3.8.2'));
 });
 
 test('legacy WCL Progress writers remain identifiable and are intercepted by the active owner runtime',async()=>{
@@ -33,10 +35,11 @@ test('legacy WCL Progress writers remain identifiable and are intercepted by the
   }
 });
 
-test('v3.8.0 release metadata is active while earlier runtime filenames remain historical assets',async()=>{
-  const [pkg,iris]=await Promise.all([read('package.json'),read('public/iris-runtime-v3713.js')]);
-  assert.match(pkg,/"version": "0\.3\.8-0-vercel\.0"/);
-  assert.match(iris,/const RELEASE='3\.8\.0'/);
+test('v3.8.2 release metadata is active while earlier runtime filenames remain historical assets',async()=>{
+  const [pkg,iris,oldIris]=await Promise.all([read('package.json'),read('public/iris-runtime-v382.js'),read('public/iris-runtime-v3713.js')]);
+  assert.match(pkg,/"version": "0\.3\.8-2-vercel\.0"/);
+  assert.match(iris,/const RELEASE='3\.8\.2'/);
   assert.match(iris,/const IRIS='Iris'/);
   assert.match(iris,/const RAID_LEADER='Onie'/);
+  assert.match(oldIris,/const RELEASE='3\.8\.0'/);
 });
