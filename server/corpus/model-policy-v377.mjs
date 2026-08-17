@@ -3,7 +3,7 @@ import { QUERY_GUIDED_DEEP_POLICY_VERSION } from './query-guided-deep-v1.mjs';
 
 const num=value=>Number.isFinite(Number(value))?Number(value):0;
 
-export const QUERY_GUIDED_RECOMMENDATION_POLICY_VERSION='query-guided-recommendation-v1';
+export const QUERY_GUIDED_RECOMMENDATION_POLICY_VERSION='query-guided-recommendation-v2';
 
 function wideSamplingBlocked(model={}){
   const checks=model?.learning?.sampling?.checks||model?.validation?.publishChecks||{};
@@ -47,7 +47,7 @@ export function applyQueryGuidedDeepRecommendationV377(model){
       mode:'targeted-deep',
       strategy:'query-guided-existing-wide',
       policyVersion:QUERY_GUIDED_RECOMMENDATION_POLICY_VERSION,
-      reason:'Canonical Wide sampling is already trustworthy, while Deep evidence is missing or under-covered. Upgrade cached Wide reports by querying exact fightIDs before discovering more broad reports; ability/time-window probes remain diagnostic-only.',
+      reason:'Canonical Wide sampling is already trustworthy, while Deep evidence is missing or under-covered. Upgrade cached Wide reports by querying exact fightIDs before discovering more broad reports. Deep report and pull targets are simultaneous minima; dense progression reports stay eligible, while the per-report fight cap controls correlation. Ability/time-window probes remain diagnostic-only.',
       suggestedAdditionalWidePulls:0,
       suggestedAdditionalWideReports:0,
       suggestedAdditionalDeepPulls:requestedPulls,
@@ -59,6 +59,9 @@ export function applyQueryGuidedDeepRecommendationV377(model){
         outcomeDeficitAware:true,
         independentSourceFirst:true,
         maxFightsPerReport:6,
+        goalSemantics:'minimum-both',
+        additionalReportsMayBeSelectedToMeetPullGoal:true,
+        denseReportFightCountIsNotAnAnomaly:true,
         focusAbilityIds:model?.learning?.enrichmentFocusAbilityIds||[],
         surgicalAbilityFiltersAllowed:true,
         surgicalTimeWindowsAllowed:true,
@@ -69,7 +72,7 @@ export function applyQueryGuidedDeepRecommendationV377(model){
     model.learning={...(model.learning||{}),enrichmentRecommendation:recommendation,actionBottleneck:'relationUnderstandingPct'};
   }
   model.engineVersion='3.7.7';
-  model.policyVersion='relation-provenance-v2+boss-sampling-v3+query-guided-rec-v1';
+  model.policyVersion='relation-provenance-v2+boss-sampling-v3+query-guided-rec-v2';
   model.evaluatedAt=Date.now();
   return model;
 }

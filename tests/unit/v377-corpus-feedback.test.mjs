@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
+const read = path => readFile(new URL(`../../${path}`, import.meta.url),'utf8');
 
 test('v3.7.7 makes corpus action failures visible, including legacy Build Corpus', async () => {
   const runtime = await read('public/iris-runtime-v377.js');
@@ -35,6 +35,6 @@ test('v3.7.7 checkpoint records the exact standby and multi-encounter restart co
 test('v3.7.7 assets remain available while a newer Iris runtime may be active', async () => {
   const index = await read('index.html');
   assert.match(index, /raidops-v377\.css\?v=3\.7\.7/);
-  assert.match(index, /iris-runtime-v3713\.js\?v=3\.8\.4|iris-runtime-v37(?:7|8|9|10|11|12|13)\.js\?v=3\.7\.(?:7|8|9|10|11|12|13)/);
+  assert.match(index, /iris-runtime-v3713\.js\?v=3\.8\.5|iris-runtime-v37(?:7|8|9|10|11|12|13)\.js\?v=3\.7\.(?:7|8|9|10|11|12|13)/);
   assert.doesNotMatch(index, /iris-runtime-v376\.js/);
 });
