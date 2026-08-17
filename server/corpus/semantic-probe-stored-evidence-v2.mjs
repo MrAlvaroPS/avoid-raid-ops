@@ -21,10 +21,20 @@ function nearestTarget(rows,timestamp){
   return best&&best.distance<=25?best:null;
 }
 
+function narrowestContexts(rows=[]){
+  const chosen=new Map();
+  for(const row of rows){
+    const key=[row.source,row.reportCode,finite(row.fightID)??'x',finite(row.anchorTimestamp)??'x'].join('|');
+    const previous=chosen.get(key);
+    if(!previous||Number(row.windowMs)<Number(previous.windowMs))chosen.set(key,row);
+  }
+  return[...chosen.values()];
+}
+
 export function buildStoredSemanticSourceEvidenceV2({signalId,evidenceRecords=[]}={}){
   const records=(evidenceRecords||[]).filter(Boolean).filter(row=>Number(row.signalId)===Number(signalId));
   const anchors=records.filter(row=>row.kind==='anchor'&&row?.pagination?.complete===true);
-  const contexts=records.filter(row=>row.kind==='context'&&row?.pagination?.complete===true);
+  const contexts=narrowestContexts(records.filter(row=>row.kind==='context'&&row?.pagination?.complete===true));
   const sourceKeys=new Set([...anchors,...contexts].map(row=>`${String(row.source)}|${String(row.reportCode)}`));
   const sourceEvidence=[];
   for(const sourceKey of sourceKeys){
