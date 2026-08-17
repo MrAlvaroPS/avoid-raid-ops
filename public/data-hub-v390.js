@@ -4,10 +4,10 @@ const RELEASE='3.9.0-refactor';
 const CACHE_NAME='avoid-raidops-v390';
 const MODE_KEY='avoid:data-mode:v390';
 const LIVE_POLL_MS=30000;
-const CACHEABLE=new Set(['/api/wcl/report','/api/wcl/status','/api/wcl/telemetry','/api/wcl/history','/api/wcl/intelligence','/api/wcl/reports','/api/knowledge']);
+const CACHEABLE=new Set(['/api/wcl/report','/api/wcl/status','/api/wcl/telemetry','/api/wcl/history','/api/wcl/intelligence','/api/wcl/corpus','/api/wcl/reports','/api/knowledge']);
 const labels={
   '/api/wcl/report':'Loading report','/api/wcl/status':'Checking live status','/api/wcl/telemetry':'Loading pull telemetry',
-  '/api/wcl/history':'Loading raid history','/api/wcl/intelligence':'Running Iris analysis','/api/wcl/reports':'Updating AvoiD logs','/api/knowledge':'Loading game knowledge'
+  '/api/wcl/history':'Loading raid history','/api/wcl/intelligence':'Running Iris analysis','/api/wcl/corpus':'Loading Encounter Corpus','/api/wcl/reports':'Updating AvoiD logs','/api/knowledge':'Loading game knowledge'
 };
 let dataMode=localStorage.getItem(MODE_KEY)==='stored'?'stored':'connected';
 let catalog=null,knowledge=null,liveTimer=null,liveState='stopped',drawer=null,activityNode=null,lastLiveFingerprint=null,liveTickCount=0;
@@ -47,7 +47,7 @@ window.fetch=async(input,init={})=>{
 function currentReport(){return new URLSearchParams(location.search).get('report')||window.__AVOID_WCL__?.report?.code||'28d9xF7GchL6ZPYt'}
 function guildId(){return new URLSearchParams(location.search).get('guild')||window.__AVOID_WCL__?.guild?.id||window.__AVOID_WCL__?.reportGuild?.id||'788166'}
 function fmtDate(ms){if(!Number.isFinite(Number(ms)))return'—';return new Date(Number(ms)).toLocaleString([], {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
-function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]))}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
 
 async function fetchJson(url,init){const response=await fetch(url,init);const payload=await response.json().catch(()=>({}));if(!response.ok||payload?.ok===false)throw new Error(payload?.error||`HTTP ${response.status}`);return payload}
 async function syncCatalog(days=120,force=false){
