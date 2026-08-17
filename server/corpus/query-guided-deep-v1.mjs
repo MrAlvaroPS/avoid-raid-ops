@@ -85,7 +85,7 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
   requestedPulls=100,
   validationFraction=.2,
   existingDeepSourceReports={},
-  maxFightsPerReport=10,
+  maxFightsPerReport=6,
 }={}){
   const done=new Set(processedDeep||[]);
   const focus=uniq((focusAbilityIds||[]).map(Number).filter(Number.isFinite));
@@ -152,6 +152,7 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
     surgicalProbeExpressions:buildAbilityProbeExpressions(focus),
     queryPolicy:{
       canonicalDeepUsesExactFightIDs:true,
+      maxFightsPerReport,
       canonicalDeepUsesCompleteStreamsForSelectedFights:true,
       surgicalAbilityProbesCountAsDeepReports:false,
       surgicalAbilityProbesCountAsDeepPulls:false,
