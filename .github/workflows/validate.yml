@@ -12,7 +12,7 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +26,23 @@ jobs:
         run: |
           python3 -m pip install --disable-pip-version-check playwright==1.54.0
           python3 -m playwright install --with-deps chromium
-      - name: Full repository verification
-        run: npm run verify
+      - name: Golden integrity
+        run: npm run verify:golden
+      - name: Architecture and quarantine
+        run: npm run verify:architecture
+      - name: Active assets and CSS transport
+        run: npm run verify:assets
+      - name: Legacy runtime ownership
+        run: npm run verify:legacy-runtime
+      - name: Source reconstruction
+        run: npm run verify:reconstruction
+      - name: Browser Data Truth
+        run: npm run verify:data-truth
+      - name: Release ownership
+        run: npm run verify:release
+      - name: Critical contracts
+        run: npm run test:critical
+      - name: Unit and regression suite
+        run: npm test
       - name: Production build contract
         run: npm run build
