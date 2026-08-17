@@ -6,7 +6,7 @@ export function paginatorEvents(value){
 }
 export function eventAbilityId(e){
   if(typeof e?.ability==='number') return Number(e.ability);
-  const v=e?.abilityGameID ?? e?.ability?.guid ?? e?.ability?.id; const n=Number(v); return Number.isFinite(n)?n:null;
+  const v=e?.abilityGameID ?? e?.abilityId ?? e?.ability?.guid ?? e?.ability?.id; const n=Number(v); return Number.isFinite(n)?n:null;
 }
 export function eventAbilityName(e){return e?.ability?.name ?? e?.abilityName ?? null;}
 export function eventSourceId(e){const n=Number(e?.sourceID ?? e?.source?.id); return Number.isFinite(n)?n:null;}
