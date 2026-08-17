@@ -128,5 +128,5 @@ test('Reliability technical contracts separate parse, peers and unknown availabi
   assert.match(contract,/Peer groups do not alter the score/);
   assert.match(contract,/Only `confirmed available` enters the denominator/);
   assert.match(integrity,/Parse separation invariant/);
-  assert.match(status,/overall Reliability must remain null\/pending/);
+  assert.match(status,/overall Reliability must remain `null \/ shadow-pending`/);
 });
