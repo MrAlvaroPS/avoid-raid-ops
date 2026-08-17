@@ -161,13 +161,13 @@ async function finalizeCanonicalCorpus(input = {}) {
   const config = clampCorpusConfig(input);
   const rebuilt = await rebuildCanonicalBossCorpus({ args, job, currentAggregate, config, purgeHomeGuild: true });
   const { aggregate, model, manifest } = rebuilt;
-  job.engineVersion = '3.7.6-sampling-v2';
+  job.engineVersion = '3.7.6-sampling-v3';
   job.schemaVersion = Math.max(2, Number(job.schemaVersion) || 0);
   job.status = 'ready';
   job.phase = 'complete';
   job.updatedAt = now();
   job.completedAt = now();
-  job.message = `Canonical global-boss model rebuilt at 0 extra WCL: ${aggregate.wideReports.toLocaleString()} balanced Wide reports / ${aggregate.deepReports.toLocaleString()} balanced Deep reports · ${manifest.wide.sources.toLocaleString()} sources · AvoiD/home uploaders excluded.`;
+  job.message = `Canonical global-boss model rebuilt at 0 extra WCL: ${aggregate.wideReports.toLocaleString()} balanced Wide reports / ${aggregate.deepReports.toLocaleString()} balanced Deep reports · ${manifest.wide.sources.toLocaleString()} sources · hard source caps applied where feasible · AvoiD/home uploaders excluded.`;
 
   await Promise.all([
     corpusSet(jobKey(args), job),
