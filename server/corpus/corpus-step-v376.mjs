@@ -5,7 +5,7 @@ import { aggregateKey, corpusAliasKey, jobKey, modelKey, deepProfileKey } from '
 import { globalBossSamplingKey } from '../knowledge/keys.mjs';
 import { homeGuildId, normalizeHomeOwnerIds } from '../knowledge/scopes.mjs';
 import { clampCorpusConfig } from './config.mjs';
-import { rebuildCanonicalBossCorpus } from './canonical-rebuild-v2.mjs';
+import { rebuildCanonicalBossCorpus, isCanonicalDeepComplete } from './canonical-rebuild-v2.mjs';
 import { mergeDeepProfile } from './aggregate.mjs';
 import { fetchQueryGuidedDeepProfile, QUERY_GUIDED_DEEP_POLICY_VERSION } from './query-guided-deep-v1.mjs';
 
@@ -210,11 +210,15 @@ async function stepQueryGuidedDeep(args, job, input) {
       job.message = `QUERY-GUIDED DEEP filtered ${next.code}: selected fightIDs no longer resolve for the locked encounter/difficulty.`;
     } else {
       await corpusSet(deepProfileKey(args, String(next.code)), profile);
-      mergeDeepProfile(aggregate, profile, { validationFraction:config.validationFraction });
       const complete = Object.values(profile.completeness || {}).filter(Boolean).length;
       const total = Object.keys(profile.completeness || {}).length;
-      if (complete < total) job.queryGuidedIncompleteReports = Number(job.queryGuidedIncompleteReports || 0) + 1;
-      job.message = `QUERY-GUIDED DEEP · ${Number(aggregate.deepReports || 0).toLocaleString()} / ${targetReports.toLocaleString()} reports · ${deepPullCount(aggregate).toLocaleString()} / ${targetPulls.toLocaleString()} exact fights · ${next.source || 'source'} · streams ${complete}/${total} complete.`;
+      if (isCanonicalDeepComplete(profile)) {
+        mergeDeepProfile(aggregate, profile, { validationFraction:config.validationFraction });
+        job.message = `QUERY-GUIDED DEEP · ${Number(aggregate.deepReports || 0).toLocaleString()} / ${targetReports.toLocaleString()} reports · ${deepPullCount(aggregate).toLocaleString()} / ${targetPulls.toLocaleString()} exact fights · ${next.source || 'source'} · streams ${complete}/${total} complete.`;
+      } else {
+        job.queryGuidedIncompleteReports = Number(job.queryGuidedIncompleteReports || 0) + 1;
+        job.message = `QUERY-GUIDED DEEP diagnostic only · ${next.code} returned ${complete}/${total} complete streams; cached but NOT counted toward Deep reports/pulls. Continuing with another source.`;
+      }
       protectRateBudget(job, profile.rateLimit, config);
     }
   } catch (error) {
