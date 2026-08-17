@@ -1,12 +1,11 @@
-import { wclGraphql } from '../wcl/client/graphql-client.mjs';
-import { CORPUS_DEEP_EVENTS_QUERY } from '../wcl/queries/corpus.mjs';
 import { fetchReportHeader } from './wide-profile.mjs';
 import { normalizeDeepProfile } from './deep-profile.mjs';
 import { attachOriginEvidenceV373 } from './deep-profile-v373.mjs';
+import { fetchCompleteDeepEventData, DEEP_STREAM_PAGINATION_POLICY_VERSION } from './deep-events-pagination.mjs';
 import { sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 import { corpusSplit, hashString } from './aggregate.mjs';
 
-export const QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v2';
+export const QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v3';
 export const QUERY_GUIDED_OUTCOME_WEIGHTS = Object.freeze({ kill:0.20, deepWipe:0.30, midWipe:0.30, earlyWipe:0.20 });
 
 const num=value=>Number.isFinite(Number(value))?Number(value):0;
@@ -177,9 +176,11 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
       maySelectAdditionalReportsToMeetPullGoal:true,
       denseReportFightCountIsNotAnAnomaly:true,
       canonicalDeepUsesCompleteStreamsForSelectedFights:true,
+      deepStreamPaginationPolicy:DEEP_STREAM_PAGINATION_POLICY_VERSION,
+      independentStreamCursors:true,
       surgicalAbilityProbesCountAsDeepReports:false,
       surgicalAbilityProbesCountAsDeepPulls:false,
-      rationale:'Use WCL fightIDs to spend full Deep bandwidth only on fights that close report/outcome/source deficits. Report and pull targets are simultaneous minimum gates. Dense progression reports are valid; the per-report cap controls correlation rather than filtering those reports out. Ability-filter probes are diagnostic evidence only and must never inflate canonical Deep coverage.',
+      rationale:'Use WCL fightIDs to spend full Deep bandwidth only on fights that close report/outcome/source deficits. Report and pull targets are simultaneous minimum gates. Dense progression reports are valid; the per-report cap controls correlation rather than filtering those reports out. Any WCL event stream that paginates is continued from its own nextPageTimestamp before the profile can count as canonical Deep. Ability-filter probes are diagnostic evidence only and must never inflate canonical Deep coverage.',
     },
   };
 }
@@ -192,11 +193,18 @@ export async function fetchQueryGuidedDeepProfile({code,encounterId,difficulty=5
   if(!selected.length)return null;
   const exactFightIDs=selected.map(fight=>Number(fight.id));
   const selectedHeader={...header,fights:selected};
-  const data=await wclGraphql(CORPUS_DEEP_EVENTS_QUERY,{code:String(code),fightIDs:exactFightIDs});
+  const fetched=await fetchCompleteDeepEventData({code:String(code),fightIDs:exactFightIDs});
+  const data=fetched.data;
   const normalized=normalizeDeepProfile(selectedHeader,data,{encounterId,difficulty});
   if(normalized){
     normalized.partition=Number(partition||0);
-    normalized.queryGuided={policyVersion:QUERY_GUIDED_DEEP_POLICY_VERSION,fightIDs:exactFightIDs,fullStreamsForSelectedFights:true};
+    normalized.queryGuided={
+      policyVersion:QUERY_GUIDED_DEEP_POLICY_VERSION,
+      fightIDs:exactFightIDs,
+      fullStreamsForSelectedFights:true,
+      pagination:fetched.pagination,
+    };
+    normalized.deepStreamPagination=fetched.pagination;
   }
   const withOrigin=attachOriginEvidenceV373(normalized,data);
   return sanitizeGlobalBossProfile(withOrigin);
