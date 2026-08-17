@@ -2,6 +2,8 @@ import { wclGraphql } from '../wcl/client/graphql-client.mjs';
 import { CORPUS_DEEP_EVENTS_QUERY } from '../wcl/queries/corpus.mjs';
 import { fetchReportHeader } from './wide-profile.mjs';
 import { normalizeDeepProfile } from './deep-profile.mjs';
+import { attachOriginEvidenceV373 } from './deep-profile-v373.mjs';
+import { sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 import { corpusSplit, hashString } from './aggregate.mjs';
 
 export const QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v1';
@@ -168,11 +170,13 @@ export async function fetchQueryGuidedDeepProfile({code,encounterId,difficulty=5
   const selected=requested.size?header.fights.filter(fight=>requested.has(Number(fight.id))):header.fights;
   if(!selected.length)return null;
   const exactFightIDs=selected.map(fight=>Number(fight.id));
+  const selectedHeader={...header,fights:selected};
   const data=await wclGraphql(CORPUS_DEEP_EVENTS_QUERY,{code:String(code),fightIDs:exactFightIDs});
-  const profile=normalizeDeepProfile({...header,fights:selected},data,{encounterId,difficulty});
-  if(profile){
-    profile.partition=Number(partition||0);
-    profile.queryGuided={policyVersion:QUERY_GUIDED_DEEP_POLICY_VERSION,fightIDs:exactFightIDs,fullStreamsForSelectedFights:true};
+  const normalized=normalizeDeepProfile(selectedHeader,data,{encounterId,difficulty});
+  if(normalized){
+    normalized.partition=Number(partition||0);
+    normalized.queryGuided={policyVersion:QUERY_GUIDED_DEEP_POLICY_VERSION,fightIDs:exactFightIDs,fullStreamsForSelectedFights:true};
   }
-  return profile;
+  const withOrigin=attachOriginEvidenceV373(normalized,data);
+  return sanitizeGlobalBossProfile(withOrigin);
 }
