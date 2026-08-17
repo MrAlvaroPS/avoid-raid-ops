@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import { buildBundledKnowledge } from '../../server/knowledge/game-knowledge-v1.mjs';
 import { stageKnowledgeCandidate,activateKnowledgeCandidate } from '../../server/knowledge/knowledge-store-v1.mjs';
 import { filterCurrentRaidReports } from '../../server/engines/report-catalog-engine.mjs';
+import { getIrisCapabilityContract,findIrisCapability } from '../../server/iris/capability-contract-v390.mjs';
 
 const read=file=>readFile(new URL(`../../${file}`,import.meta.url),'utf8');
 
@@ -49,9 +50,9 @@ test('CRITICAL LOAD UX: Data Hub supports stored fallback, visible activity and 
   assert.match(source,/location\.assign\(u\.href\)/);
 });
 
-test('CRITICAL STORED MODE: report/history/intelligence and Encounter Corpus GETs are cache-backed without making POST actions offline',async()=>{
+test('CRITICAL STORED MODE: report/history/intelligence, Encounter Corpus and Iris capability GETs are cache-backed without making POST actions offline',async()=>{
   const source=await read('public/data-hub-v390.js');
-  for(const endpoint of ['/api/wcl/report','/api/wcl/history','/api/wcl/intelligence','/api/wcl/corpus'])assert.ok(source.includes(`'${endpoint}'`),`${endpoint} must be available to stored mode`);
+  for(const endpoint of ['/api/wcl/report','/api/wcl/history','/api/wcl/intelligence','/api/wcl/corpus','/api/iris/capabilities'])assert.ok(source.includes(`'${endpoint}'`),`${endpoint} must be available to stored mode`);
   assert.match(source,/method==='GET'&&CACHEABLE\.has\(url\.pathname\)/,'only GET requests may use the offline cache');
   assert.match(source,/No stored snapshot for/);
 });
@@ -134,6 +135,44 @@ test('CRITICAL KNOWLEDGE SCHEMA: revisioned entities and derived snapshot stalen
   assert.match(schema,/create table if not exists derived_snapshot_revision/i);
   assert.match(schema,/knowledge_revision text references knowledge_revision\(revision\)/i);
   assert.match(schema,/stale integer not null default 0/i);
+});
+
+test('CRITICAL IRIS CAPABILITIES: management permissions are machine-readable, versioned and do not overclaim unfinished work',()=>{
+  const contract=getIrisCapabilityContract();
+  assert.equal(contract.version,'iris-capabilities-v1');
+  assert.ok(contract.documentation.includes('IRIS-OPERATIONS.md'));
+  for(const id of ['activity.inspect','data.use-stored','logs.sync-latest','logs.load-history','logs.select-report','live.start','live.pause','live.stop','knowledge.inspect','knowledge.stage-refresh','knowledge.activate','knowledge.reindex-browser','knowledge.reindex-durable','corpus.inspect-stored','corpus.mutate'])assert.ok(findIrisCapability(id),`${id} must remain discoverable by Iris`);
+  assert.equal(findIrisCapability('logs.sync-latest').autonomy,'bounded');
+  assert.equal(findIrisCapability('logs.select-report').autonomy,'operatorRequested');
+  assert.equal(findIrisCapability('knowledge.activate').autonomy,'explicitApproval');
+  assert.equal(findIrisCapability('knowledge.activate').effect,'invalidate-derived');
+  assert.equal(findIrisCapability('knowledge.reindex-durable').status,'planned');
+  assert.equal(findIrisCapability('knowledge.reindex-durable').autonomy,'unavailable');
+  assert.equal(findIrisCapability('knowledge.provider-wowhead').status,'reference-only');
+  assert.equal(contract.invariants.rawEvidence,'immutable');
+});
+
+test('CRITICAL IRIS OPERATIONS: browser bridge exposes the same log/live/knowledge controls without duplicating private DOM button behavior',async()=>{
+  const hub=await read('public/data-hub-v390.js');
+  const iris=await read('public/iris-runtime-v3713.js');
+  assert.match(hub,/window\.__AVOID_IRIS_OPERATIONS__=Object\.freeze/);
+  assert.match(hub,/capabilityEndpoint:'\/api\/iris\/capabilities'/);
+  for(const token of ['syncLatest:()=>syncCatalog(21,true)','loadHistory:()=>syncCatalog(180,true)','selectReport','start:startLive','pause:pauseLive','stop:stopLive','status:loadKnowledge','stage:refreshKnowledge','activate:activateKnowledge'])assert.ok(hub.includes(token),`${token} must remain on the Iris operations bridge`);
+  assert.match(iris,/capabilityContract:'iris-capabilities-v1'/);
+  assert.match(iris,/capabilityEndpoint:'\/api\/iris\/capabilities'/);
+  assert.match(iris,/operationsBridge:'window\.__AVOID_IRIS_OPERATIONS__'/);
+  assert.match(iris,/managedDomains:Object\.freeze\(\['activity','data-mode','logs','live','knowledge','corpus'\]\)/);
+});
+
+test('CRITICAL IRIS DOCUMENTATION: architecture and operations docs explicitly bind Iris to management capabilities and truth limits',async()=>{
+  const [architecture,operations,plan,agents]=await Promise.all([read('IRIS-ARCHITECTURE.md'),read('IRIS-OPERATIONS.md'),read('V3.9-REFACTOR-PLAN.md'),read('AGENTS.md')]);
+  assert.match(architecture,/v3\.9 operational management plane/i);
+  assert.match(architecture,/GET \/api\/iris\/capabilities/);
+  assert.match(operations,/window\.__AVOID_IRIS_OPERATIONS__/);
+  assert.match(operations,/Raw Warcraft Logs evidence is immutable/);
+  assert.match(operations,/planned capability as already available/);
+  assert.match(plan,/Iris operations-management contract/);
+  assert.match(agents,/Read `IRIS-ARCHITECTURE\.md` and `IRIS-OPERATIONS\.md`/);
 });
 
 test('CRITICAL RELEASE WIRING: v3.9 activity/data runtime and styles are active before report consumers',async()=>{
