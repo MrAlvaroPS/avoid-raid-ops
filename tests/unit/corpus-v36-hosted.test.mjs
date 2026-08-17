@@ -106,7 +106,7 @@ test('v375 corpus stability guard is release-wiring ready',async()=>{
 });
 
 test('compatibility runtime polls hosted workflow and keeps corpus panel above mechanic catalogue',async()=>{
-  const runtime=await read('../../deploy-preview/public/wcl-runtime.js');
+  const runtime=await read('../../public/wcl-runtime.js');
   assert.match(runtime,/pollCorpus/);
   assert.doesNotMatch(runtime,/corpusRequest\("step"\)/);
   assert.match(runtime,/insertAdjacentElement\("beforebegin", panel\)/);
