@@ -5,6 +5,7 @@ import {
   classifyOriginEvidenceV379,
   triageSignalsV379,
   relationProvenanceSummaryV379,
+  localSignalReviewV379,
   applySignalTriageOverlayV379,
 } from '../../server/corpus/model-policy-v379.mjs';
 
@@ -43,9 +44,11 @@ function baseModel(){
   const friendlyRejected=Array.from({length:2},(_,i)=>({targetId:100+i,originRejectReason:'friendly-target-aura'}));
   return{
     pack:{mechanics:[]},
+    rejected:[{key:'candidate-2',name:'Encounter candidate',primaryAbilityId:2,reason:'holdout-thin',inference:'stateful-impact-observed',validationScore:.61}],
     discovery:{
       relationCandidates:Array.from({length:4},(_,i)=>({targetId:200+i,confidence:.8})),
       filteredRelationCandidates:[...friendlyRejected,{targetId:300,triggerCastIds:[301],originRejectReason:'origin-not-yet-verified'}],
+      variantFamilies:[{key:'light-void:test',memberIds:[2,22],tokenGroup:'light-void',confidence:.9,encounterSupported:true}],
     },
     corpus:{wideReports:183,deepReports:60},
     learning:{
@@ -77,6 +80,16 @@ test('friendly critical-looking abilities leave the GLOBAL BOSS denominator whil
   assert.equal(triage.denominatorRule.includes('friendly-player'),true);
 });
 
+test('encounter-classified unresolved signals get a zero-WCL local context bundle before new queries',()=>{
+  const triage=triageSignalsV379(baseModel(),aggregate());
+  const review=localSignalReviewV379(baseModel(),triage);
+  assert.equal(review.length,1);
+  assert.equal(review[0].id,2);
+  assert.equal(review[0].wclCallsExecuted,0);
+  assert.equal(review[0].rejectedCandidates[0].key,'candidate-2');
+  assert.equal(review[0].variantFamilies[0].key,'light-void:test');
+});
+
 test('relation provenance counts friendly/noisy as closed and only mixed/unknown as awaiting evidence',()=>{
   const summary=relationProvenanceSummaryV379(baseModel());
   assert.equal(summary.verified,4);
@@ -103,10 +116,12 @@ test('v3.7.9 separates learning from publication and removes the misleading sema
   assert.match(relationNeed.detail,/4 origin-verified · 2 friendly\/noisy closed · 1 awaiting origin evidence/);
 });
 
-test('corpus route exposes probe-plan as zero-WCL and Improve reads publicationRecommendation explicitly',async()=>{
+test('corpus route exposes probe-plan as zero-WCL, separates publication Improve, and preserves explicit zero Deep work',async()=>{
   const route=await readFile(new URL('../../routes/api/wcl/corpus.js',import.meta.url),'utf8');
   assert.match(route,/actionFromQuery === 'probe-plan'/);
   assert.match(route,/wclCallsExecuted:0/);
   assert.match(route,/learning\?\.publicationRecommendation/);
   assert.match(route,/applyBossSamplingPolicyV379/);
+  assert.match(route,/explicitNonNegative\(rec\.suggestedAdditionalDeepPulls,100\)/);
+  assert.doesNotMatch(route,/Number\(rec\.suggestedAdditionalDeepPulls\) \|\| 100/);
 });
