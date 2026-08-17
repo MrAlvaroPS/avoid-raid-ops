@@ -27,6 +27,8 @@ jobs:
         run: npm run verify:release
       - name: Active asset ownership contract
         run: npm run verify:assets
+      - name: Legacy runtime ownership contract
+        run: npm run verify:legacy-runtime
       - name: Syntax and deployment contracts
         run: npm run verify:vercel
       - name: Critical screen/data tests
