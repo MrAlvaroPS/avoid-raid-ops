@@ -11,6 +11,8 @@ const GET_TIMEOUTS=Object.freeze({
   '/api/wcl/history':60000,
   '/api/wcl/intelligence':60000,
   '/api/wcl/corpus':30000,
+  '/api/wcl/reports':30000,
+  '/api/knowledge':15000,
 });
 
 const nativeFetch=window.fetch.bind(window);

@@ -24,6 +24,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Syntax and Vercel contract
         run: npm run verify:vercel
+      - name: Critical screen/data tests
+        run: npm run test:critical
       - name: Unit tests
         shell: bash
         run: |

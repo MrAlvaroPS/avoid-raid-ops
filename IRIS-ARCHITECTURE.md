@@ -151,10 +151,91 @@ versioned generated encounter model (hot production state)
 
 Routine model reads and ordinary recompilation should increasingly operate on compact aggregates/models. Full profile replay should become an explicit research/migration operation because repeatedly downloading every raw profile does not scale economically across an entire raid tier.
 
+## v3.9 operational management plane
+
+Iris is not limited to interpreting analytics. The v3.9 data-platform refactor makes selected operational controls first-class Iris capabilities as well.
+
+Canonical human-readable contract:
+
+```text
+IRIS-OPERATIONS.md
+```
+
+Canonical machine-readable contract:
+
+```text
+server/iris/capability-contract-v390.mjs
+GET /api/iris/capabilities
+```
+
+Browser execution bridge:
+
+```js
+window.__AVOID_IRIS_OPERATIONS__
+```
+
+The Iris runtime advertises these through:
+
+```js
+window.__AVOID_IRIS__
+```
+
+Iris can therefore discover what is genuinely available, what is only partial/planned, what endpoint or bridge performs it, and what autonomy level applies.
+
+Current management domains are:
+
+```text
+activity / errors
+connected vs stored data mode
+AvoiD current-raid report catalogue
+report selection
+live polling start / pause / stop
+versioned game-knowledge status / staging / activation
+browser-derived knowledge reindex
+Encounter Corpus inspection / guarded research actions
+```
+
+This is a capability contract, not permission to bypass product safeguards. Iris must obey the action's declared autonomy:
+
+- safe reads/housekeeping may be automatic;
+- bounded network refresh may be budget-aware;
+- changing the operator's report/data/live context is operator-requested;
+- activating a knowledge revision or expensive corpus mutation requires explicit approval;
+- planned capabilities must never be presented as already implemented.
+
+### Selected report vs historical context
+
+A selected report controls report-scoped views. It does **not** redefine the current raid and does not erase longitudinal History.
+
+The current raid is bounded by the configured canonical WCL raid zone. Mythic+ and unrelated/old raid zones are structurally ineligible for that catalogue.
+
+### Knowledge revision behavior
+
+Iris may inspect and stage versioned knowledge. Activating a candidate changes the interpretation context for derived outputs, never the raw WCL facts.
+
+```text
+raw evidence      = immutable
+derived products  = invalidate and rederive
+active knowledge  = versioned revision
+```
+
+Browser-derived invalidation is available now. A durable historical reindex worker is still planned and must not be claimed as complete until implemented.
+
+### Source hierarchy for game knowledge
+
+```text
+WCL                    -> canonical observed combat evidence
+AvoiD semantic packs   -> versioned curated meaning
+Wowhead                -> reference/enrichment around known IDs
+Blizzard Game Data     -> planned supported authoritative metadata provider
+```
+
+The existence of a versioned schema does not mean the complete live Retail spell/talent/aura/NPC universe has already been populated. Iris must disclose partial provider coverage honestly.
+
 ## Naming
 
 - **AvoiD Raid Operations** — product.
-- **Iris** — intelligence/reasoning/research and decision-support layer.
+- **Iris** — intelligence/reasoning/research, operations-management and decision-support layer.
 - **Onie** — Raid Leader and primary live raid operator/persona.
 
-Iris is not a separate chatbot bolted onto the UI. It is the name of the evidence pipeline and decision intelligence that connects corpus research to live raid operations.
+Iris is not a separate chatbot bolted onto the UI. It is the name of the evidence pipeline, operational intelligence and decision-support system that connects corpus research, data management and live raid operations.

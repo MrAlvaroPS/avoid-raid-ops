@@ -40,9 +40,9 @@ test('overlapping logger reports keep one pull and union player identities',()=>
   assert.deepEqual(pulls[0].rosterIdentities.map(x=>x.name).sort(),['Alpha','Beta']);
 });
 
-test('v3.8.8 Players remains a stable component under the v3.8.9.1 app hotfix',async()=>{
-  const [runtime,css,index,pkg]=await Promise.all([
-    read('public/player-intelligence-v386.js'),read('public/raidops-v386.css'),read('index.html'),read('package.json')
+test('v3.8.8 Players remains a stable component inside the v3.9.0 app release',async()=>{
+  const [runtime,legacyCss,releaseCss,index,pkg]=await Promise.all([
+    read('public/player-intelligence-v386.js'),read('public/raidops-v386.css'),read('public/raidops-v390.css'),read('index.html'),read('package.json')
   ]);
   assert.match(runtime,/const VERSION='3\.8\.8'/);
   assert.match(runtime,/typeof telemetry!=='undefined'\?telemetry:null/);
@@ -55,8 +55,10 @@ test('v3.8.8 Players remains a stable component under the v3.8.9.1 app hotfix',a
   assert.doesNotMatch(runtime,/\.division b/);
   assert.doesNotMatch(runtime,/patchVersion/);
   assert.match(runtime,/setInterval\(\(\)=>render\(\),750\)/);
-  assert.match(css,/player-list-v386\{[^}]*overflow-y:auto/);
+  assert.match(legacyCss,/player-list-v386\{[^}]*overflow-y:auto/);
+  assert.match(releaseCss,/\.layout-player>\.player-list\{[^}]*max-height:none!important[^}]*overflow:visible!important/s);
   assert.match(index,/player-intelligence-v386\.js\?v=3\.8\.9\.1/);
   assert.match(index,/raidops-v386\.css\?v=3\.8\.6/);
-  assert.equal(JSON.parse(pkg).version,'0.3.8-9-vercel.1');
+  assert.match(index,/raidops-v390\.css\?v=3\.9\.0/);
+  assert.equal(JSON.parse(pkg).version,'0.3.9-0-vercel.0');
 });
