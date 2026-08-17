@@ -95,7 +95,7 @@
     alert.querySelector('button')?.addEventListener('click',()=>{actionIssue=null;renderActionIssue();},{once:true});
   }
 
-  function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));}
+  function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
 
   function rememberStorageFailure(payload,status){
     const message=String(payload?.error||'');
