@@ -40,14 +40,24 @@ for p in api_dir.glob('*.js'):
  if 'query ' in body or 'mutation ' in body: fail.append(f'GraphQL leaked into API transport: {p.relative_to(root)}')
  if p.name!='corpus.js' and len([x for x in body.splitlines() if x.strip()])>8: fail.append(f'{p.name} is not a thin Nitro transport')
 if not (root/'workflows/corpus-build.js').exists(): fail.append('missing durable corpus workflow')
-# Resolve every relative import in source UI and server files.
-for base in [root/'apps/web/src', root/'server', root/'routes', root/'workflows']:
+# Resolve every relative import in active source and enforce quarantine/platform boundaries.
+active_roots=[root/'apps/web/src', root/'server', root/'routes', root/'workflows']
+old_root=(root/'old').resolve()
+for base in active_roots:
  for p in list(base.rglob('*.js'))+list(base.rglob('*.mjs')):
   txt=p.read_text()
+  if re.search(r'["\']@netlify/',txt): fail.append(f'active Netlify package dependency: {p.relative_to(root)}')
   for imp in re.findall(r'from\s+["\'](\.[^"\']+)["\']',txt):
    target=(p.parent/imp).resolve()
+   try:
+    target.relative_to(old_root)
+    fail.append(f'active import crosses quarantine boundary: {p.relative_to(root)} -> {imp}')
+   except ValueError:
+    pass
    if not target.exists(): fail.append(f'unresolved import: {p.relative_to(root)} -> {imp}')
 
+# Retired deployment trees may survive only under archive/quarantine.
+if (root/'deploy-preview').exists(): fail.append('retired deploy-preview tree exists outside quarantine')
 # New-code concentration guard: operational service facades stay free of GraphQL.
 for p in (root/'server/services').glob('*.mjs'):
  body=p.read_text()
@@ -69,4 +79,6 @@ print(' - all 7 golden mock datasets preserved')
 print(f' - {len(classes)} static UI classes checked against Golden CSS')
 print(' - representative content from every screen preserved')
 print(' - Vercel/Nitro API routes are transport/orchestration adapters')
+print(' - active imports do not cross the quarantine boundary')
+print(' - retired Netlify deployment tree is absent from active source')
 print(' - scalable server/domain/storage/rule-pack layers present')
