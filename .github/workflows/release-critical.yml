@@ -25,6 +25,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Release identity contract
         run: npm run verify:release
+      - name: Active asset ownership contract
+        run: npm run verify:assets
       - name: Syntax and deployment contracts
         run: npm run verify:vercel
       - name: Critical screen/data tests
