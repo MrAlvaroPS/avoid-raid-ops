@@ -2,6 +2,7 @@ import { applyEncounterPolicyV375, modelDiagnosticsV375 } from './model-policy-v
 import { CORPUS_DEFAULTS } from './config.mjs';
 import { IRIS_KNOWLEDGE_CONTRACT_VERSION, homeGuildId } from '../knowledge/scopes.mjs';
 import { BOSS_SAMPLING_POLICY_VERSION, OUTCOME_STRATA, samplingPublicationChecks } from './sampling-v2.mjs';
+import { QUERY_GUIDED_DEEP_POLICY_VERSION } from './query-guided-deep-v1.mjs';
 
 const num = value => Number.isFinite(Number(value)) ? Number(value) : 0;
 const clamp = value => Math.max(0, Math.min(1, num(value)));
@@ -25,6 +26,50 @@ function samplingScore(manifest) {
   const deepOutcomes = coverageScore(deep.strata, CORPUS_DEFAULTS.minDeepSourcesPerOutcomeToPublish);
   const balance = .35 * reportBalance + .35 * pullBalance + .15 * deepReportBalance + .15 * deepPullBalance;
   return { score: .55 * balance + .30 * outcomes + .15 * deepOutcomes, balance, outcomes, deepOutcomes };
+}
+
+function enrichmentRecommendation(model, samplingChecks, samplingBlocked) {
+  const previous = model?.learning?.enrichmentRecommendation || {};
+  if (samplingBlocked) {
+    return {
+      ...previous,
+      priority: 'high',
+      mode: 'diversity-first',
+      suggestedAdditionalWidePulls: Math.max(500, num(previous.suggestedAdditionalWidePulls)),
+      suggestedAdditionalDeepPulls: Math.max(100, num(previous.suggestedAdditionalDeepPulls)),
+      reason: 'Canonical boss sampling is not yet clean and balanced across trusted independent sources and progression outcomes. AvoiD/home sources remain evaluation-only.',
+    };
+  }
+
+  const deficits = previous.deficits || {};
+  const deepReportDeficit = Math.max(0, num(deficits.deepReports || previous.suggestedAdditionalDeepReports));
+  const deepPullDeficit = Math.max(0, num(deficits.deepPulls || previous.suggestedAdditionalDeepPulls));
+  const existingWideForDeep = Math.max(0, num(previous.estimatedExistingWideReportsAvailableForDeep));
+  const dataDepthBottleneck = model?.learning?.bottleneck === 'dataDepthPct' || model?.learning?.actionBottleneck === 'dataDepthPct';
+  if (existingWideForDeep > 0 && deepReportDeficit > 0 && (dataDepthBottleneck || deepPullDeficit > 0)) {
+    return {
+      ...previous,
+      priority: 'high',
+      mode: 'targeted-deep',
+      strategy: 'query-guided-existing-wide',
+      reason: 'Data depth is the active bottleneck and enough trusted Wide reports already exist. Spend WCL on exact fightIDs from those cached reports before discovering more broad reports; keep ability-filter probes diagnostic-only.',
+      suggestedAdditionalWidePulls: 0,
+      suggestedAdditionalWideReports: 0,
+      suggestedAdditionalDeepPulls: Math.max(deepPullDeficit, num(previous.suggestedAdditionalDeepPulls), deepReportDeficit),
+      suggestedAdditionalDeepReports: Math.min(existingWideForDeep, Math.max(deepReportDeficit, num(previous.suggestedAdditionalDeepReports))),
+      queryGuidance: {
+        policyVersion: QUERY_GUIDED_DEEP_POLICY_VERSION,
+        exactFightIDs: true,
+        outcomeDeficitAware: true,
+        independentSourceFirst: true,
+        maxFightsPerReport: 6,
+        focusAbilityIds: model?.learning?.enrichmentFocusAbilityIds || [],
+        surgicalAbilityFiltersAllowed: true,
+        surgicalProbesCountTowardDeepCoverage: false,
+      },
+    };
+  }
+  return previous;
 }
 
 export function applyBossSamplingPolicyV376(input, aggregate = null) {
@@ -70,7 +115,6 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
   if (!samplingChecks.deepSourceBalance || !samplingChecks.deepSourcePullBalance || !samplingChecks.deepOutcomeCoverage) { scorePct = Math.min(scorePct, 79); caps.push('deep-sample-under-balanced'); }
   if (!samplingChecks.homeSourceExcluded || Number(manifest?.homeSourceSelectedReports || 0) > 0) { scorePct = 0; caps.push('home-source-contamination'); }
 
-  const previousRec = model?.learning?.enrichmentRecommendation || {};
   const samplingBlocked = !samplingChecks.homeSourceExcluded
     || !samplingChecks.sourceIdentityComplete
     || !samplingChecks.sourceReportBalance
@@ -79,14 +123,7 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     || !samplingChecks.deepSourcePullBalance
     || !samplingChecks.outcomeCoverage
     || !samplingChecks.deepOutcomeCoverage;
-  const recommendation = samplingBlocked ? {
-    ...previousRec,
-    priority: 'high',
-    mode: 'diversity-first',
-    suggestedAdditionalWidePulls: Math.max(500, num(previousRec.suggestedAdditionalWidePulls)),
-    suggestedAdditionalDeepPulls: Math.max(100, num(previousRec.suggestedAdditionalDeepPulls)),
-    reason: 'Canonical boss sampling is not yet clean and balanced across trusted independent sources and progression outcomes. AvoiD/home sources remain evaluation-only.',
-  } : previousRec;
+  const recommendation = enrichmentRecommendation(model, samplingChecks, samplingBlocked);
 
   const checks = {
     ...(model?.validation?.publishChecks || {}),
