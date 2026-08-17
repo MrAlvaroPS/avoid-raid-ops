@@ -1,6 +1,6 @@
 import { assertCorpusStorage, corpusGet, corpusSet, corpusList } from './storage.mjs';
 import { corpusAliasKey, corpusId, jobKey, aggregateKey } from './keys.mjs';
-import { buildQueryGuidedDeepPlan, deepSourceKey, classifyDeepFight, QUERY_GUIDED_DEEP_POLICY_VERSION } from './query-guided-deep-v1.mjs';
+import { buildQueryGuidedDeepPlan, deepSourceKey, QUERY_GUIDED_DEEP_POLICY_VERSION } from './query-guided-deep-v1.mjs';
 import { isCanonicalDeepComplete } from './canonical-rebuild-v2.mjs';
 
 const now=()=>Date.now();
@@ -27,20 +27,42 @@ export function prioritizeWideProfilesForDeepV373(profiles=[],processedDeep=[],f
   return[...first,...repeat];
 }
 
+export function filterCanonicalWideProfilesForDeep(profiles=[],selectedWideCodes=[]){
+  const canonical=new Set((selectedWideCodes||[]).map(String).filter(Boolean));
+  if(!canonical.size)return profiles;
+  return (profiles||[]).filter(profile=>profile?.code&&canonical.has(String(profile.code)));
+}
+
+export function resolveCanonicalWideTargetPulls(job={},aggregate={}){
+  const persisted=Number(job?.targetPulls);
+  if(Number.isFinite(persisted)&&persisted>0)return persisted;
+  return widePullCount(aggregate);
+}
+
 function dominantOutcome(row={}){
   const entries=Object.entries(row.outcomeCounts||{}).sort((a,b)=>Number(b[1])-Number(a[1])||['deepWipe','midWipe','kill','earlyWipe'].indexOf(a[0])-['deepWipe','midWipe','kill','earlyWipe'].indexOf(b[0]));
   return entries[0]?.[0]||'earlyWipe';
 }
 
 export function resolveTargetedDeepRequest({addDeepReports,addDeepPulls,currentPulls=0,currentReports=0}={}){
-  const requestedReports=Math.max(1,Math.min(100,Number(addDeepReports)||12));
-  const avg=Number(currentReports)>0?Number(currentPulls)/Number(currentReports):8;
   const explicitPulls=Number(addDeepPulls);
   const hasExplicitPullTarget=Number.isFinite(explicitPulls)&&explicitPulls>0;
+  const explicitReports=Number(addDeepReports);
+  const hasExplicitReportTarget=Number.isFinite(explicitReports)&&explicitReports>0;
+  const requestedReports=hasExplicitReportTarget
+    ? Math.max(1,Math.min(100,Math.ceil(explicitReports)))
+    : hasExplicitPullTarget
+      ? Math.max(1,Math.min(12,Math.ceil(explicitPulls)))
+      : 12;
+  const avg=Number(currentReports)>0?Number(currentPulls)/Number(currentReports):8;
   const requestedPulls=hasExplicitPullTarget
     ? Math.max(requestedReports,Math.ceil(explicitPulls))
     : Math.max(requestedReports,Math.ceil(avg*requestedReports));
-  return{requestedReports,requestedPulls,targetSource:hasExplicitPullTarget?'explicit-canonical-deficit':'estimated-from-existing-deep'};
+  return{
+    requestedReports,
+    requestedPulls,
+    targetSource:hasExplicitPullTarget?'explicit-canonical-deficit':'estimated-from-existing-deep',
+  };
 }
 
 async function canonicalDeepCodes(args){
@@ -57,25 +79,39 @@ export async function startTargetedDeepV373(input={}){
   if(!job||!aggregate)throw new Error('Corpus job has not been started');
   if(['running','rate-limited'].includes(job.status))throw new Error('Corpus is already running');
   const keys=await corpusList(`profiles/${corpusId(args)}/`),profiles=[];for(const key of keys){const p=await corpusGet(key);if(p)profiles.push(p);}
+
+  // Canonical Deep is a subset of canonical Wide. Spending WCL on a persisted Wide report
+  // that the current canonical Wide sampler has excluded can produce a perfectly complete
+  // 8/8 Deep profile that is later discarded at rebuild time. Restrict query-guided Deep
+  // to the current manifest's selected Wide codes whenever that manifest exists.
+  const selectedWideCodes=aggregate?.sampling?.selectedWideCodes||[];
+  const canonicalWideProfiles=filterCanonicalWideProfilesForDeep(profiles,selectedWideCodes);
+  const canonicalWideOnly=selectedWideCodes.length>0;
+
   // processedDeep historically also contained diagnostic/incomplete attempts. Rebuild
   // the exclusion set from persisted *canonical-complete* Deep profiles so a later
   // policy/fix can retry reports that never counted toward Deep coverage.
   const processedDeep=await canonicalDeepCodes(args);
-  const existingCandidates=prioritizeWideProfilesForDeepV373(profiles,processedDeep,input.focusAbilityIds||[]);if(!existingCandidates.length)throw new Error('No persisted Wide reports remain available for targeted Deep profiling');
+  const existingCandidates=prioritizeWideProfilesForDeepV373(canonicalWideProfiles,processedDeep,input.focusAbilityIds||[]);
+  if(!existingCandidates.length)throw new Error('No canonical Wide reports remain available for targeted Deep profiling');
+
   const currentPulls=deepPullCount(aggregate),currentReports=num(aggregate.deepReports);
   const {requestedReports,requestedPulls,targetSource}=resolveTargetedDeepRequest({addDeepReports:input.addDeepReports,addDeepPulls:input.addDeepPulls,currentPulls,currentReports});
-  const queryPlan=buildQueryGuidedDeepPlan(profiles,{
+  const maxFightsPerReport=Math.max(1,Math.min(6,Number(input.maxFightsPerReport)||6));
+  const queryPlan=buildQueryGuidedDeepPlan(canonicalWideProfiles,{
     processedDeep,
     focusAbilityIds:input.focusAbilityIds||[],
     requestedReports,
     requestedPulls,
     validationFraction:aggregate.validationFraction??.2,
     existingDeepSourceReports:aggregate.deepSourceReports||{},
+    maxFightsPerReport,
   });
-  if(!queryPlan.selectedReports)throw new Error('No trustworthy source-scoped Wide reports remain available for query-guided Deep profiling');
+  if(!queryPlan.selectedReports)throw new Error('No trustworthy canonical-Wide reports remain available for query-guided Deep profiling');
   const buckets={kill:[],deepWipe:[],midWipe:[],earlyWipe:[]};for(const row of queryPlan.selected)buckets[dominantOutcome(row)].push(row.code);
   const deepTargetPulls=Math.min(widePullCount(aggregate),currentPulls+queryPlan.selectedPulls);
   const deepTargetReports=Math.min(num(aggregate.wideReports),currentReports+queryPlan.selectedReports);
-  const updated={...job,engineVersion:`3.7.7-${QUERY_GUIDED_DEEP_POLICY_VERSION}`,schemaVersion:Math.max(5,num(job.schemaVersion)),mode:'targeted-deep',status:'running',phase:'deep',startedAt:now(),updatedAt:now(),completedAt:null,targetPulls:widePullCount(aggregate),deepTargetPulls,deepTargetReports,deepBuckets:buckets,deepCursor:0,processedDeep,queryGuidedIncompleteReports:0,queryGuidedDeepProcessed:0,resumeAt:null,pauseReason:null,pauseRequestedAt:null,consecutiveFailure:null,activeExecutionToken:null,executionMode:null,workflowRunId:null,workflowStartedAt:null,queryGuidedDeepPlan:queryPlan,deepFightIDsByCode:queryPlan.fightIDsByCode,targetedDeepPlan:{requestedReports,requestedPulls,selectedReports:queryPlan.selectedReports,selectedPulls:queryPlan.selectedPulls,goalStatus:queryPlan.goals,requestedTargetSource:targetSource,deepTargetPulls,deepTargetReports,availableWideReports:existingCandidates.length,canonicalDeepReportsAlreadyProcessed:processedDeep.length,focusAbilityIds:queryPlan.focusAbilityIds,queryPolicy:queryPlan.queryPolicy,surgicalProbeExpressions:queryPlan.surgicalProbeExpressions,selectedPreview:queryPlan.selected.slice(0,12)},message:`QUERY-GUIDED DEEP · existing Wide only · minimum ${requestedReports} reports / ${requestedPulls} pulls · planned ${queryPlan.selectedReports} reports / ${queryPlan.selectedPulls} exact fights across ${queryPlan.selectedSources} sources · ${queryPlan.goals?.bothMet?'both evidence minima satisfied':'cache shortfall recorded'} · full streams only for selected fightIDs; diagnostic-only prior attempts are retryable on a fresh plan.`};
+  const canonicalWideTargetPulls=resolveCanonicalWideTargetPulls(job,aggregate);
+  const updated={...job,engineVersion:`3.7.8-${QUERY_GUIDED_DEEP_POLICY_VERSION}`,schemaVersion:Math.max(5,num(job.schemaVersion)),mode:'targeted-deep',status:'running',phase:'deep',startedAt:now(),updatedAt:now(),completedAt:null,targetPulls:canonicalWideTargetPulls,deepTargetPulls,deepTargetReports,deepBuckets:buckets,deepCursor:0,processedDeep,queryGuidedIncompleteReports:0,queryGuidedDeepProcessed:0,resumeAt:null,pauseReason:null,pauseRequestedAt:null,consecutiveFailure:null,activeExecutionToken:null,executionMode:null,workflowRunId:null,workflowStartedAt:null,queryGuidedDeepPlan:queryPlan,deepFightIDsByCode:queryPlan.fightIDsByCode,targetedDeepPlan:{requestedReports,requestedPulls,selectedReports:queryPlan.selectedReports,selectedPulls:queryPlan.selectedPulls,goalStatus:queryPlan.goals,requestedTargetSource:targetSource,deepTargetPulls,deepTargetReports,canonicalWideTargetPulls,availableWideReports:existingCandidates.length,canonicalWideReports:canonicalWideProfiles.length,canonicalWideOnly,canonicalDeepReportsAlreadyProcessed:processedDeep.length,focusAbilityIds:queryPlan.focusAbilityIds,queryPolicy:{...queryPlan.queryPolicy,canonicalWideOnly},surgicalProbeExpressions:queryPlan.surgicalProbeExpressions,selectedPreview:queryPlan.selected.slice(0,12)},message:`QUERY-GUIDED DEEP · canonical Wide only · minimum ${requestedReports} reports / ${requestedPulls} pulls · planned ${queryPlan.selectedReports} reports / ${queryPlan.selectedPulls} exact fights across ${queryPlan.selectedSources} sources · ${queryPlan.goals?.bothMet?'both evidence minima satisfied':'cache shortfall recorded'} · full streams only for selected fightIDs; canonical Wide target ${canonicalWideTargetPulls} preserved and post-rebuild canonical coverage remains authoritative.`};
   await corpusSet(jobKey(args),updated);return{args,job:updated,plan:updated.targetedDeepPlan};
 }
