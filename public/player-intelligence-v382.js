@@ -9,7 +9,7 @@
   const qa=(s,r=document)=>Array.from(r?.querySelectorAll?.(s)||[]);
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const norm=v=>String(v||'').trim().toLowerCase();
-  const finite=v=>Number.isFinite(Number(v))?Number(v):null;
+  const finite=v=>{if(v===null||v===undefined||v==='')return null;const x=Number(v);return Number.isFinite(x)?x:null;};
   const clamp=(v,min=0,max=100)=>Math.max(min,Math.min(max,v));
   const fmtPct=v=>finite(v)==null?'—':`${Number(v).toFixed(Number(v)%1?1:0)}%`;
   const fmtDate=v=>finite(v)==null?'—':new Date(Number(v)).toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'});
