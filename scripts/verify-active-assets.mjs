@@ -2,6 +2,7 @@ import { access, readFile, readdir } from 'node:fs/promises';
 import {
   ACTIVE_ASSET_MANIFEST_VERSION,
   ACTIVE_STYLES,
+  CSS_BUNDLE_SOURCES,
   ACTIVE_LOCAL_SCRIPTS,
   ACTIVE_EXTERNAL_SCRIPTS,
   RUNTIME_FAMILIES,
@@ -23,22 +24,30 @@ const cleanLocal=src=>src.split('?')[0];
 const publicPath=src=>`public${cleanLocal(src)}`;
 
 expect(ACTIVE_ASSET_MANIFEST_VERSION==='active-assets-v1','active asset manifest version must remain explicit');
-expect(JSON.stringify(actualStyles)===JSON.stringify(expectedStyles),`index stylesheet order differs from canonical manifest\n expected ${JSON.stringify(expectedStyles)}\n actual   ${JSON.stringify(actualStyles)}`);
+expect(JSON.stringify(actualStyles)===JSON.stringify(expectedStyles),`index stylesheet transport differs from canonical manifest\n expected ${JSON.stringify(expectedStyles)}\n actual   ${JSON.stringify(actualStyles)}`);
 expect(JSON.stringify(actualScripts)===JSON.stringify(expectedScripts),`index script order differs from canonical manifest\n expected ${JSON.stringify(expectedScripts)}\n actual   ${JSON.stringify(actualScripts)}`);
+expect(ACTIVE_STYLES.length===2,'production must transport exactly Golden CSS plus one generated compatibility bundle');
+expect(CSS_BUNDLE_SOURCES.length===17,'generated compatibility bundle must retain all 17 reviewed source layers');
 
-const all=[...ACTIVE_STYLES,...ACTIVE_LOCAL_SCRIPTS,...ACTIVE_EXTERNAL_SCRIPTS];
+const all=[...ACTIVE_STYLES,...CSS_BUNDLE_SOURCES,...ACTIVE_LOCAL_SCRIPTS,...ACTIVE_EXTERNAL_SCRIPTS];
 const ids=new Set(),sources=new Set();
 for(const asset of all){
   expect(Boolean(asset.id&&asset.owner&&asset.domain&&asset.role&&asset.retirement&&asset.authority),`asset ${asset.src||'<missing>'} lacks ownership metadata`);
-  expect(!ids.has(asset.id),`duplicate active asset id ${asset.id}`);ids.add(asset.id);
-  expect(!sources.has(asset.src),`duplicate active asset src ${asset.src}`);sources.add(asset.src);
+  expect(!ids.has(asset.id),`duplicate asset id ${asset.id}`);ids.add(asset.id);
+  expect(!sources.has(asset.src),`duplicate asset src ${asset.src}`);sources.add(asset.src);
 }
 
-for(const asset of [...ACTIVE_STYLES,...ACTIVE_LOCAL_SCRIPTS]){
-  expect(asset.src.startsWith('/'),'local active asset must use root-relative src');
-  expect(!asset.src.includes('/old/'),'active asset cannot cross old/ quarantine boundary');
-  try{await access(new URL(publicPath(asset.src),root))}catch{fail.push(`active asset file missing: ${publicPath(asset.src)}`)}
+for(const asset of [...ACTIVE_STYLES,...CSS_BUNDLE_SOURCES,...ACTIVE_LOCAL_SCRIPTS]){
+  expect(asset.src.startsWith('/'),'local asset must use root-relative src');
+  expect(!asset.src.includes('/old/'),'active/source asset cannot cross old/ quarantine boundary');
+  try{await access(new URL(publicPath(asset.src),root))}catch{fail.push(`required asset file missing: ${publicPath(asset.src)}`)}
 }
+
+const linkedStyleSet=new Set(actualStyles.map(cleanLocal));
+for(const source of CSS_BUNDLE_SOURCES)expect(!linkedStyleSet.has(cleanLocal(source.src)),`CSS source layer must not be individually transported after consolidation: ${source.src}`);
+expect(ACTIVE_STYLES[1]?.id==='active-css-bundle'&&ACTIVE_STYLES[1]?.authority==='generated-bundle','generated CSS bundle must be the only post-Golden stylesheet transport');
+expect(ACTIVE_STYLES[1]?.src==='/raidops-active.css?v=3.9.2-css1','generated CSS transport cache identity changed without manifest review');
+expect(CSS_BUNDLE_SOURCES.every(asset=>asset.authority==='source-layer'&&asset.retirement==='visual-equivalence-required'),'CSS source layers must remain audited visual-equivalence sources');
 
 const primaryByDomain=new Map();
 for(const asset of ACTIVE_LOCAL_SCRIPTS.filter(asset=>asset.authority==='primary')){
@@ -78,7 +87,8 @@ if(fail.length){
   process.exit(1);
 }
 console.log('ACTIVE ASSET VERIFICATION: PASS');
-console.log(` - ${ACTIVE_STYLES.length} stylesheet layers match the canonical cascade order`);
+console.log(` - ${ACTIVE_STYLES.length} stylesheet transports: immutable Golden + generated compatibility bundle`);
+console.log(` - ${CSS_BUNDLE_SOURCES.length} audited CSS source layers remain ordered and individually unlinked`);
 console.log(` - ${ACTIVE_LOCAL_SCRIPTS.length} local runtimes + ${ACTIVE_EXTERNAL_SCRIPTS.length} external reference script match the canonical load order`);
 console.log(` - ${primaryByDomain.size} runtime domains have one primary owner`);
 console.log(` - ${HISTORICAL_ONLY_ASSETS.length} known historical assets are present but cannot be reactivated silently`);

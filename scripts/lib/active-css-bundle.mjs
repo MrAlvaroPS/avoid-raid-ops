@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
-import { ACTIVE_STYLES } from '../../config/active-assets.mjs';
+import { CSS_BUNDLE_SOURCES } from '../../config/active-assets.mjs';
 
 const root=new URL('../../',import.meta.url);
 export const ACTIVE_CSS_BUNDLE_OUTPUT='public/raidops-active.css';
-export const ACTIVE_CSS_SOURCE_LAYERS=Object.freeze(ACTIVE_STYLES.filter(asset=>asset.authority==='overlay'));
+export const ACTIVE_CSS_SOURCE_LAYERS=CSS_BUNDLE_SOURCES;
 
 const cleanLocal=src=>src.split('?')[0];
 const fileUrl=src=>new URL(`public${cleanLocal(src)}`,root);

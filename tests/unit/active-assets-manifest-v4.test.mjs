@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   ACTIVE_ASSET_MANIFEST,
   ACTIVE_STYLES,
+  CSS_BUNDLE_SOURCES,
   ACTIVE_LOCAL_SCRIPTS,
   ACTIVE_EXTERNAL_SCRIPTS,
   RUNTIME_FAMILIES,
@@ -11,10 +12,12 @@ import {
 
 test('active compatibility asset manifest makes the current production stack explicit',()=>{
   assert.equal(ACTIVE_ASSET_MANIFEST.version,'active-assets-v1');
-  assert.equal(ACTIVE_STYLES.length,18);
+  assert.equal(ACTIVE_STYLES.length,2);
+  assert.equal(CSS_BUNDLE_SOURCES.length,17);
   assert.equal(ACTIVE_LOCAL_SCRIPTS.length,10);
   assert.equal(ACTIVE_EXTERNAL_SCRIPTS.length,1);
   assert.equal(ACTIVE_STYLES[0].src,'/main.css');
+  assert.equal(ACTIVE_STYLES[1].src,'/raidops-active.css?v=3.9.2-css1');
   assert.equal(ACTIVE_LOCAL_SCRIPTS[0].src,'/main.js');
   assert.equal(ACTIVE_LOCAL_SCRIPTS.at(-1).src,'/player-intelligence-v392.js?v=3.9.2');
 });
@@ -41,11 +44,13 @@ test('versioned runtime families identify exactly one active generation in the m
   for(const old of ['/encounter-intelligence-v374.js','/progress-runtime-v3712.js','/iris-runtime-v3712.js','/player-intelligence-v386.js'])assert.ok(HISTORICAL_ONLY_ASSETS.includes(old));
 });
 
-test('CSS consolidation remains visual-equivalence gated instead of deleting additive history blindly',()=>{
-  const overlays=ACTIVE_STYLES.filter(asset=>asset.authority==='overlay');
-  assert.equal(overlays.length,17);
-  assert.ok(overlays.every(asset=>asset.retirement==='visual-equivalence-required'));
-  assert.equal(ACTIVE_STYLES.find(asset=>asset.id==='css-v378').domain,'progress');
-  assert.equal(ACTIVE_STYLES.find(asset=>asset.id==='css-v386').domain,'players');
-  assert.equal(ACTIVE_STYLES.find(asset=>asset.id==='css-v390').owner,'data-platform');
+test('CSS transport is consolidated without deleting or reordering additive source history',()=>{
+  assert.equal(ACTIVE_STYLES[0].authority,'base');
+  assert.equal(ACTIVE_STYLES[1].authority,'generated-bundle');
+  assert.equal(ACTIVE_STYLES[1].retirement,'regenerate-from-source-manifest');
+  assert.ok(CSS_BUNDLE_SOURCES.every(asset=>asset.authority==='source-layer'&&asset.retirement==='visual-equivalence-required'));
+  assert.equal(CSS_BUNDLE_SOURCES.find(asset=>asset.id==='css-v378').domain,'progress');
+  assert.equal(CSS_BUNDLE_SOURCES.find(asset=>asset.id==='css-v386').domain,'players');
+  assert.equal(CSS_BUNDLE_SOURCES.find(asset=>asset.id==='css-v390').owner,'data-platform');
+  assert.ok(CSS_BUNDLE_SOURCES.findIndex(asset=>asset.id==='css-v390')<CSS_BUNDLE_SOURCES.findIndex(asset=>asset.id==='css-v392'));
 });

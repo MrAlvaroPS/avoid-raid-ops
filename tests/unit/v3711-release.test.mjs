@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
+import { CSS_BUNDLE_SOURCES } from '../../config/active-assets.mjs';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
 
@@ -11,9 +12,12 @@ test('v3.7.11 browser runtimes remain valid regression assets',async()=>{
   }
 });
 
-test('index preserves historical styles and activates the v3.9.2 Players layer after the v3.9.0 data platform',async()=>{
+test('index uses one generated compatibility stylesheet while preserving historical source order and runtime layering',async()=>{
   const index=await read('index.html');
-  assert.match(index,/raidops-v3711\.css\?v=3\.7\.11/);assert.match(index,/raidops-v3712\.css\?v=3\.7\.12/);assert.match(index,/raidops-v3713\.css\?v=3\.8\.5/);assert.match(index,/raidops-v386\.css\?v=3\.8\.6/);assert.match(index,/raidops-v390\.css\?v=3\.9\.0/);assert.match(index,/raidops-v392\.css\?v=3\.9\.2/);
+  const styleSources=CSS_BUNDLE_SOURCES.map(asset=>asset.src);
+  assert.deepEqual(styleSources.slice(-6),['/raidops-v3711.css?v=3.7.11','/raidops-v3712.css?v=3.7.12','/raidops-v3713.css?v=3.8.5','/raidops-v386.css?v=3.8.6','/raidops-v390.css?v=3.9.0','/raidops-v392.css?v=3.9.2']);
+  assert.match(index,/main\.css[\s\S]*raidops-active\.css\?v=3\.9\.2-css1/);
+  for(const source of styleSources)assert.ok(!index.includes(source),`${source} must be a bundle source, not an individual production request`);
   assert.match(index,/wcl-bootstrap-v389\.js\?v=3\.8\.9\.1/);assert.match(index,/data-hub-v390\.js\?v=3\.9\.0/);assert.match(index,/knowledge-reindex-v390\.js\?v=3\.9\.0/);assert.match(index,/wcl-runtime\.js\?v=3\.8\.5/);assert.match(index,/progress-runtime-v3713\.js\?v=3\.8\.5/);assert.match(index,/iris-runtime-v3713\.js\?v=3\.8\.9\.1/);assert.match(index,/player-intelligence-v392\.js\?v=3\.9\.2/);
   assert.match(index,/encounter-intelligence-v375\.js\?v=3\.8\.5[\s\S]*corpus-ui-stability-v1\.js\?v=1\.1\.0/);
   assert.doesNotMatch(index,/progress-runtime-v3712\.js\?v=3\.7\.12/);assert.doesNotMatch(index,/iris-runtime-v3712\.js\?v=3\.7\.12/);assert.doesNotMatch(index,/player-intelligence-v386\.js\?v=3\.8\.9\.1/);
