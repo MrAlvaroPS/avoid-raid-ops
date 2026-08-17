@@ -47,7 +47,7 @@ window.fetch=async(input,init={})=>{
 function currentReport(){return new URLSearchParams(location.search).get('report')||window.__AVOID_WCL__?.report?.code||'28d9xF7GchL6ZPYt'}
 function guildId(){return new URLSearchParams(location.search).get('guild')||window.__AVOID_WCL__?.guild?.id||window.__AVOID_WCL__?.reportGuild?.id||'788166'}
 function fmtDate(ms){if(!Number.isFinite(Number(ms)))return'—';return new Date(Number(ms)).toLocaleString([], {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
-function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]))}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
 
 async function fetchJson(url,init){const response=await fetch(url,init);const payload=await response.json().catch(()=>({}));if(!response.ok||payload?.ok===false)throw new Error(payload?.error||`HTTP ${response.status}`);return payload}
 async function syncCatalog(days=120,force=false){
