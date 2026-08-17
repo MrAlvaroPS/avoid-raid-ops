@@ -40,7 +40,7 @@ test('overlapping logger reports keep one pull and union player identities',()=>
   assert.deepEqual(pulls[0].rosterIdentities.map(x=>x.name).sort(),['Alpha','Beta']);
 });
 
-test('v3.8.8 Players remains a stable component inside the v3.9.0 app release',async()=>{
+test('v3.8.8 Players remains a stable component inside the v3.9.1 app release',async()=>{
   const [runtime,legacyCss,releaseCss,index,pkg]=await Promise.all([
     read('public/player-intelligence-v386.js'),read('public/raidops-v386.css'),read('public/raidops-v390.css'),read('index.html'),read('package.json')
   ]);
@@ -60,5 +60,5 @@ test('v3.8.8 Players remains a stable component inside the v3.9.0 app release',a
   assert.match(index,/player-intelligence-v386\.js\?v=3\.8\.9\.1/);
   assert.match(index,/raidops-v386\.css\?v=3\.8\.6/);
   assert.match(index,/raidops-v390\.css\?v=3\.9\.0/);
-  assert.equal(JSON.parse(pkg).version,'0.3.9-0-vercel.0');
+  assert.equal(JSON.parse(pkg).version,'0.3.9-1-vercel.0');
 });

@@ -4,7 +4,7 @@ const capability=(id,config)=>Object.freeze({id,...config});
 
 export const IRIS_CAPABILITY_CONTRACT=Object.freeze({
   version:IRIS_CAPABILITY_CONTRACT_VERSION,
-  release:'3.9.0',
+  release:'3.9.1',
   product:'AvoiD Raid Operations',
   intelligence:'Iris',
   purpose:'Machine-readable contract describing what Iris may inspect, control or manage in the v3.9 data platform.',
@@ -14,6 +14,8 @@ export const IRIS_CAPABILITY_CONTRACT=Object.freeze({
     'V3.9-REFACTOR-PLAN.md',
     'DATA-TRUTH-MATRIX.md',
     'WCL-QUERY-PLAYBOOK.md',
+    'docs/IRIS-BOSS-AGNOSTIC-LEARNING-PIPELINE-V1.md',
+    'docs/IRIS-SEMANTIC-SURGICAL-PROBE-EXECUTION-V1.md',
     'docs/iris-sources/README.md',
   ]),
   invariants:Object.freeze({
@@ -25,6 +27,7 @@ export const IRIS_CAPABILITY_CONTRACT=Object.freeze({
     corpusScope:'encounter+difficulty+partition',
     playerKnowledge:'home-raid-only',
     budget:'Prefer stored/compact evidence and bounded requests before new expensive WCL acquisition.',
+    semanticProbeEvidence:'diagnostic-only; contributes zero canonical Deep reports/pulls, zero direct score change and zero automatic mechanic promotion',
     wowhead:'reference/enrichment only; never silently canonical combat truth',
     externalSources:'Use iris-source-registry-v1; documented official APIs first, no invented/undocumented production endpoints, and retain provenance for third-party derived data.',
   }),
@@ -55,6 +58,8 @@ export const IRIS_CAPABILITY_CONTRACT=Object.freeze({
     capability('knowledge.provider-wowhead',{status:'reference-only',domain:'knowledge',autonomy:'automatic',effect:'enrichment',description:'Use exact Wowhead references/tooltips around already-known IDs. Do not treat scraped/opaque Wowhead content as canonical combat evidence.'}),
     capability('knowledge.provider-blizzard',{status:'planned',domain:'knowledge',autonomy:'unavailable',effect:'authoritative-versioned-metadata',description:'Future Blizzard Game Data provider for supported patch/build/season and game metadata.'}),
     capability('corpus.inspect-stored',{status:'available',domain:'corpus',autonomy:'automatic',endpoint:'GET /api/wcl/corpus',effect:'read-only',description:'Inspect stored Encounter Corpus state when available, including browser-stored fallback.'}),
+    capability('corpus.semantic-probe.preview',{status:'available',domain:'corpus',autonomy:'automatic',endpoint:'GET/POST /api/wcl/semantic-probe {action:preview}',effect:'read-only-plan',description:'Build the current boss-agnostic surgical semantic-probe plan from persisted canonical evidence. Preview executes 0 WCL calls and reports cache state, fingerprint and conservative call budget.'}),
+    capability('corpus.semantic-probe.execute',{status:'available',domain:'corpus',autonomy:'explicitApproval',endpoint:'POST /api/wcl/semantic-probe {action:execute,confirmExecution:true,previewFingerprint}',effect:'diagnostic-network-read',description:'Execute only the fingerprinted exact-fight semantic probe under hard WCL-call and hourly-reserve limits. Evidence is resumable/diagnostic only: 0 Deep reports, 0 Deep pulls, 0 direct score change and no automatic mechanic promotion.'}),
     capability('corpus.mutate',{status:'resource-gated',domain:'corpus',autonomy:'explicitApproval',endpoint:'POST /api/wcl/corpus',effect:'research-write',description:'Build/enrich/recompile corpus only under existing evidence, storage and WCL-budget contracts. Full raw replay/rebuild remains an explicit maintenance action.'}),
   ]),
 });

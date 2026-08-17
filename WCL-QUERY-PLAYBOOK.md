@@ -78,6 +78,18 @@ Canonical Deep is allowed to increase Deep report/pull coverage and train/holdou
 
 If WCL indicates pagination/incompleteness for any required stream, the result may be cached for diagnostics but **must not count as a canonical Deep report or Deep pull**.
 
+Canonical Deep is also a **subset of the current canonical Wide sample**. A complete 8/8 Deep profile from a report that is not selected by canonical Wide does not count toward the canonical Deep publication population. Query-guided Deep should therefore spend WCL only on `sampling.selectedWideCodes` whenever that manifest exists.
+
+Acquisition and publication counts are deliberately different concepts:
+
+- `acquired Deep` = complete evidence successfully fetched and persisted,
+- `canonical Deep` = the subset retained after canonical Wide eligibility and Deep sampling/balance policy,
+- **the post-rebuild canonical count is authoritative for publication gates**.
+
+If a worker acquires 300 Deep pulls but the canonical rebuild retains 296, Iris has not satisfied a 300-pull canonical gate. It should inspect the exact residual deficit and buy the smallest trustworthy top-up rather than repeating a large acquisition.
+
+See `docs/IRIS-CANONICAL-DEEP-TOPUP-V1.md` for the residual top-up contract.
+
 ### Event pagination is part of completeness, not an error condition
 
 WCL `events` is paginated. The official API permits `limit` values from 100 to 10,000 events and returns a `nextPageTimestamp` when more matching events remain. A non-null cursor therefore means **continue the same evidence query**, not "this report is bad".
@@ -136,6 +148,7 @@ These are non-negotiable unless a future version explicitly changes and document
 - Post-wipe/death-cutoff evidence must be excluded when the metric contract requires pre-wipe execution only.
 - Protect the hourly WCL rate budget and checkpoint before waiting for reset.
 - Cache compact derived evidence so recompilation and future analysis can run at 0 WCL whenever possible.
+- Preserve the current canonical Wide target during a Deep-only top-up. Do not silently retarget Wide to the currently retained/trimmed pull count, because that can change `selectedWideCodes` and invalidate otherwise useful Deep work.
 
 ## Choosing fights and windows
 
@@ -171,23 +184,27 @@ This density guidance is a product/domain assumption supplied from real raid pra
 
 ## Current query-guided Deep policy
 
-`query-guided-deep-v3` upgrades already-cached Wide reports before buying more Wide evidence when the canonical Wide pool is trustworthy but Deep evidence is missing.
+`query-guided-deep-v4` upgrades already-cached **canonical Wide** reports before buying more Wide evidence when the canonical Wide pool is trustworthy but Deep evidence is missing.
 
 The planner/executor:
 
+- restricts candidates to the current canonical Wide report codes when a sampling manifest exists,
 - selects exact reports from trusted independent sources,
 - selects exact `fightIDs` inside those reports,
 - balances progression outcomes,
 - treats requested Deep report and pull counts as simultaneous minimum gates,
 - may select additional independent reports beyond the report minimum to satisfy the pull minimum,
 - keeps a conservative per-report fight cap to limit correlated evidence without declaring dense reports invalid,
+- supports `maxFightsPerReport=1` for tiny canonical top-ups so one residual pull is bought from each independent report/source where possible,
 - uses unresolved/focus ability IDs as a prioritization signal,
 - fetches full required streams only for selected fights,
 - independently paginates any Deep stream whose WCL `nextPageTimestamp` is non-null,
 - keeps ability/time-window probes separate as non-counting diagnostics,
+- preserves the current canonical Wide sampling target during Deep-only execution,
+- rebuilds canonically after acquisition and treats the resulting canonical Deep count as authoritative,
 - refuses to manufacture Deep coverage from incomplete or stalled streams.
 
-This means a model with strong Wide diversity but zero/weak Deep should normally ask for **query-guided targeted Deep**, not another broad Wide crawl merely because `deepOutcomeCoverage` is currently false. Deep coverage is repaired by acquiring Deep evidence.
+This means a model with strong Wide diversity but zero/weak Deep should normally ask for **query-guided targeted Deep**, not another broad Wide crawl merely because `deepOutcomeCoverage` is currently false. Deep coverage is repaired by acquiring Deep evidence. A tiny post-rebuild deficit such as `296 / 300` should use a tiny canonical top-up, not the historical 12-report floor or another broad acquisition.
 
 ## Before writing a new WCL query
 
@@ -203,5 +220,6 @@ Answer these questions in code review or implementation notes:
 8. What prevents duplicate evidence?
 9. What happens when WCL paginates, rate-limits or changes a contract?
 10. Can the result be stored compactly so we never need to buy the same evidence again?
+11. If this is Deep, is the report part of the current canonical Wide sample and will the post-rebuild canonical count be checked?
 
 If those questions are not clear, do not broaden the query by default.

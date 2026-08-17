@@ -28,9 +28,9 @@ test('legacy WCL Progress writers remain identifiable and are intercepted by the
   for(const fn of ['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']){assert.match(legacy,new RegExp(`function ${fn}\\(`));assert.match(owner,new RegExp(`['"]${fn}['"]`));}
 });
 
-test('v3.9.0 keeps one visible release-label owner and component runtimes cannot fight it',async()=>{
+test('v3.9.1 keeps one visible release-label owner while unchanged component runtimes retain their own versions',async()=>{
   const [pkg,iris,players,bootstrap]=await Promise.all([read('package.json'),read('public/iris-runtime-v3713.js'),read('public/player-intelligence-v386.js'),read('public/wcl-bootstrap-v389.js')]);
-  assert.match(pkg,/"version": "0\.3\.9-0-vercel\.0"/);assert.match(pkg,/"iris": "node --env-file=\.env\.local scripts\/iris-local-worker\.mjs"/);
+  assert.match(pkg,/"version": "0\.3\.9-1-vercel\.0"/);assert.match(pkg,/"iris": "node --env-file=\.env\.local scripts\/iris-local-worker\.mjs"/);
   assert.match(iris,/const RELEASE='3\.8\.5'/);assert.match(iris,/const IRIS='Iris'/);assert.match(iris,/const RAID_LEADER='Onie'/);
   assert.match(players,/const VERSION='3\.8\.8'/);
   assert.doesNotMatch(iris,/new MutationObserver/);
