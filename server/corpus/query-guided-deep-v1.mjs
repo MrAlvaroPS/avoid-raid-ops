@@ -5,7 +5,7 @@ import { fetchCompleteDeepEventData, DEEP_STREAM_PAGINATION_POLICY_VERSION } fro
 import { sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 import { corpusSplit, hashString } from './aggregate.mjs';
 
-export const QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v3';
+export const QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v4';
 export const QUERY_GUIDED_OUTCOME_WEIGHTS = Object.freeze({ kill:0.20, deepWipe:0.30, midWipe:0.30, earlyWipe:0.20 });
 
 const num=value=>Number.isFinite(Number(value))?Number(value):0;
@@ -106,11 +106,6 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
   let selectedPulls=0;
   const selectedSources=new Map();
 
-  // Reports and pulls are simultaneous minimum evidence goals, not alternatives and
-  // not report-count ceilings. If 50 independent reports only yield 265 selected fights,
-  // keep adding the least-used independent sources until the pull goal is met. The
-  // per-report cap remains deliberately conservative so a normal dense progression night
-  // can be valid without allowing one night's correlated pulls to dominate the sample.
   while((selected.length<reportGoal||selectedPulls<pullGoal)&&candidates.length){
     const reportsStillNeeded=Math.max(0,reportGoal-selected.length);
     const pullsStillNeeded=Math.max(0,pullGoal-selectedPulls);
@@ -134,15 +129,7 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
       currentOutcomes[item.outcome]++;
     }
     const fightIDs=chosen.map(item=>Number(item.fight.id));
-    selected.push({
-      code:String(row.profile.code),
-      source:row.source,
-      split:row.split,
-      focusHits:row.focusHits,
-      fightIDs,
-      pulls:fightIDs.length,
-      outcomeCounts,
-    });
+    selected.push({code:String(row.profile.code),source:row.source,split:row.split,focusHits:row.focusHits,fightIDs,pulls:fightIDs.length,outcomeCounts});
     selectedPulls+=fightIDs.length;
     selectedSources.set(row.source,(selectedSources.get(row.source)||0)+1);
   }
@@ -156,14 +143,7 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
     selectedReports:selected.length,
     selectedPulls,
     selectedSources:new Set(selected.map(row=>row.source)).size,
-    goals:{
-      semantics:'minimum-both',
-      reportGoalMet,
-      pullGoalMet,
-      bothMet:reportGoalMet&&pullGoalMet,
-      reportShortfall:Math.max(0,reportGoal-selected.length),
-      pullShortfall:Math.max(0,pullGoal-selectedPulls),
-    },
+    goals:{semantics:'minimum-both',reportGoalMet,pullGoalMet,bothMet:reportGoalMet&&pullGoalMet,reportShortfall:Math.max(0,reportGoal-selected.length),pullShortfall:Math.max(0,pullGoal-selectedPulls)},
     selected,
     fightIDsByCode:Object.fromEntries(selected.map(row=>[row.code,row.fightIDs])),
     outcomeCounts:currentOutcomes,
@@ -171,6 +151,7 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
     surgicalProbeExpressions:buildAbilityProbeExpressions(focus),
     queryPolicy:{
       canonicalDeepUsesExactFightIDs:true,
+      canonicalWideEligibilityRequired:true,
       maxFightsPerReport,
       goalSemantics:'minimum-both',
       maySelectAdditionalReportsToMeetPullGoal:true,
@@ -180,7 +161,7 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
       independentStreamCursors:true,
       surgicalAbilityProbesCountAsDeepReports:false,
       surgicalAbilityProbesCountAsDeepPulls:false,
-      rationale:'Use WCL fightIDs to spend full Deep bandwidth only on fights that close report/outcome/source deficits. Report and pull targets are simultaneous minimum gates. Dense progression reports are valid; the per-report cap controls correlation rather than filtering those reports out. Any WCL event stream that paginates is continued from its own nextPageTimestamp before the profile can count as canonical Deep. Ability-filter probes are diagnostic evidence only and must never inflate canonical Deep coverage.',
+      rationale:'Use exact WCL fightIDs only from reports that are eligible in the current canonical Wide sample, then spend full Deep bandwidth on fights that close report/outcome/source deficits. Report and pull targets are simultaneous minimum gates. Dense progression reports are valid; the per-report cap controls correlation rather than filtering those reports out. Any WCL event stream that paginates is continued from its own nextPageTimestamp before the profile can count as canonical Deep. Ability-filter probes are diagnostic evidence only and must never inflate canonical Deep coverage.',
     },
   };
 }
@@ -198,12 +179,7 @@ export async function fetchQueryGuidedDeepProfile({code,encounterId,difficulty=5
   const normalized=normalizeDeepProfile(selectedHeader,data,{encounterId,difficulty});
   if(normalized){
     normalized.partition=Number(partition||0);
-    normalized.queryGuided={
-      policyVersion:QUERY_GUIDED_DEEP_POLICY_VERSION,
-      fightIDs:exactFightIDs,
-      fullStreamsForSelectedFights:true,
-      pagination:fetched.pagination,
-    };
+    normalized.queryGuided={policyVersion:QUERY_GUIDED_DEEP_POLICY_VERSION,fightIDs:exactFightIDs,fullStreamsForSelectedFights:true,pagination:fetched.pagination};
     normalized.deepStreamPagination=fetched.pagination;
   }
   const withOrigin=attachOriginEvidenceV373(normalized,data);
