@@ -3,4 +3,9 @@ query AvoidHistoryCurrent($code:String!){reportData{report(code:$code,allowUnlis
 export const LIST_GUILD_REPORTS_QUERY=`
 query AvoidHistoryList($guildId:Int!,$start:Float!,$end:Float!,$zoneId:Int!,$limit:Int!,$page:Int!){reportData{reports(guildID:$guildId,startTime:$start,endTime:$end,zoneID:$zoneId,limit:$limit,page:$page){total has_more_pages data{code title startTime endTime zone{id name}}}}}`;
 export const REPORT_HISTORY_FIGHTS_QUERY=`
-query AvoidHistoryFights($code:String!,$encounterId:Int!,$difficulty:Int!){reportData{report(code:$code,allowUnlisted:true){code title startTime endTime fights(encounterID:$encounterId,difficulty:$difficulty,killType:Encounters){id encounterID name difficulty startTime endTime kill fightPercentage bossPercentage inProgress friendlyPlayers lastPhaseAsAbsoluteIndex wipeCalledTime}}}}`;
+query AvoidHistoryFights($code:String!,$encounterId:Int!,$difficulty:Int!){reportData{report(code:$code,allowUnlisted:true){
+ code title startTime endTime
+ masterData{actors{id name type subType server}}
+ encounterFights:fights(encounterID:$encounterId,difficulty:$difficulty,killType:Encounters){id encounterID name difficulty startTime endTime kill fightPercentage bossPercentage inProgress friendlyPlayers lastPhaseAsAbsoluteIndex wipeCalledTime}
+ raidFights:fights(killType:Encounters){id encounterID name difficulty startTime endTime kill fightPercentage bossPercentage inProgress friendlyPlayers lastPhaseAsAbsoluteIndex wipeCalledTime}
+}}}`;
