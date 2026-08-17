@@ -15,7 +15,7 @@ test('index preserves historical styles and activates the v3.8.9.1 hotfix bootst
   const index=await read('index.html');
   assert.match(index,/raidops-v3711\.css\?v=3\.7\.11/);assert.match(index,/raidops-v3712\.css\?v=3\.7\.12/);assert.match(index,/raidops-v3713\.css\?v=3\.8\.5/);assert.match(index,/raidops-v386\.css\?v=3\.8\.6/);
   assert.match(index,/wcl-bootstrap-v389\.js\?v=3\.8\.9\.1/);assert.match(index,/wcl-runtime\.js\?v=3\.8\.5/);assert.match(index,/progress-runtime-v3713\.js\?v=3\.8\.5/);assert.match(index,/iris-runtime-v3713\.js\?v=3\.8\.9\.1/);assert.match(index,/player-intelligence-v386\.js\?v=3\.8\.9\.1/);
-  assert.match(index,/encounter-intelligence-v375\.js\?v=3\.8\.5[\s\S]*corpus-ui-stability-v1\.js\?v=1\.0\.0/);
+  assert.match(index,/encounter-intelligence-v375\.js\?v=3\.8\.5[\s\S]*corpus-ui-stability-v1\.js\?v=1\.1\.0/);
   assert.doesNotMatch(index,/progress-runtime-v3712\.js\?v=3\.7\.12/);assert.doesNotMatch(index,/iris-runtime-v3712\.js\?v=3\.7\.12/);
   assert.ok(index.indexOf('/wcl-bootstrap-v389.js?v=3.8.9.1')<index.indexOf('/wcl-runtime.js?v=3.8.5'));
   assert.ok(index.indexOf('/wcl-runtime.js?v=3.8.5')<index.indexOf('/player-intelligence-v386.js?v=3.8.9.1'));
