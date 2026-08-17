@@ -4,7 +4,7 @@ const capability=(id,config)=>Object.freeze({id,...config});
 
 export const IRIS_CAPABILITY_CONTRACT=Object.freeze({
   version:IRIS_CAPABILITY_CONTRACT_VERSION,
-  release:'3.9.0-refactor',
+  release:'3.9.0',
   product:'AvoiD Raid Operations',
   intelligence:'Iris',
   purpose:'Machine-readable contract describing what Iris may inspect, control or manage in the v3.9 data platform.',
@@ -27,7 +27,6 @@ export const IRIS_CAPABILITY_CONTRACT=Object.freeze({
     budget:'Prefer stored/compact evidence and bounded requests before new expensive WCL acquisition.',
     wowhead:'reference/enrichment only; never silently canonical combat truth',
     externalSources:'Use iris-source-registry-v1; documented official APIs first, no invented/undocumented production endpoints, and retain provenance for third-party derived data.',
-    externalPersistence:'Provider terms/cache headers govern external content. Public readability never automatically means durable raw storage is permitted.',
   }),
   autonomy:Object.freeze({
     automatic:'Iris may perform this read/housekeeping operation when needed and budget-safe.',
