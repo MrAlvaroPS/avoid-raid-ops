@@ -14,6 +14,7 @@ export const IRIS_CAPABILITY_CONTRACT=Object.freeze({
     'V3.9-REFACTOR-PLAN.md',
     'DATA-TRUTH-MATRIX.md',
     'WCL-QUERY-PLAYBOOK.md',
+    'docs/iris-sources/README.md',
   ]),
   invariants:Object.freeze({
     combatTruth:'Warcraft Logs observed evidence remains canonical combat truth.',
@@ -25,6 +26,8 @@ export const IRIS_CAPABILITY_CONTRACT=Object.freeze({
     playerKnowledge:'home-raid-only',
     budget:'Prefer stored/compact evidence and bounded requests before new expensive WCL acquisition.',
     wowhead:'reference/enrichment only; never silently canonical combat truth',
+    externalSources:'Use iris-source-registry-v1; documented official APIs first, no invented/undocumented production endpoints, and retain provenance for third-party derived data.',
+    externalPersistence:'Provider terms/cache headers govern external content. Public readability never automatically means durable raw storage is permitted.',
   }),
   autonomy:Object.freeze({
     automatic:'Iris may perform this read/housekeeping operation when needed and budget-safe.',
@@ -35,6 +38,7 @@ export const IRIS_CAPABILITY_CONTRACT=Object.freeze({
   }),
   capabilities:Object.freeze([
     capability('activity.inspect',{status:'available',domain:'operations',autonomy:'automatic',surface:'window.__AVOID_ACTIVITY__',effect:'read-only',description:'Inspect the compact recent activity/error ring to explain what the application is doing or why a service failed.'}),
+    capability('sources.inspect',{status:'available',domain:'research',autonomy:'automatic',endpoint:'GET /api/iris/sources',effect:'read-only',description:'Inspect the reviewed external-source directory: API posture, trust class, documentation, safe endpoints, prohibited surfaces and runtime-integration status for Warcraft Logs, WoWAnalyzer, Wipefest, Archon, Lorrgs and Mythic Trap.'}),
     capability('data.use-stored',{status:'available',domain:'data',autonomy:'operatorRequested',bridge:'data.setMode',effect:'reload-context',description:'Switch report/history/intelligence/corpus reads to browser-stored snapshots without contacting those data services.'}),
     capability('data.use-connected',{status:'available',domain:'data',autonomy:'operatorRequested',bridge:'data.setMode',effect:'reload-context',description:'Return to connected data mode so current services may be queried and successful GET snapshots refreshed.'}),
     capability('logs.catalog.inspect',{status:'available',domain:'logs',autonomy:'automatic',endpoint:'GET /api/wcl/reports',bridge:'logs.catalog',effect:'read-only',description:'Inspect the bounded catalogue of AvoiD reports for the configured current raid zone.'}),
