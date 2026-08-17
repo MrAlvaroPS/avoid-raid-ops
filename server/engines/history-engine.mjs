@@ -57,6 +57,10 @@ function attendanceDirectory(reports){
   return directory;
 }
 
+function asFightReports(reports,field){
+  return (reports||[]).map(r=>({...r,fights:r?.[field]||[]})).filter(r=>r.fights.length);
+}
+
 function stripRosterKeys(pull){
   if(!pull||typeof pull!=='object')return pull;
   const {rosterKeys,...rest}=pull;
@@ -71,7 +75,7 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
   const selected=selectEncounter(current.fights,encounterId);
   const anchor=selected[0];
   if(!anchor){
-    return {generatedAt:Date.now(),engineVersion:'3.8.2',guildId,zone:current.zone,encounter:null,nights:[],recentNights:[],progressionPulls:[],progressModel:null,playerAttendance:{status:'pending',players:[]},currentNight:null,previousNight:null,delta:null,pagination:{total:0,hasMore:false,candidatesScanned:0}};
+    return {generatedAt:Date.now(),engineVersion:'3.8.2',guildId,zone:current.zone,encounter:null,nights:[],recentNights:[],progressionPulls:[],progressModel:null,playerAttendance:{status:'pending',scope:'raid-zone-history-window',players:[]},currentNight:null,previousNight:null,delta:null,pagination:{total:0,hasMore:false,candidatesScanned:0}};
   }
 
   const DAY=86400000;
@@ -88,14 +92,23 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
     return d?.reportData?.report||null;
   });
   const errors=loaded.filter(x=>x?.__error);
-  const reports=loaded.filter(x=>x&&!x.__error&&(x.fights||[]).length);
+  const reports=loaded.filter(x=>x&&!x.__error&&((x.raidFights||[]).length||(x.encounterFights||[]).length));
+  const encounterReports=asFightReports(reports,'encounterFights');
+  const raidReports=asFightReports(reports,'raidFights');
 
-  const clustered=clusterRaidSessions(reports,{currentReportCode:reportCode}).sort((a,b)=>a.startTime-b.startTime);
+  // Progress remains encounter-scoped. Attendance intentionally uses all boss
+  // pulls in the zone/history window so it never masquerades boss presence as
+  // raid attendance.
+  const clustered=clusterRaidSessions(encounterReports,{currentReportCode:reportCode}).sort((a,b)=>a.startTime-b.startTime);
+  const raidClustered=clusterRaidSessions(raidReports,{currentReportCode:reportCode}).sort((a,b)=>a.startTime-b.startTime);
   const playerAttendance={
-    ...buildPlayerAttendance(clustered,attendanceDirectory(reports)),
+    ...buildPlayerAttendance(raidClustered,attendanceDirectory(reports)),
+    scope:'raid-zone-history-window',
+    zoneId:Number(current.zone.id),
     historyWindowDays:daysBefore,
     windowStart:start,
-    windowEnd:end
+    windowEnd:end,
+    semantics:'Raid attendance across canonical boss pulls in the indexed zone/history window; denominator starts at first indexed appearance, not an inferred guild join date.'
   };
   const rawProgressionPulls=clustered
     .flatMap(n=>(n.progressionPulls||[]).map(p=>({...p,sessionId:n.sessionId,sessionIndex:n.sessionIndex,sessionStartTime:n.startTime,sessionTitle:n.title})))
@@ -132,7 +145,11 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
     currentNight,
     previousNight,
     delta,
-    reportDiagnostics:reports.map(r=>({reportCode:r.code,title:r.title,startTime:r.startTime,endTime:r.endTime,pulls:(r.fights||[]).filter(f=>!f.inProgress).length})),
+    reportDiagnostics:reports.map(r=>({
+      reportCode:r.code,title:r.title,startTime:r.startTime,endTime:r.endTime,
+      encounterPulls:(r.encounterFights||[]).filter(f=>!f.inProgress).length,
+      raidBossPulls:(r.raidFights||[]).filter(f=>!f.inProgress).length
+    })),
     pagination:{total:listing.total,hasMore:listing.hasMore,pagesScanned:listing.pageCount,candidatesScanned:candidates.length,truncated:listing.truncated},
     errors:errors.slice(0,5),
     evidence:{
@@ -140,9 +157,10 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
       progressionPullSeries:'canonical-deduped-from-history-reports',
       progressMetrics:'server-derived-single-source-v2-data-integrity',
       progressMetricEligibility:'versioned-and-auditable',
-      playerAttendance:'canonical-deduped-since-first-indexed-appearance',
+      playerAttendance:'canonical-deduped-all-raid-boss-pulls-since-first-indexed-appearance',
+      playerAttendanceScope:'raid-zone-history-window',
       playerAttendanceJoinDate:'not-claimed-by-wcl',
-      queryStrategy:'two-stage-paginated',
+      queryStrategy:'two-stage-paginated-dual-population',
       sessionClustering:'time-window',
       pullDeduplication:'timestamp+duration+progress',
       historyWindowDays:daysBefore,
