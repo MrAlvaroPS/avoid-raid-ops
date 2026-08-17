@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const runtime=fs.readFileSync(new URL('../../deploy-preview/public/wcl-runtime.js', import.meta.url),'utf8');
+const runtime=fs.readFileSync(new URL('../../public/wcl-runtime.js', import.meta.url),'utf8');
 const sourceRoster=fs.readFileSync(new URL('../../apps/web/src/features/composition/RosterIntelligence.js', import.meta.url),'utf8');
-const indexHtml=fs.readFileSync(new URL('../../deploy-preview/public/index.html', import.meta.url),'utf8');
-const v33Css=fs.readFileSync(new URL('../../deploy-preview/public/raidops-v33.css', import.meta.url),'utf8');
+const indexHtml=fs.readFileSync(new URL('../../index.html', import.meta.url),'utf8');
+const v33Css=fs.readFileSync(new URL('../../public/raidops-v33.css', import.meta.url),'utf8');
 
 test('deploy runtime treats null Reliability as pending rather than zero',()=>{
   assert.match(runtime,/raw === null \|\| raw === undefined \|\| raw === ""/);
