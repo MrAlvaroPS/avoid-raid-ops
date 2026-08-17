@@ -10,7 +10,7 @@ const labels={
   '/api/wcl/history':'Loading raid history','/api/wcl/intelligence':'Running Iris analysis','/api/wcl/reports':'Updating AvoiD logs','/api/knowledge':'Loading game knowledge'
 };
 let dataMode=localStorage.getItem(MODE_KEY)==='stored'?'stored':'connected';
-let catalog=null,knowledge=null,liveTimer=null,liveState='stopped',drawer=null,activityNode=null;
+let catalog=null,knowledge=null,liveTimer=null,liveState='stopped',drawer=null,activityNode=null,lastLiveFingerprint=null,liveTickCount=0;
 const activity=window.__AVOID_ACTIVITY__=Array.isArray(window.__AVOID_ACTIVITY__)?window.__AVOID_ACTIVITY__:[];
 const previousFetch=window.fetch.bind(window);
 
@@ -47,7 +47,7 @@ window.fetch=async(input,init={})=>{
 function currentReport(){return new URLSearchParams(location.search).get('report')||window.__AVOID_WCL__?.report?.code||'28d9xF7GchL6ZPYt'}
 function guildId(){return new URLSearchParams(location.search).get('guild')||window.__AVOID_WCL__?.guild?.id||window.__AVOID_WCL__?.reportGuild?.id||'788166'}
 function fmtDate(ms){if(!Number.isFinite(Number(ms)))return'—';return new Date(Number(ms)).toLocaleString([], {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
-function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]))}
 
 async function fetchJson(url,init){const response=await fetch(url,init);const payload=await response.json().catch(()=>({}));if(!response.ok||payload?.ok===false)throw new Error(payload?.error||`HTTP ${response.status}`);return payload}
 async function syncCatalog(days=120,force=false){
@@ -65,15 +65,22 @@ async function activateKnowledge(){emit('Activating Iris knowledge revision','bu
 
 function selectReport(code){if(!code||code===currentReport())return;const u=new URL(location.href);u.searchParams.set('report',code);u.searchParams.set('guild',guildId());emit(`Switching to report ${code}`,'busy');location.assign(u.href)}
 function setMode(mode){dataMode=mode==='stored'?'stored':'connected';localStorage.setItem(MODE_KEY,dataMode);emit(dataMode==='stored'?'Stored-data mode enabled':'Connected-data mode enabled','ready');location.reload()}
+function liveFingerprint(status){const fight=status?.encounter?.latestFight||{};return [status?.encounter?.totalPulls??'',fight.id??'',fight.endTime??'',fight.inProgress?'1':'0'].join('|')}
 
 async function liveTick(){
   if(liveState!=='running')return;
   const u=new URL('/api/wcl/status',location.origin);u.searchParams.set('report',currentReport());const encounter=new URLSearchParams(location.search).get('encounter');if(encounter)u.searchParams.set('encounter',encounter);u.searchParams.set('_',String(Date.now()));
-  try{const status=await fetchJson(u);emit(status?.encounter?.latestFight?.inProgress?'Live pull detected':'Live log checked','ready',{kind:'live'});if(!status?.encounter?.latestFight?.inProgress)document.querySelector('.wcl button')?.click()}catch(error){emit(`Live poll failed · ${error.message}`,'error',{kind:'live'})}
+  try{
+    const status=await fetchJson(u),fingerprint=liveFingerprint(status),inProgress=Boolean(status?.encounter?.latestFight?.inProgress),changed=lastLiveFingerprint!==null&&fingerprint!==lastLiveFingerprint;
+    lastLiveFingerprint=fingerprint;liveTickCount++;
+    emit(inProgress?'Live pull detected':changed?'Closed-pull change detected':'Live log checked','ready',{kind:'live',changed});
+    if(changed&&!inProgress)document.querySelector('.wcl button')?.click();
+    if(liveTickCount%4===0)void syncCatalog(3,false);
+  }catch(error){emit(`Live poll failed · ${error.message}`,'error',{kind:'live'})}
 }
-function startLive(){if(dataMode==='stored'){emit('Live polling requires connected mode','error');return}liveState='running';clearInterval(liveTimer);liveTimer=setInterval(liveTick,LIVE_POLL_MS);emit('Live log polling started · 30s','busy');void liveTick();renderDrawer()}
+function startLive(){if(dataMode==='stored'){emit('Live polling requires connected mode','error');return}liveState='running';lastLiveFingerprint=null;liveTickCount=0;clearInterval(liveTimer);liveTimer=setInterval(liveTick,LIVE_POLL_MS);emit('Live log polling started · 30s','busy');void liveTick();renderDrawer()}
 function pauseLive(){if(liveState!=='running')return;liveState='paused';clearInterval(liveTimer);liveTimer=null;emit('Live log polling paused','ready');renderDrawer()}
-function stopLive(){liveState='stopped';clearInterval(liveTimer);liveTimer=null;emit('Live log polling stopped','ready');renderDrawer()}
+function stopLive(){liveState='stopped';clearInterval(liveTimer);liveTimer=null;lastLiveFingerprint=null;liveTickCount=0;emit('Live log polling stopped','ready');renderDrawer()}
 
 function renderLog(){const host=drawer?.querySelector('.raidops-data-log');if(!host)return;host.innerHTML=activity.slice(-5).reverse().map(row=>`<p class="${escapeHtml(row.state)}"><time>${new Date(row.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</time><b>${escapeHtml(row.message)}</b></p>`).join('')||'<p><time>—</time><b>No activity yet</b></p>'}
 function reportOptions(){const reports=catalog?.reports||[];if(!reports.length)return`<option value="${escapeHtml(currentReport())}">${escapeHtml(currentReport())} · current</option>`;return reports.map(r=>`<option value="${escapeHtml(r.code)}" ${r.code===currentReport()?'selected':''}>${escapeHtml(fmtDate(r.startTime))} · ${escapeHtml(r.title||r.code)}</option>`).join('')}
@@ -83,7 +90,7 @@ function renderDrawer(){
     <div class="raidops-data-head"><div><label>IRIS DATA PLATFORM · ${RELEASE}</label><h3>Data & Logs</h3><p>Selected report drives report-scoped screens; History remains encounter-wide across the valid current-raid catalogue.</p></div><button type="button" data-close>×</button></div>
     <section class="raidops-data-section"><label>DATA SOURCE</label><div class="raidops-data-row"><button type="button" data-mode="connected" class="${dataMode==='connected'?'primary':''}">CONNECTED</button><button type="button" data-mode="stored" class="${dataMode==='stored'?'primary':''}">USE STORED</button><button type="button" data-sync>SYNC LATEST</button><button type="button" data-history>LOAD HISTORY</button></div><p class="raidops-data-note"><strong>Noise policy:</strong> exact current WCL raid zone only. Mythic+ and unrelated/old raids never enter this catalogue.</p></section>
     <section class="raidops-data-section"><label>SELECTED RAID LOG</label><div class="raidops-data-row"><select data-report>${reportOptions()}</select><button type="button" data-open class="primary">OPEN LOG</button></div><div class="raidops-data-meta"><div><span>AVAILABLE</span><b>${reports.length||'—'} logs</b></div><div><span>LATEST</span><b>${escapeHtml(catalog?.latestReport?fmtDate(catalog.latestReport.startTime):'—')}</b></div><div><span>MODE</span><b>${dataMode.toUpperCase()}</b></div></div></section>
-    <section class="raidops-data-section"><label>LIVE LOG</label><div class="raidops-data-row"><button type="button" data-live-start class="primary" ${liveState==='running'?'disabled':''}>START 30s</button><button type="button" data-live-pause ${liveState!=='running'?'disabled':''}>PAUSE</button><button type="button" data-live-stop class="warn" ${liveState==='stopped'?'disabled':''}>STOP</button></div><p class="raidops-data-note">Live mode watches the selected report. Rich datasets refresh only after a closed-pull change; it does not hammer full telemetry on every tick.</p></section>
+    <section class="raidops-data-section"><label>LIVE LOG</label><div class="raidops-data-row"><button type="button" data-live-start class="primary" ${liveState==='running'?'disabled':''}>START 30s</button><button type="button" data-live-pause ${liveState!=='running'?'disabled':''}>PAUSE</button><button type="button" data-live-stop class="warn" ${liveState==='stopped'?'disabled':''}>STOP</button></div><p class="raidops-data-note">Live mode watches the selected report. Rich datasets refresh only when the compact status fingerprint changes after a closed pull. The current-raid catalogue is refreshed every 2 minutes.</p></section>
     <section class="raidops-data-section"><label>GAME KNOWLEDGE</label><div class="raidops-data-meta"><div><span>ACTIVE</span><b>${escapeHtml(active?.revision||'none')}</b></div><div><span>CANDIDATE</span><b>${escapeHtml(candidate?.revision||'none')}</b></div><div><span>STORE</span><b>${escapeHtml(knowledge?.persistence||'—')}</b></div></div><div class="raidops-data-row"><input data-k-patch placeholder="Patch, e.g. 11.2.7" style="height:32px;border:1px solid #28323b;border-radius:5px;background:#0d1217;color:#aab4ba;padding:0 9px;font-size:8px;min-width:130px"><input data-k-season placeholder="Season" style="height:32px;border:1px solid #28323b;border-radius:5px;background:#0d1217;color:#aab4ba;padding:0 9px;font-size:8px;min-width:100px"><button type="button" data-k-refresh>REFRESH KNOWLEDGE</button><button type="button" data-k-activate class="primary" ${candidate?'':'disabled'}>ACTIVATE FOR IRIS</button></div><p class="raidops-data-note">Activation invalidates/re-derives interpretations against the new revision; immutable raw WCL evidence is never rewritten. Wowhead is reference enrichment, not a fabricated canonical API.</p></section>
     <section class="raidops-data-section"><label>CRITICAL ACTIVITY</label><div class="raidops-data-log"></div></section>`;
   drawer.querySelector('[data-close]')?.addEventListener('click',()=>drawer.hidden=true);
