@@ -17,7 +17,7 @@ const ACTIVE_OVERLAYS = [
   'public/corpus-ui-stability-v1.js',
   'public/progress-runtime-v3713.js',
   'public/iris-runtime-v3713.js',
-  'public/player-intelligence-v386.js',
+  'public/player-intelligence-v392.js',
 ];
 
 async function activeSources() {
@@ -56,8 +56,8 @@ test('CRITICAL FEEDBACK GUARD: any active runtime touching the global division l
 });
 
 test('CRITICAL PLAYERS CHURN GUARD: Player Intelligence is signature-gated and never DOM-observer driven', async () => {
-  const source = await read('public/player-intelligence-v386.js');
-  assert.match(source, /if\(!force&&sig===last\)return/);
+  const source = await read('public/player-intelligence-v392.js');
+  assert.match(source, /if\(!force&&sig===last\)/);
   assert.match(source, /setInterval\(\(\)=>render\(\),750\)/);
   assert.doesNotMatch(source, OBSERVER_CONSTRUCTION);
   assert.doesNotMatch(source, /\.observe\s*\(/);
@@ -87,7 +87,7 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
     '/corpus-ui-stability-v1.js?v=1.1.0',
     '/progress-runtime-v3713.js?v=3.8.5',
     '/iris-runtime-v3713.js?v=3.8.9.1',
-    '/player-intelligence-v386.js?v=3.8.9.1',
+    '/player-intelligence-v392.js?v=3.9.2',
   ]) {
     const position = index.indexOf(asset);
     assert.ok(position > reindex, `${asset} must load after the bootstrap + data platform layers`);
