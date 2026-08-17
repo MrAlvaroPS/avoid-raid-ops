@@ -10,3 +10,6 @@ dist/
 coverage/
 *.log
 .DS_Store
+
+# Deterministic compatibility transport generated from config/active-assets.mjs.
+public/raidops-active.css

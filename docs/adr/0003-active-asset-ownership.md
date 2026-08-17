@@ -44,6 +44,8 @@ This lets us retain forensic/regression history while preventing a future edit f
 
 ## CSS consolidation rule
 
-The 17 active additive CSS overlays are **not** assumed redundant. Their retirement policy is `visual-equivalence-required`. Before replacing any subset with a canonical bundle/source stylesheet we must prove the generated cascade is equivalent under the existing Golden, Architecture, Reconstruction, Data Truth and critical UI gates.
+The 17 active additive CSS overlays are **not** assumed redundant. Their retirement policy is `visual-equivalence-required`. Before replacing any subset with a canonical transport, we compile them by exact ordered concatenation through `scripts/lib/active-css-bundle.mjs`.
 
-The next migration step can therefore consolidate the CSS transport safely without deleting historical source layers first.
+The compiler performs no minification, selector rewrite, declaration merge or source reordering. It rejects `@charset`, `@import` and `@namespace` in a source layer because those directives could change semantics when files are concatenated. The generated `public/raidops-active.css` is intentionally ignored by Git and rebuilt before development, verification and production build.
+
+Stage 1 generates and byte-verifies the candidate bundle while the 17 original links remain active. Only after that proof is green may the production entrypoint switch from the individual overlays to the generated transport. Original overlay files remain audit/regression sources after the switch.
