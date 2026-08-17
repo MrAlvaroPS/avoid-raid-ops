@@ -8,9 +8,9 @@ import { corpusId } from './keys.mjs';
 import { fetchSemanticEventBundle } from './semantic-probe-wcl-v1.mjs';
 import { verifySemanticProbeEvidenceV1 } from './semantic-probe-verifier-v1.mjs';
 
-export const SEMANTIC_PROBE_EXECUTOR_VERSION='semantic-surgical-probe-executor-v1';
-export const SEMANTIC_PROBE_EXECUTION_PREVIEW_VERSION='semantic-probe-execution-preview-v1';
-export const SEMANTIC_PROBE_STORAGE_VERSION='semantic-probe-storage-v1';
+export const SEMANTIC_PROBE_EXECUTOR_VERSION='semantic-surgical-probe-executor-v2';
+export const SEMANTIC_PROBE_EXECUTION_PREVIEW_VERSION='semantic-probe-execution-preview-v2';
+export const SEMANTIC_PROBE_STORAGE_VERSION='semantic-probe-storage-v2';
 
 export const SEMANTIC_PROBE_EXECUTION_DEFAULTS=Object.freeze({
   maxWclCalls:30,
@@ -93,20 +93,40 @@ function contextEvidenceKey(plan,signal,request,anchor,windowMs){
 export function semanticProbeRunKey(plan,fingerprint){return`${baseKey(plan)}/runs/${String(fingerprint)}.json`;}
 function verificationKey(plan,signalId,fingerprint){return`${baseKey(plan)}/verification/${Number(signalId)}/${String(fingerprint)}.json`;}
 
-export function buildSemanticProbeExecutionPreview({plan,cacheKeys=[],config:configInput={}}={}){
+function evidenceEntries(cacheEntries=[]){
+  return (cacheEntries||[]).map(row=>row&&typeof row==='object'&&'key' in row?row:{key:String(row),value:null});
+}
+
+export function buildSemanticProbeExecutionPreview({plan,cacheEntries=[],cacheKeys=[],config:configInput={}}={}){
   const config=executionConfig(configInput);
   const fingerprint=semanticProbeExecutionFingerprint(plan,config);
-  const known=new Set((cacheKeys||[]).map(String));
+  const entries=evidenceEntries(cacheEntries);
+  const completeKeys=new Set(entries.filter(row=>row?.value?.pagination?.complete===true).map(row=>String(row.key)));
+  const partialKeys=new Set(entries.filter(row=>row?.value&&row?.value?.pagination?.complete!==true).map(row=>String(row.key)));
+  const unknownLegacyKeys=new Set((cacheKeys||[]).map(String).filter(key=>!completeKeys.has(key)&&!partialKeys.has(key)));
   const anchors=(plan?.signals||[]).flatMap(signal=>(signal.anchorRequests||[]).map(request=>({signal,request,key:semanticProbeAnchorEvidenceKey(plan,signal,request)})));
-  const anchorCacheHits=anchors.filter(row=>known.has(row.key)).length;
+  const anchorCacheHits=anchors.filter(row=>completeKeys.has(row.key)).length;
+  const anchorCachePartial=anchors.filter(row=>partialKeys.has(row.key)).length;
+  const anchorCacheUnknown=anchors.filter(row=>unknownLegacyKeys.has(row.key)).length;
   const anchorQueriesRemaining=Math.max(0,anchors.length-anchorCacheHits);
-  const potentialContextWindows=Math.min(config.maxContextQueries,anchors.length*config.maxAnchorOccurrencesPerSource);
-  const theoreticalWorst=1
-    +anchorQueriesRemaining*(1+config.maxAnchorContinuationRounds)
-    +potentialContextWindows*(1+config.maxContextContinuationRounds);
-  const initialUpperBound=(anchorQueriesRemaining||potentialContextWindows)
-    ?1+anchorQueriesRemaining+potentialContextWindows
+
+  const firstPassContextPotential=anchors.length*config.maxAnchorOccurrencesPerSource;
+  const adaptiveContextPotential=(config.windowRadiiMs.length>1)
+    ?(plan?.signals||[]).reduce((sum,signal)=>sum+new Set((signal.anchorRequests||[]).map(row=>String(row.source))).size*(config.windowRadiiMs.length-1),0)
     :0;
+  const potentialContextWindows=Math.min(config.maxContextQueries,firstPassContextPotential+adaptiveContextPotential);
+  const targetSignalIds=new Set((plan?.signals||[]).map(signal=>Number(signal.id)));
+  const allowedRadii=new Set(config.windowRadiiMs.map(Number));
+  const relevantContexts=entries.filter(row=>row?.value?.kind==='context'&&targetSignalIds.has(Number(row.value.signalId))&&allowedRadii.has(Number(row.value.windowMs)));
+  const contextCacheHits=relevantContexts.filter(row=>row?.value?.pagination?.complete===true).length;
+  const contextCachePartial=relevantContexts.filter(row=>row?.value?.pagination?.complete!==true).length;
+  const contextQueriesRemaining=Math.max(0,potentialContextWindows-contextCacheHits);
+
+  const workRemaining=anchorQueriesRemaining>0||contextQueriesRemaining>0;
+  const theoreticalWorst=workRemaining?1
+    +anchorQueriesRemaining*(1+config.maxAnchorContinuationRounds)
+    +contextQueriesRemaining*(1+config.maxContextContinuationRounds):0;
+  const initialUpperBound=workRemaining?1+anchorQueriesRemaining+contextQueriesRemaining:0;
   return{
     version:SEMANTIC_PROBE_EXECUTION_PREVIEW_VERSION,
     executorVersion:SEMANTIC_PROBE_EXECUTOR_VERSION,
@@ -115,11 +135,11 @@ export function buildSemanticProbeExecutionPreview({plan,cacheKeys=[],config:con
     scope:plan?.scope||null,
     targetSignals:Number(plan?.targetSignals||plan?.signals?.length||0),
     plannedAnchorRequests:anchors.length,
-    anchorCacheHits,anchorQueriesRemaining,
-    potentialContextWindows,
+    anchorCacheHits,anchorCachePartial,anchorCacheUnknown,anchorQueriesRemaining,
+    potentialContextWindows,contextCacheHits,contextCachePartial,contextQueriesRemaining,
     callBudget:{
       liveRateBudgetKnown:false,
-      liveRateBudgetCheckRequiredBeforeFirstEvidenceQuery:true,
+      liveRateBudgetCheckRequiredBeforeFirstEvidenceQuery:workRemaining,
       wclPointCostEstimate:null,
       pointEstimateReason:'WCL returns authoritative point usage in rateLimitData; Iris does not fabricate a point estimate.',
       initialQueryUpperBound:initialUpperBound,
@@ -129,6 +149,7 @@ export function buildSemanticProbeExecutionPreview({plan,cacheKeys=[],config:con
       reservePct:config.minimumRateLimitReservePct,
       reservePoints:config.minimumRateLimitReservePoints,
     },
+    cacheAccounting:{completeEvidenceOnly:true,partialEvidenceIsNotACacheHit:true,resumablePartialEvidence:true},
     executionPolicy:{
       manualConfirmationRequired:true,
       matchingPreviewFingerprintRequired:true,
@@ -138,6 +159,7 @@ export function buildSemanticProbeExecutionPreview({plan,cacheKeys=[],config:con
       maxAnchorOccurrencesPerSource:config.maxAnchorOccurrencesPerSource,
       maxContextQueries:config.maxContextQueries,
       persistentCache:true,
+      resumablePagination:true,
       countsTowardDeepReports:false,countsTowardDeepPulls:false,
       directScoreChange:false,automaticPromotion:false,
     },
@@ -220,15 +242,20 @@ export async function executeSemanticProbePlanV1({
   if(previous?.status==='complete')return{...previous,reusedCompletedRun:true,wclCallsExecutedThisInvocation:0};
 
   const deepByCode=new Map((deepProfiles||[]).filter(row=>row?.code).map(row=>[String(row.code),row]));
+  const completedSignals=new Map((previous?.signals||[]).map(row=>[Number(row.signalId),row]));
   const run={
     version:SEMANTIC_PROBE_EXECUTOR_VERSION,storageVersion:SEMANTIC_PROBE_STORAGE_VERSION,
     fingerprint,scope:plan.scope,status:'running',startedAt:previous?.startedAt||clock(),updatedAt:clock(),
     wclCallsExecuted:Number(previous?.wclCallsExecuted||0),wclCallsExecutedThisInvocation:0,
-    rateLimit:previous?.rateLimit||null,
+    rateLimit:previous?.rateLimit||null,lastQuery:previous?.lastQuery||null,
     config,
     evidenceClass:'diagnostic-semantic-surgical',canonicalCoverageContribution:{deepReports:0,deepPulls:0},
     scoreChange:{allowed:false,directDelta:0},automaticPromotion:false,
-    signals:[],
+    signals:[...completedSignals.values()],
+    progress:{
+      resumed:Boolean(previous),signalsTotal:plan.signals.length,signalsComplete:completedSignals.size,currentSignalId:null,
+      lastEvidence:previous?.progress?.lastEvidence||null,
+    },
   };
   let rate=run.rateLimit;
   let liveRateChecked=false;
@@ -256,25 +283,38 @@ export async function executeSemanticProbePlanV1({
     return data;
   };
 
+  const anchorRecord=(bundle,signal,request)=>({
+    version:SEMANTIC_PROBE_STORAGE_VERSION,kind:'anchor',signalId:Number(signal.id),source:String(request.source),reportCode:String(request.reportCode),
+    fightIDs:ids(request.fightIDs),queryFingerprint:digest(anchorIdentity(signal,request),32),
+    streams:compactStreams(bundle.streams),pagination:bundle.pagination,rateLimit:rate,createdAt:clock(),updatedAt:clock(),
+    evidenceClass:'diagnostic-semantic-surgical',canonicalCoverageContribution:{deepReports:0,deepPulls:0},
+  });
+  const contextRecord=(bundle,signal,sourceRow,anchor,radius)=>({
+    version:SEMANTIC_PROBE_STORAGE_VERSION,kind:'context',signalId:Number(signal.id),source:sourceRow.source,reportCode:sourceRow.reportCode,
+    fightID:anchor.fightID,anchorTimestamp:anchor.timestamp,windowMs:radius,streams:compactStreams(bundle.streams),
+    pagination:bundle.pagination,rateLimit:rate,createdAt:clock(),updatedAt:clock(),evidenceClass:'diagnostic-semantic-surgical',canonicalCoverageContribution:{deepReports:0,deepPulls:0},
+  });
+
   try{
     for(const signal of plan.signals){
+      if(completedSignals.has(Number(signal.id)))continue;
+      run.progress.currentSignalId=Number(signal.id);await checkpoint();
       const sourceRows=[];
       for(const request of signal.anchorRequests||[]){
         const sourceRow={source:String(request.source),reportCode:String(request.reportCode),anchorOccurrences:[],contexts:[]};
         const key=semanticProbeAnchorEvidenceKey(plan,signal,request);
         let cached=await storageGet(key).catch(()=>null);
         if(!cached?.pagination?.complete){
+          const persist=async bundle=>{
+            cached=anchorRecord(bundle,signal,request);await storageSet(key,cached);
+            run.progress.lastEvidence={kind:'anchor',signalId:Number(signal.id),source:sourceRow.source,reportCode:sourceRow.reportCode,complete:Boolean(bundle?.pagination?.complete),reason:bundle?.pagination?.reason||null,queryCount:Number(bundle?.pagination?.queryCount||0)};
+            await checkpoint();
+          };
           const bundle=await fetchSemanticEventBundle({
             code:request.reportCode,fightIDs:ids(request.fightIDs),abilityID:Number(signal.id),limit:config.eventLimit,
-            maxContinuationRounds:config.maxAnchorContinuationRounds,runQuery,
+            maxContinuationRounds:config.maxAnchorContinuationRounds,runQuery,resumeBundle:cached,onProgress:persist,
           });
-          cached={
-            version:SEMANTIC_PROBE_STORAGE_VERSION,kind:'anchor',signalId:Number(signal.id),source:String(request.source),reportCode:String(request.reportCode),
-            fightIDs:ids(request.fightIDs),queryFingerprint:digest(anchorIdentity(signal,request),32),
-            streams:compactStreams(bundle.streams),pagination:bundle.pagination,rateLimit:rate,createdAt:clock(),
-            evidenceClass:'diagnostic-semantic-surgical',canonicalCoverageContribution:{deepReports:0,deepPulls:0},
-          };
-          await storageSet(key,cached);
+          cached=anchorRecord(bundle,signal,request);await storageSet(key,cached);
         }
         const deep=deepByCode.get(String(request.reportCode));
         sourceRow.anchorOccurrences=anchorOccurrences(cached,signal,request,deep,config.maxAnchorOccurrencesPerSource);
@@ -290,17 +330,17 @@ export async function executeSemanticProbePlanV1({
           const key=contextEvidenceKey(plan,signal,request,anchor,firstRadius);
           let cached=await storageGet(key).catch(()=>null);
           if(!cached?.pagination?.complete){
+            const persist=async bundle=>{
+              cached=contextRecord(bundle,signal,sourceRow,anchor,firstRadius);await storageSet(key,cached);
+              run.progress.lastEvidence={kind:'context',signalId:Number(signal.id),source:sourceRow.source,reportCode:sourceRow.reportCode,fightID:anchor.fightID,windowMs:firstRadius,complete:Boolean(bundle?.pagination?.complete),reason:bundle?.pagination?.reason||null,queryCount:Number(bundle?.pagination?.queryCount||0)};
+              await checkpoint();
+            };
             const bundle=await fetchSemanticEventBundle({
               code:request.reportCode,fightIDs:[anchor.fightID],abilityID:null,
               windowStart:Math.max(0,anchor.timestamp-firstRadius),windowEnd:anchor.timestamp+firstRadius,
-              limit:config.eventLimit,maxContinuationRounds:config.maxContextContinuationRounds,runQuery,
+              limit:config.eventLimit,maxContinuationRounds:config.maxContextContinuationRounds,runQuery,resumeBundle:cached,onProgress:persist,
             });
-            cached={
-              version:SEMANTIC_PROBE_STORAGE_VERSION,kind:'context',signalId:Number(signal.id),source:sourceRow.source,reportCode:sourceRow.reportCode,
-              fightID:anchor.fightID,anchorTimestamp:anchor.timestamp,windowMs:firstRadius,streams:compactStreams(bundle.streams),
-              pagination:bundle.pagination,rateLimit:rate,createdAt:clock(),evidenceClass:'diagnostic-semantic-surgical',canonicalCoverageContribution:{deepReports:0,deepPulls:0},
-            };
-            await storageSet(key,cached);contextQueries++;
+            cached=contextRecord(bundle,signal,sourceRow,anchor,firstRadius);await storageSet(key,cached);contextQueries++;
           }
           sourceRow.contexts.push({...cached,complete:cached?.pagination?.complete!==false});
         }
@@ -312,8 +352,8 @@ export async function executeSemanticProbePlanV1({
         minimumAnchorOccurrences:signal?.verificationContract?.minimumAnchorOccurrences||6,
       });
 
-      // Adaptive expansion is deliberately conservative: only one anchor per source is
-      // widened, and only when the first pass did not already reproduce a pattern.
+      // Adaptive expansion is conservative: one anchor per source per wider radius,
+      // only while the structural pattern has not reproduced and the window cap remains.
       for(const radius of config.windowRadiiMs.slice(1)){
         if(verification.status==='reproduced'||contextQueries>=config.maxContextQueries)break;
         for(let i=0;i<sourceRows.length&&contextQueries<config.maxContextQueries;i++){
@@ -324,17 +364,17 @@ export async function executeSemanticProbePlanV1({
           const key=contextEvidenceKey(plan,signal,request,anchor,radius);
           let cached=await storageGet(key).catch(()=>null);
           if(!cached?.pagination?.complete){
+            const persist=async bundle=>{
+              cached=contextRecord(bundle,signal,sourceRow,anchor,radius);await storageSet(key,cached);
+              run.progress.lastEvidence={kind:'context',signalId:Number(signal.id),source:sourceRow.source,reportCode:sourceRow.reportCode,fightID:anchor.fightID,windowMs:radius,complete:Boolean(bundle?.pagination?.complete),reason:bundle?.pagination?.reason||null,queryCount:Number(bundle?.pagination?.queryCount||0)};
+              await checkpoint();
+            };
             const bundle=await fetchSemanticEventBundle({
               code:request.reportCode,fightIDs:[anchor.fightID],abilityID:null,
               windowStart:Math.max(0,anchor.timestamp-radius),windowEnd:anchor.timestamp+radius,
-              limit:config.eventLimit,maxContinuationRounds:config.maxContextContinuationRounds,runQuery,
+              limit:config.eventLimit,maxContinuationRounds:config.maxContextContinuationRounds,runQuery,resumeBundle:cached,onProgress:persist,
             });
-            cached={
-              version:SEMANTIC_PROBE_STORAGE_VERSION,kind:'context',signalId:Number(signal.id),source:sourceRow.source,reportCode:sourceRow.reportCode,
-              fightID:anchor.fightID,anchorTimestamp:anchor.timestamp,windowMs:radius,streams:compactStreams(bundle.streams),
-              pagination:bundle.pagination,rateLimit:rate,createdAt:clock(),evidenceClass:'diagnostic-semantic-surgical',canonicalCoverageContribution:{deepReports:0,deepPulls:0},
-            };
-            await storageSet(key,cached);contextQueries++;
+            cached=contextRecord(bundle,signal,sourceRow,anchor,radius);await storageSet(key,cached);contextQueries++;
           }
           const identity=`${anchor.fightID}:${anchor.timestamp}`;
           sourceRow.contexts=sourceRow.contexts.filter(row=>`${row.fightID}:${row.anchorTimestamp}`!==identity);
@@ -348,13 +388,15 @@ export async function executeSemanticProbePlanV1({
       }
 
       await storageSet(verificationKey(plan,signal.id,fingerprint),{...verification,createdAt:clock(),fingerprint});
-      run.signals.push({
+      const result={
         signalId:Number(signal.id),sources:sourceRows.length,
         anchorOccurrences:sourceRows.reduce((sum,row)=>sum+row.anchorOccurrences.length,0),
         contextWindows:sourceRows.reduce((sum,row)=>sum+row.contexts.length,0),
         verification,
-      });
-      await checkpoint();
+      };
+      run.signals=run.signals.filter(row=>Number(row.signalId)!==Number(signal.id));run.signals.push(result);
+      completedSignals.set(Number(signal.id),result);
+      run.progress.signalsComplete=completedSignals.size;run.progress.currentSignalId=null;await checkpoint();
     }
     run.status='complete';run.completedAt=clock();run.updatedAt=clock();run.nextStep='Review diagnostic verification. Promotion remains a separate, unimplemented contract.';
     await storageSet(runKey,run);return run;
