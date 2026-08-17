@@ -1,6 +1,6 @@
 # Iris External Source Directory
 
-**Status:** v3.9 refactor contract · feature branch only  
+**Status:** v3.9.0 release contract  
 **Reviewed:** 2026-08-17  
 **Machine registry:** `server/iris/external-source-registry-v390.mjs`
 
