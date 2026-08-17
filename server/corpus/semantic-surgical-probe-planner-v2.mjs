@@ -100,11 +100,12 @@ function canonicalPool(profiles=[],selectedCodes=[]){
 function canonicalDeepPool(deepProfiles=[],selectedWideCodes=[],selectedDeepCodes=[]){
   const wide=new Set((selectedWideCodes||[]).map(String).filter(Boolean));
   const deep=new Set((selectedDeepCodes||[]).map(String).filter(Boolean));
+  if(!deep.size)return[];
   return (deepProfiles||[]).filter(profile=>{
     const code=String(profile?.code||'');
     if(!code||!completeDeep(profile))return false;
     if(wide.size&&!wide.has(code))return false;
-    if(deep.size&&!deep.has(code))return false;
+    if(!deep.has(code))return false;
     return true;
   });
 }
