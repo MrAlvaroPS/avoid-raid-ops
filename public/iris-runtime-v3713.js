@@ -1,5 +1,5 @@
 (() => {
-  const RELEASE='3.8.0';
+  const RELEASE='3.8.2';
   const IRIS='Iris';
   const RAID_LEADER='Onie';
   let storageIssue=null;
