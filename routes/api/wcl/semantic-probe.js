@@ -74,8 +74,23 @@ async function preview(input){
   const ctx=await context(input);
   const cacheKeys=await corpusList(`semantic-probes/${corpusId(ctx.args)}/evidence/`);
   const cacheEntries=(await Promise.all(cacheKeys.map(async key=>({key,value:await corpusGet(key).catch(()=>null)})))).filter(row=>row.value);
+  const anchorEntries=cacheEntries.filter(row=>row.value?.kind==='anchor');
+  const observedContextComplete=cacheEntries.filter(row=>row.value?.kind==='context'&&row.value?.pagination?.complete===true).length;
+  const observedContextPartial=cacheEntries.filter(row=>row.value?.kind==='context'&&row.value?.pagination?.complete!==true).length;
   const config=executionConfig(input);
-  return{...ctx,config,preview:buildSemanticProbeExecutionPreview({plan:ctx.plan,cacheEntries,config})};
+  const base=buildSemanticProbeExecutionPreview({plan:ctx.plan,cacheEntries:anchorEntries,config});
+  const probePreview={
+    ...base,
+    contextCacheHitsObserved:observedContextComplete,
+    contextCachePartialObserved:observedContextPartial,
+    cacheAccounting:{
+      ...base.cacheAccounting,
+      contextEvidenceObservedSeparately:true,
+      contextEvidenceSubtractedFromCallBudget:false,
+      contextBudgetReason:'Context cache is reported for reuse visibility but is not subtracted from the bounded call budget unless exact current-plan identity is proven.',
+    },
+  };
+  return{...ctx,config,preview:probePreview};
 }
 
 export default defineHandler(async event=>{
