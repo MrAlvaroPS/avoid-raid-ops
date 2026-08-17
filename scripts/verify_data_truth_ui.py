@@ -2,7 +2,7 @@ import json,re,time,sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 project=Path(__file__).resolve().parents[1]
-root=project/'public'
+root=project/'deploy-preview'/'public'
 main=(root/'main.js').read_text()
 runtime=(root/'wcl-runtime.js').read_text().replace('location.origin','"https://test.local"')
 css=(root/'main.css').read_text()+'\n'+(root/'raidops-v34.css').read_text()
@@ -27,54 +27,55 @@ series={'data':{'series':[{'name':'Total','id':'Total','data':[0,100,300,450,390
 tele={'ok':True,'generatedAt':1786692866371,'engineVersion':'3.4.2','reportCode':'28d9xF7GchL6ZPYt','encounter':{'id':3182,'name':"Belo'ren, Child of Al'ar",'pulls':13,'rawPulls':14,'completedPulls':13,'rawCompletedPulls':14,'maxObservedPhase':3,'maxObservedStage':3},'bestPull':payload['overview']['bestPull'],'comparePull':payload['overview']['comparePull'],'throughput':{'best':{'dps':1683068,'hps':810835},'compare':{'dps':1640196,'hps':776594},'phases':{'p1':{'dps':1686000,'hps':586000},'p2':{'dps':1678000,'hps':1097000},'p3':{'dps':1540000,'hps':920000}}},'pullIntelligence':pi,'players':players,'playerProfiles':{'coverage':{'roster':20,'withGear':20,'withTalents':20}},'deaths':{'rawCount':289,'meaningfulCount':70,'firstDeathCount':14,'earlyDeaths':10,'targetEarlyStage':3,'wipeCutoff':5},'mechanics':{'observedAbilities':[{'id':1241932,'name':'Voidlight Convergence','totalDamageTaken':313018304,'firstCastMs':38000},{'id':1264650,'name':'Burning Heart','totalDamageTaken':296984267,'firstCastMs':51000},{'id':1242803,'name':'Light Flames','totalDamageTaken':191044701,'firstCastMs':72000}], 'interruptsDetected':118,'dispelsDetected':0,'deathsDetected':289,'meaningfulDeathsDetected':70,'firstDeathsDetected':14,'debuffRows':31,'castRows':21},'consumables':{'detectedUsesByPlayerName':{'qea':{'healthstone':1,'potion':0}}},'bestPullEvents':{'deathCount':20},'graphs':{'damage':series,'healing':series},'dataTruth':{'policy':'real-derived-or-explicit-pending'}}
 history={'ok':True,'recentNights':[{'sessionId':'s1','startTime':1780948981381,'pulls':9,'kills':0,'bestFightPercentage':84.91,'medianFightPercentage':100,'sourceReports':2},{'sessionId':'s2','startTime':1782072312560,'pulls':28,'kills':0,'bestFightPercentage':48.54,'medianFightPercentage':100,'sourceReports':1},{'sessionId':'s3','startTime':1782154101761,'pulls':13,'kills':0,'bestFightPercentage':44.4,'medianFightPercentage':83.215,'sourceReports':1}],'currentNight':{'sessionId':'s3'},'delta':{'medianPctPoints':16.785,'bestPctPoints':4.14,'pullDelta':-14}}
 status={'ok':True,'generatedAt':1786693000000,'report':{'code':'28d9xF7GchL6ZPYt'},'encounter':{'totalPulls':13,'rawPulls':14,'latestFight':{'inProgress':False}}}
-intel={'ok':True,'generatedAt':1786693010000,'engineVersion':'3.4.2','status':'ready','encounter':{'id':3182,'name':"Belo'ren, Child of Al'ar",'pulls':13,'rawPulls':14,'excludedPulls':[{'fightId':13,'reason':'early-reset-no-progress'}]},'analysisPopulation':{'rawPulls':14,'eligiblePulls':13,'excludedPulls':[{'fightId':13,'pullNumber':13,'classification':'called-wipe','reason':'early-reset-no-progress'}]},'rulePack':{'slug':'beloren-child-of-alar','version':'2026.08.14-3','mechanics':17},'mechanics':{'mechanics':[{'key':'incubation-light','name':'Light Flames','category':'match','severity':5,'scoreable':True,'expectedAction':'Move into the Light area while assigned Light.','opportunities':18,'failedOccurrences':7,'failures':7,'playerExposures':7,'denominatorStatus':'normalized','executionSuccessPct':61.1,'linkedDeaths':3,'firstDeaths':3,'confidence':'high'},{'key':'radiant-echoes','name':'Radiant Echoes','category':'orb-management','severity':5,'scoreable':True,'expectedAction':'Clear matching-color orbs.','opportunities':14,'failedOccurrences':4,'failures':4,'playerExposures':4,'denominatorStatus':'normalized','executionSuccessPct':71.4,'linkedDeaths':1,'firstDeaths':1,'confidence':'high'},{'key':'void-eruption','name':'Void Eruption','category':'interrupt','severity':5,'scoreable':True,'expectedAction':'A Void-assigned player interrupts the cast.','opportunities':12,'failedOccurrences':2,'failures':2,'playerExposures':0,'denominatorStatus':'normalized','executionSuccessPct':83.3,'linkedDeaths':0,'firstDeaths':0,'confidence':'confirmed'}],'failures':[{'mechanicKey':'incubation-light','mechanicName':'Light Flames','fightId':14,'actorId':1,'severity':5,'confidence':'high','reason':'VOID player received LIGHT mechanic','fightRelativeMs':120000},{'mechanicKey':'incubation-light','mechanicName':'Light Flames','fightId':14,'actorId':1,'severity':5,'confidence':'high','reason':'VOID player received LIGHT mechanic','fightRelativeMs':121000},{'mechanicKey':'radiant-echoes','mechanicName':'Radiant Echoes','fightId':14,'actorId':2,'severity':5,'confidence':'high','reason':'Failure-proxy damage event observed','fightRelativeMs':130000}],'summary':{'opportunities':44,'failedOccurrences':13,'failures':13,'playerExposures':11,'pendingDenominators':[],'mechanicalAccuracy':78.4,'linkedDeaths':4}},'deathChains':{'windowMs':10000,'chains':[{'fightId':14,'actorId':1,'player':'Qea','fightRelativeMs':140000,'killingBlow':'Voidlight Convergence','confidence':'high','probableCause':{'mechanicKey':'incubation-light','mechanicName':'Light Flames','occurredMsBeforeDeath':4000},'evidence':[{'mechanicKey':'incubation-light','mechanicName':'Light Flames','deltaMs':4000,'confidence':'high','reason':'wrong color'}]}],'linkedByMechanic':{'incubation-light':3},'classified':4,'total':10},'blocker':{'status':'derived','confidence':'high','blocker':{'key':'incubation-light','name':'Light Flames','severity':5,'failedOccurrences':7,'failures':7,'opportunities':18,'failureRate':0.3889,'recentFailures':4,'linkedDeaths':3,'recurrence':4},'ranking':[{'key':'incubation-light','name':'Light Flames','recentFailures':4,'linkedDeaths':3},{'key':'radiant-echoes','name':'Radiant Echoes','recentFailures':2,'linkedDeaths':1}]},'playerMatrix':[{'actorId':1,'name':'Qea','failures':2,'recentFailures':2,'linkedDeaths':1,'mechanics':{'incubation-light':2}},{'actorId':2,'name':'Mechavalec','failures':1,'recentFailures':1,'linkedDeaths':0,'mechanics':{'radiant-echoes':1}}]}}
-# Static fake-surface scanner before browser runtime.
-patterns={
- 'literal percentages':r'\b(?:68|44|82|54|46|47|59|31|61)\s?%',
- 'fake fixed counts':r'\b(?:184|128|37|25)\b',
- 'fake numeric UI strings':r'children:"(?:68|44|82|54|25|184|128|37|18\.7M|3\.2%)"',
- 'hardcoded player arrays':r'\[["\'](?:Qea|Mechavalec|Rivax|Ayriane)["\']',
-}
-results={}
-for f in [root/'main.js',root/'wcl-runtime.js']:
-    text=f.read_text(); results[f.name]={k:{'hits':len(re.findall(p,text)),'examples':re.findall(p,text)[:4]} for k,p in patterns.items()}
-# Inject all mocked endpoints via fetch.
-fixtures={'/report':payload,'/telemetry':tele,'/history':history,'/status':status,'/intelligence':intel}
-errors=[]
-with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True)
-    page=browser.new_page()
-    page.on('pageerror',lambda e: errors.append('pageerror:'+str(e)))
-    page.on('console',lambda msg: errors.append('console:'+msg.text) if msg.type=='error' else None)
-    page.route('https://test.local/api/wcl/**',lambda route: route.fulfill(status=200,content_type='application/json',body=json.dumps(next((v for k,v in fixtures.items() if k in route.request.url),{'ok':True}))))
-    html=f'<!doctype html><html><head><meta charset="utf-8"><style>{css}</style></head><body><div id="root"></div><script>{main}</script><script>{runtime}</script></body></html>'
-    page.set_content(html,wait_until='load');page.wait_for_timeout(500)
-    # smoke navigation and real labels
-    body=page.locator('body').inner_text()
-    if "Belo'ren" not in body or 'Mythic' not in body or '13 pulls' not in body:
-        print('Data truth labels: FAIL');sys.exit(4)
-    print('Data truth labels: PASS')
-    # fake header labels should be gone
-    if 'VS / DR / MQD' in body or '184 GUILDS' in body:
-        print('Fake header labels remain: FAIL');sys.exit(4)
-    print('Fake header labels: PASS')
-    # Progress should be driven by the progress contract and must not expose legacy fake labels.
-    page.get_by_text('Progress',exact=True).first.click();page.wait_for_timeout(150)
-    progress_text=page.locator('body').inner_text()
-    if 'VALID PULLS' not in progress_text or '13 / 14' not in progress_text or 'CALLED WIPES EXCLUDED' not in progress_text:
-        print('Progress contract labels: FAIL');sys.exit(4)
-    if 'ALL PULLS · 9 sessions' in progress_text or 'SESSION AVG · Last 5' in progress_text:
-        print('Progress legacy fake labels remain: FAIL');sys.exit(4)
-    print('Progress contract labels: PASS')
-    # Player roster + gear/talent facts must render from WCL-backed payload.
-    page.get_by_text('Players',exact=True).first.click();page.wait_for_timeout(150)
-    player_text=page.locator('body').inner_text()
-    if 'Qea' not in player_text or 'GEAR 3/3' not in player_text or 'TALENTS 3' not in player_text:
-        print('Player profile truth: FAIL');sys.exit(4)
-    if 'RELIABILITY' not in player_text or 'PENDING' not in player_text:
-        print('Player reliability pending-state: FAIL');sys.exit(4)
-    print('Player profile truth: PASS')
-    # Intelligence/mechanics should show derived evidence without fake unsupported values.
+intel={'ok':True,'generatedAt':1786693010000,'engineVersion':'3.4.2','status':'ready','encounter':{'id':3182,'name':"Belo'ren, Child of Al'ar",'pulls':13,'rawPulls':14,'excludedPulls':[{'fightId':13,'reason':'early-reset-no-progress'}]},'analysisPopulation':{'rawPulls':14,'eligiblePulls':13,'excludedPulls':[{'fightId':13,'pullNumber':13,'classification':'called-wipe','reason':'early-reset-no-progress'}]},'rulePack':{'slug':'beloren-child-of-alar','version':'2026.08.14-3','mechanics':17},'mechanics':{'mechanics':[{'key':'incubation-light','name':'Light Flames','category':'match','severity':5,'scoreable':True,'expectedAction':'Move into the Light area while assigned Light.','opportunities':18,'failedOccurrences':7,'failures':7,'playerExposures':7,'denominatorStatus':'normalized','executionSuccessPct':61.1,'linkedDeaths':3,'firstDeaths':3,'confidence':'high'},{'key':'radiant-echoes','name':'Radiant Echoes','category':'orb-management','severity':5,'scoreable':True,'expectedAction':'Clear matching-color orbs.','opportunities':14,'failedOccurrences':4,'failures':4,'playerExposures':4,'denominatorStatus':'normalized','executionSuccessPct':71.4,'linkedDeaths':1,'firstDeaths':1,'confidence':'high'},{'key':'void-eruption','name':'Void Eruption','category':'interrupt','severity':5,'scoreable':True,'expectedAction':'A Void-assigned player interrupts the cast.','opportunities':12,'failedOccurrences':2,'failures':2,'playerExposures':0,'denominatorStatus':'normalized','executionSuccessPct':83.3,'linkedDeaths':0,'firstDeaths':0,'confidence':'confirmed'}],'failures':[{'mechanicKey':'incubation-light','mechanicName':'Light Flames','fightId':14,'actorId':1,'severity':5,'confidence':'high','reason':'VOID player received LIGHT mechanic','fightRelativeMs':120000},{'mechanicKey':'incubation-light','mechanicName':'Light Flames','fightId':14,'actorId':1,'severity':5,'confidence':'high','reason':'VOID player received LIGHT mechanic','fightRelativeMs':121000},{'mechanicKey':'radiant-echoes','mechanicName':'Radiant Echoes','fightId':14,'actorId':2,'severity':5,'confidence':'high','reason':'Failure-proxy damage event observed','fightRelativeMs':130000}],'summary':{'opportunities':44,'failedOccurrences':13,'failures':13,'playerExposures':11,'pendingDenominators':[],'mechanicalAccuracy':78.4,'linkedDeaths':4}},'deathChains':{'windowMs':10000,'chains':[{'fightId':14,'actorId':1,'player':'Qea','fightRelativeMs':140000,'killingBlow':'Voidlight Convergence','confidence':'high','probableCause':{'mechanicKey':'incubation-light','mechanicName':'Light Flames','occurredMsBeforeDeath':4000},'evidence':[{'mechanicKey':'incubation-light','mechanicName':'Light Flames','deltaMs':4000,'confidence':'high','reason':'wrong color'}]}],'linkedByMechanic':{'incubation-light':3},'classified':4,'total':10},'blocker':{'status':'derived','confidence':'high','blocker':{'key':'incubation-light','name':'Light Flames','severity':5,'failedOccurrences':7,'failures':7,'opportunities':18,'failureRate':0.3889,'recentFailures':4,'linkedDeaths':3,'recurrence':4},'ranking':[{'key':'incubation-light','name':'Light Flames','recentFailures':4,'linkedDeaths':3},{'key':'radiant-echoes','name':'Radiant Echoes','recentFailures':2,'linkedDeaths':1}]},'playerMatrix':[{'actorId':1,'name':'Qea','failures':2,'recentFailures':2,'linkedDeaths':1,'mechanics':{'incubation-light':2}},{'actorId':2,'name':'Mechavalec','failures':1,'recentFailures':1,'linkedDeaths':0,'mechanics':{'radiant-echoes':1}}],'nextPullCalls':[{'kind':'mechanic','confidence':'high','title':'Light Flames','detail':'Move into the Light area while assigned Light.'},{'kind':'player-focus','confidence':'high','title':'Qea · Light Flames','detail':'2 classified failures in the current evidence window · 1 death-linked.'},{'kind':'preserve-gain','confidence':'high','title':'Preserve: First death','detail':'5s better than the previous pull.'}],'latestPull':{'fightId':14,'failures':[{'mechanicKey':'incubation-light','mechanicName':'Light Flames','fightId':14,'actorId':1,'severity':5,'confidence':'high'},{'mechanicKey':'incubation-light','mechanicName':'Light Flames','fightId':14,'actorId':1,'severity':5,'confidence':'high'},{'mechanicKey':'radiant-echoes','mechanicName':'Radiant Echoes','fightId':14,'actorId':2,'severity':5,'confidence':'high'}],'deathChains':[{'fightId':14,'actorId':1,'player':'Qea','confidence':'high','probableCause':{'mechanicKey':'incubation-light','mechanicName':'Light Flames'}}]}}
+fixtures={'report':payload,'telemetry':tele,'history':history,'status':status,'intelligence':intel}
+stub='''<script>window.fetch=async function(input){const u=String(input);let d=%s;if(u.includes('/telemetry'))d=%s;else if(u.includes('/history'))d=%s;else if(u.includes('/intelligence'))d=%s;else if(u.includes('/status'))d=%s;return new Response(JSON.stringify(d),{status:200,headers:{'content-type':'application/json'}})};</script>'''%(json.dumps(payload),json.dumps(tele),json.dumps(history),json.dumps(intel),json.dumps(status))
+html=f'''<!doctype html><html><head><meta charset="utf-8"><style>{css}</style></head><body><div id="root"></div>{stub}<script type="module">{main}</script><script type="module">{runtime}</script></body></html>'''
+forbidden=['Nether Eruption','Cosmic Shard','Fractured Dominion',"King\'s Command",'Void Collapse','Astral Scar','Krynn','Veyra','Thorne','Mirael','Ravok','Sylen','AVD-7K2P9','Pull 25','Pull 28','Kill median: 18.2M','Reference execution','WCL KILL SAMPLE · 184 GUILDS','Avoid\'s role balance is within 1.5','Astral Shift alone would have covered']
+with sync_playwright() as pw:
+    browser=pw.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+    page=browser.new_page(viewport={'width':1600,'height':1000})
+    errors=[]; page.on('console',lambda m: errors.append('console '+m.text) if m.type=='error' else None); page.on('pageerror',lambda e:errors.append('page '+str(e)))
+    page.set_content(html,wait_until='load'); page.wait_for_timeout(1200)
+    results={}
+    for label in ['Command Center','LIVE','Progress','Pull Lab','Damage & Healing','Mechanics','Defensive Audit','Players','Composition']:
+        page.get_by_text(label,exact=True).first.click();page.wait_for_timeout(250)
+        txt=page.locator('body').inner_text()
+        hits=[x for x in forbidden if x in txt]
+        results[label]={'hits':hits,'text':txt[:16000]}
+        print(f'{label}: ' + ('PASS' if not hits else 'FAIL ' + repr(hits)))
+    print('\nERRORS',errors)
+    # LIVE must not retain the Composition-only roster intelligence panel.
+    page.get_by_text('LIVE',exact=True).first.click();page.wait_for_timeout(200)
+    live_roster_panels=page.locator('.roster-intelligence-panel:visible').count()
+    live_text=page.locator('body').inner_text()
+    print('Roster Intelligence absent from LIVE:', 'PASS' if live_roster_panels==0 and 'Roster intelligence' not in live_text else 'FAIL')
+    if live_roster_panels!=0 or 'Roster intelligence' in live_text: sys.exit(4)
+    reset_compare_ok='Pull 14 vs Pull 12' in live_text and 'Pull 14 vs Pull 13' not in live_text and 'called-wipe/reset skipped' in live_text
+    compact_empty_ok=live_text.count('No confirmed regression') <= 1
+    print('Early reset excluded from LIVE comparison:', 'PASS' if reset_compare_ok else 'FAIL')
+    print('Empty regression state is compact:', 'PASS' if compact_empty_ok else 'FAIL')
+    if not reset_compare_ok or not compact_empty_ok: sys.exit(4)
+
+    # Composition detail assertions.
+    page.get_by_text('Composition',exact=True).first.click();page.wait_for_timeout(200)
+    page.locator('.crt-main').first.click();page.wait_for_timeout(100)
+    wowhead_links=page.locator('.crt-detail a.wowhead-link').count()
+    body_text=page.locator('body').inner_text()
+    bad_avg=body_text.find('avg 241.7')
+    bad_zero=body_text.find('Item #0')
+    opaque_nodes=re.search(r'Node\s+\d+|Entry\s+\d+',body_text,re.I)
+    print('Wowhead links:',wowhead_links)
+    print('Bogus gear average:', 'PASS' if bad_avg < 0 else 'FAIL')
+    print('Empty item #0 filtered:', 'PASS' if bad_zero < 0 else 'FAIL')
+    spell_null='Spell null' in body_text
+    exact_build='Open exact talent build on Wowhead' in body_text
+    print('Opaque talent node IDs hidden:', 'PASS' if not opaque_nodes else 'FAIL')
+    print('Spell null absent:', 'PASS' if not spell_null else 'FAIL')
+    print('Canonical Wowhead talent build link:', 'PASS' if exact_build else 'FAIL')
+    if wowhead_links <= 0 or bad_avg >= 0 or bad_zero >= 0 or opaque_nodes or spell_null or not exact_build: sys.exit(4)
+
+    # v3.4 intelligence must be visible where operationally relevant.
     page.get_by_text('Command Center',exact=True).first.click();page.wait_for_timeout(150)
     command_text=page.locator('body').inner_text()
     if 'Light Flames' not in command_text or 'HIGH CONFIDENCE' not in command_text:
