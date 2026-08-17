@@ -34,9 +34,9 @@ function actorIdentity(actor){
   const canonical=actor.canonicalID??actor.canonicalId??null;
   if(canonical!=null)return`wcl:${canonical}`;
   const name=clean(actor.name);if(!name)return null;
-  const server=actor.server||{};
-  const realm=clean(server.slug||server.name);
-  const region=clean(server?.region?.slug||server?.region?.compactName);
+  const server=actor.server||null;
+  const realm=clean(typeof server==='string'?server:(server?.slug||server?.name));
+  const region=clean(typeof server==='object'?(server?.region?.slug||server?.region?.compactName):actor?.region);
   if(realm)return`character:${region||'unknown-region'}:${realm}:${name}`;
   return`name:${name}`;
 }
