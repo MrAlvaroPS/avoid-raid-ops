@@ -11,7 +11,7 @@ const files = [
   'server/analysis/progression/raid-sessions.mjs','server/analysis/progression/progress-metrics-v1.mjs','server/analysis/progression/progress-metric-registry-v1.mjs','server/analysis/progression/progress-metrics-v2.mjs','server/analysis/progression/progress-metric-registry-v2.mjs',
   'server/analysis/reliability/reliability-policy-v1.mjs','server/analysis/reliability/reliability-metric-registry-v1.mjs','server/analysis/reliability/evidence-contracts-v1.mjs','server/analysis/reliability/evidence-ledger-v1.mjs','server/analysis/reliability/peer-baseline-v1.mjs','server/analysis/reliability/reliability-engine-v1.mjs','server/analysis/reliability/attendance-history-v1.mjs',
   'server/engines/history-engine.mjs','server/engines/intelligence-engine.mjs','server/engines/report-catalog-engine.mjs','server/services/report-catalog-service.mjs','server/services/knowledge-service.mjs','server/services/iris-capabilities-service.mjs','server/services/iris-sources-service.mjs','server/corpus/wide-profile.mjs','server/corpus/source-expansion.mjs',
-  'public/wcl-bootstrap-v389.js','public/data-hub-v390.js','public/knowledge-reindex-v390.js','public/iris-runtime-v3713.js','public/progress-runtime-v3713.js','public/encounter-intelligence-v375.js','public/corpus-ui-stability-v1.js','public/player-intelligence-v386.js'
+  'public/wcl-bootstrap-v389.js','public/data-hub-v390.js','public/knowledge-reindex-v390.js','public/iris-runtime-v3713.js','public/progress-runtime-v3713.js','public/encounter-intelligence-v375.js','public/corpus-ui-stability-v1.js','public/player-intelligence-v391.js'
 ];
 
 let failures = 0;
