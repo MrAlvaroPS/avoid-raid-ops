@@ -40,18 +40,21 @@ test('overlapping logger reports keep one pull and union player identities',()=>
   assert.deepEqual(pulls[0].rosterIdentities.map(x=>x.name).sort(),['Alpha','Beta']);
 });
 
-test('v3.8.6 Players renders full roster, player evidence and indexed attendance without gear or talents',async()=>{
+test('v3.8.8 Players renders full roster and cannot self-trigger an infinite MutationObserver loop',async()=>{
   const [runtime,css,index,pkg]=await Promise.all([
     read('public/player-intelligence-v386.js'),read('public/raidops-v386.css'),read('index.html'),read('package.json')
   ]);
+  assert.match(runtime,/const VERSION='3\.8\.8'/);
   assert.match(runtime,/typeof telemetry!=='undefined'\?telemetry:null/);
   assert.match(runtime,/s\.t\?\.players/);
   assert.match(runtime,/playerAttendance/);
   assert.match(runtime,/Raid attendance/);
   assert.match(runtime,/output is deliberately separate from Reliability/);
   assert.doesNotMatch(runtime,/gear|talent|itemLevel/i);
+  assert.match(runtime,/e&&e\.textContent!==next/);
+  assert.doesNotMatch(runtime,/if\(e\)e\.textContent=`v\$\{VERSION\}`/);
   assert.match(css,/player-list-v386\{[^}]*overflow-y:auto/);
-  assert.match(index,/player-intelligence-v386\.js\?v=3\.8\.6/);
+  assert.match(index,/player-intelligence-v386\.js\?v=3\.8\.8/);
   assert.match(index,/raidops-v386\.css\?v=3\.8\.6/);
-  assert.equal(JSON.parse(pkg).version,'0.3.8-7-vercel.0');
+  assert.equal(JSON.parse(pkg).version,'0.3.8-8-vercel.0');
 });
