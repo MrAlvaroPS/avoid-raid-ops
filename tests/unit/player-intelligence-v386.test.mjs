@@ -44,7 +44,8 @@ test('v3.8.6 Players renders full roster, player evidence and indexed attendance
   const [runtime,css,index,pkg]=await Promise.all([
     read('public/player-intelligence-v386.js'),read('public/raidops-v386.css'),read('index.html'),read('package.json')
   ]);
-  assert.match(runtime,/telemetry\?\.players/);
+  assert.match(runtime,/typeof telemetry!=='undefined'\?telemetry:null/);
+  assert.match(runtime,/s\.t\?\.players/);
   assert.match(runtime,/playerAttendance/);
   assert.match(runtime,/Raid attendance/);
   assert.match(runtime,/output is deliberately separate from Reliability/);
