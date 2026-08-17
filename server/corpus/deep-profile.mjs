@@ -1,7 +1,6 @@
-import { wclGraphql } from '../wcl/client/graphql-client.mjs';
-import { CORPUS_DEEP_EVENTS_QUERY } from '../wcl/queries/corpus.mjs';
 import { paginatorEvents,eventAbilityId,eventTargetId,eventSourceId } from '../wcl/normalization/events.mjs';
 import { masterAbilityMaps, fetchReportHeader } from './wide-profile.mjs';
+import { fetchCompleteDeepEventData } from './deep-events-pagination.mjs';
 
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null;};
 const lower=v=>String(v||'').toLowerCase().normalize('NFKD').replace(/[’']/g,"'");
@@ -130,4 +129,12 @@ export function normalizeDeepProfile(header,data,{encounterId,difficulty}){
   return{schemaVersion:3,kind:'deep',code:header.code,title:header.title||null,zone:header.zone||null,guild:header.guild||null,owner:header.owner||null,encounterId:Number(encounterId),difficulty:Number(difficulty),fights,abilities,abilityStats:stats,statePairs,relations,completeness,eventCounts:{casts:castEvents.length,damage:damageEvents.length,interrupts:interruptEvents.length,debuffs:debuffEvents.length,buffs:buffEvents.length,enemyBuffs:enemyBuffEvents.length,enemyDebuffs:enemyDebuffEvents.length,deaths:deathEvents.length},rateLimit:data?.rateLimitData||header.rateLimit||null,generatedAt:Date.now()};
 }
 
-export async function fetchDeepProfile({code,encounterId,difficulty=5}){const header=await fetchReportHeader({code,encounterId,difficulty});if(!header||!header.fights?.length)return null;const fightIDs=header.fights.map(f=>f.id).filter(Number.isFinite);if(!fightIDs.length)return null;const data=await wclGraphql(CORPUS_DEEP_EVENTS_QUERY,{code:String(code),fightIDs});return normalizeDeepProfile(header,data,{encounterId,difficulty});}
+export async function fetchDeepProfile({code,encounterId,difficulty=5}){
+  const header=await fetchReportHeader({code,encounterId,difficulty});
+  if(!header||!header.fights?.length)return null;
+  const fightIDs=header.fights.map(f=>f.id).filter(Number.isFinite);if(!fightIDs.length)return null;
+  const fetched=await fetchCompleteDeepEventData({code:String(code),fightIDs});
+  const profile=normalizeDeepProfile(header,fetched.data,{encounterId,difficulty});
+  if(profile)profile.deepStreamPagination=fetched.pagination;
+  return profile;
+}
