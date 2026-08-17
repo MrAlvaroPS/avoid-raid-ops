@@ -167,7 +167,7 @@
     const firstSeen=attendance?.firstIndexedAt?fmtDate(attendance.firstIndexedAt):'Current indexed report';
     const attendanceValue=attendance?.pullAttendancePct!=null?fmtPct(attendance.pullAttendancePct):`${reportPulls}/${encounterPulls}`;
     const attendanceMeta=attendance
-      ?`${attendance.pullsAttended}/${attendance.pullsEligible} pulls · ${attendance.sessionsAttended}/${attendance.sessionsEligible} raid nights · first indexed ${firstSeen}`
+      ?`${attendance.pullsAttended}/${attendance.pullsEligible} pulls · ${attendance.sessionsAttended}/${attendance.sessionsEligible} raid nights · first indexed appearance ${firstSeen}`
       :`${reportPulls}/${encounterPulls} current-report pulls · longitudinal history pending`;
     const publicationValue=profile?.publication?.publishable?'PUBLISHED':'PENDING';
     const publicationMeta=reasons.length?reasons.slice(0,3).join(' · '):'Evidence gates satisfied';
