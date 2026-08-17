@@ -3,6 +3,7 @@ import { CURRENT_HISTORY_REPORT_QUERY,LIST_GUILD_REPORTS_QUERY,REPORT_HISTORY_FI
 import { selectEncounter } from '../wcl/normalization/fights.mjs';
 import { clusterRaidSessions } from '../analysis/progression/raid-sessions.mjs';
 import { buildProgressModel } from '../analysis/progression/progress-metrics-v2.mjs';
+import { buildPlayerAttendance } from '../analysis/reliability/player-attendance-v1.mjs';
 
 async function mapLimit(items,limit,fn){
   const out=new Array(items.length);let next=0;
@@ -27,6 +28,41 @@ async function listAllReports({guildId,start,end,zoneId,maxPages=10}){
   return {reports:[...byCode.values()],total:total??byCode.size,hasMore,pageCount:pageNo-1,truncated:hasMore};
 }
 
+const clean=v=>String(v||'').trim().toLowerCase();
+function actorIdentity(actor){
+  if(!actor)return null;
+  const canonical=actor.canonicalID??actor.canonicalId??null;
+  if(canonical!=null)return`wcl:${canonical}`;
+  const name=clean(actor.name);if(!name)return null;
+  const server=actor.server||{};
+  const realm=clean(server.slug||server.name);
+  const region=clean(server?.region?.slug||server?.region?.compactName);
+  if(realm)return`character:${region||'unknown-region'}:${realm}:${name}`;
+  return`name:${name}`;
+}
+
+function attendanceDirectory(reports){
+  const directory=new Map();
+  for(const report of reports||[]){
+    for(const actor of report?.masterData?.actors||[]){
+      const key=actorIdentity(actor);if(!key)continue;
+      if(!directory.has(key))directory.set(key,{
+        key,
+        name:actor.name||null,
+        className:actor.subType||actor.type||null,
+        server:actor.server||null
+      });
+    }
+  }
+  return directory;
+}
+
+function stripRosterKeys(pull){
+  if(!pull||typeof pull!=='object')return pull;
+  const {rosterKeys,...rest}=pull;
+  return rest;
+}
+
 export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore=35,daysAfter=7}){
   const currentData=await wclGraphql(CURRENT_HISTORY_REPORT_QUERY,{code:reportCode});
   const current=currentData?.reportData?.report;
@@ -35,7 +71,7 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
   const selected=selectEncounter(current.fights,encounterId);
   const anchor=selected[0];
   if(!anchor){
-    return {generatedAt:Date.now(),engineVersion:'3.7.12',guildId,zone:current.zone,encounter:null,nights:[],recentNights:[],progressionPulls:[],progressModel:null,currentNight:null,previousNight:null,delta:null,pagination:{total:0,hasMore:false,candidatesScanned:0}};
+    return {generatedAt:Date.now(),engineVersion:'3.8.2',guildId,zone:current.zone,encounter:null,nights:[],recentNights:[],progressionPulls:[],progressModel:null,playerAttendance:{status:'pending',players:[]},currentNight:null,previousNight:null,delta:null,pagination:{total:0,hasMore:false,candidatesScanned:0}};
   }
 
   const DAY=86400000;
@@ -55,12 +91,18 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
   const reports=loaded.filter(x=>x&&!x.__error&&(x.fights||[]).length);
 
   const clustered=clusterRaidSessions(reports,{currentReportCode:reportCode}).sort((a,b)=>a.startTime-b.startTime);
+  const playerAttendance={
+    ...buildPlayerAttendance(clustered,attendanceDirectory(reports)),
+    historyWindowDays:daysBefore,
+    windowStart:start,
+    windowEnd:end
+  };
   const rawProgressionPulls=clustered
     .flatMap(n=>(n.progressionPulls||[]).map(p=>({...p,sessionId:n.sessionId,sessionIndex:n.sessionIndex,sessionStartTime:n.startTime,sessionTitle:n.title})))
     .sort((a,b)=>Number(a.absoluteStartTime)-Number(b.absoluteStartTime));
 
   const built=buildProgressModel(rawProgressionPulls);
-  const progressionPulls=built.canonicalPulls;
+  const progressionPulls=(built.canonicalPulls||[]).map(stripRosterKeys);
   const progressModel={...built,canonicalPulls:undefined};
   const nights=progressModel.nights||[];
   const recent=nights.slice(-5);
@@ -77,13 +119,14 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
 
   return {
     generatedAt:Date.now(),
-    engineVersion:'3.7.12',
+    engineVersion:'3.8.2',
     guildId,
     zone:current.zone,
     encounter:{id:anchor.encounterID,name:anchor.name,difficulty:anchor.difficulty},
     historyWindow:{daysBefore,daysAfter,start,end},
     progressionPulls,
     progressModel,
+    playerAttendance,
     nights,
     recentNights:recent,
     currentNight,
@@ -97,6 +140,8 @@ export async function getGuildHistory({reportCode,guildId,encounterId,daysBefore
       progressionPullSeries:'canonical-deduped-from-history-reports',
       progressMetrics:'server-derived-single-source-v2-data-integrity',
       progressMetricEligibility:'versioned-and-auditable',
+      playerAttendance:'canonical-deduped-since-first-indexed-appearance',
+      playerAttendanceJoinDate:'not-claimed-by-wcl',
       queryStrategy:'two-stage-paginated',
       sessionClustering:'time-window',
       pullDeduplication:'timestamp+duration+progress',
