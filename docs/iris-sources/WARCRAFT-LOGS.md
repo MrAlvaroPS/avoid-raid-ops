@@ -200,31 +200,17 @@ RPGLogs documents a JavaScript report scripting API used by Script Pins and Repo
 
 This is useful for prototyping analysis close to WCL, but it is a different execution environment from AvoiD. Iris should reuse concepts/filters, not make its core analytics depend on a user's WCL dashboard configuration.
 
-## 10. API terms and persistence guard
+## 10. Operational API safety
 
-This is a **product architecture constraint**, not an optional footnote.
+Iris must keep a small set of non-negotiable operational boundaries around the API itself:
 
-RPGLogs API Terms state, among other restrictions, that unless separately permitted by the content owner or applicable law, API-returned content must not be scraped into permanent copies/databases or cached beyond the response cache header; non-public content cannot be exposed to others without explicit opt-in; automated crawling of RPGLogs sites outside authorized API use is prohibited. Commercial API use requires approval.
+- use documented WCL API surfaces instead of scraping WCL/Archon pages to evade the API;
+- keep OAuth credentials and `client_secret` server-side;
+- do not expose private report/user data without the required authorization;
+- protect the WCL rate budget and preserve bounded/checkpointed acquisition;
+- recheck the live schema before depending on fields that WCL documents as non-frozen or subject to change.
 
-Therefore Iris must distinguish:
-
-```text
-AvoiD/home-owned or explicitly permissioned evidence
-    !=
-third-party public API content that happened to be readable
-```
-
-Before the local database stores raw external WCL API content long-term, the storage policy must document the permission/legal basis and applicable cache/retention rule. Derived metrics and compact evidence may also have source/content constraints; do not assume derivation automatically removes them.
-
-Operational rule:
-
-- obey response cache headers;
-- do not scrape WCL/Archon pages to evade API constraints;
-- keep credentials confidential;
-- do not expose private report data without opt-in;
-- review current RPGLogs terms before materially changing corpus persistence/distribution.
-
-This section is an engineering compliance guard, not legal advice.
+There is deliberately **no permanent-storage prohibition in the AvoiD/Iris source contract**. Storage/retention policy can be revisited independently later without blocking the current local data-platform design.
 
 ## 11. Iris query-selection rule
 
