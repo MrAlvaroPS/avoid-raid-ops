@@ -6,11 +6,12 @@ export const SEMANTIC_PROBE_STREAM_KEYS = Object.freeze([
 ]);
 export const SEMANTIC_PROBE_PAGINATION_VERSION='semantic-probe-pagination-v1';
 
-const finiteCursor=value=>{
+const finiteOptional=value=>{
   if(value==null||value==='')return null;
   const n=Number(value);
   return Number.isFinite(n)?n:null;
 };
+const finiteCursor=finiteOptional;
 
 function snapshot(report,key){
   return{events:paginatorEvents(report?.[key]),cursor:finiteCursor(report?.[key]?.nextPageTimestamp)};
@@ -18,8 +19,8 @@ function snapshot(report,key){
 
 function continuationVariables({code,fightIDs,abilityID,windowEnd,limit,cursors,active}){
   const vars={
-    code:String(code),fightIDs:[...(fightIDs||[])],abilityID:Number.isFinite(Number(abilityID))?Number(abilityID):null,
-    windowEnd:Number.isFinite(Number(windowEnd))?Number(windowEnd):null,limit:Number(limit)||1000,
+    code:String(code),fightIDs:[...(fightIDs||[])],abilityID:finiteOptional(abilityID),
+    windowEnd:finiteOptional(windowEnd),limit:Number(limit)||1000,
   };
   for(const key of SEMANTIC_PROBE_STREAM_KEYS){
     vars[`${key}On`]=active.has(key);
@@ -41,11 +42,12 @@ export async function fetchSemanticEventBundle({
   if(!code||!ids.length)throw new Error('Semantic probe requires report code and exact fightIDs');
   if(typeof runQuery!=='function')throw new Error('Semantic probe requires a budget-aware runQuery function');
   const boundedLimit=Math.max(100,Math.min(10000,Number(limit)||1000));
+  const rawWindowStart=finiteOptional(windowStart),rawWindowEnd=finiteOptional(windowEnd);
   const first=await runQuery(SEMANTIC_PROBE_EVENTS_QUERY,{
     code:String(code),fightIDs:ids,
-    abilityID:Number.isFinite(Number(abilityID))?Number(abilityID):null,
-    windowStart:Number.isFinite(Number(windowStart))?Math.max(0,Number(windowStart)):null,
-    windowEnd:Number.isFinite(Number(windowEnd))?Math.max(0,Number(windowEnd)):null,
+    abilityID:finiteOptional(abilityID),
+    windowStart:rawWindowStart==null?null:Math.max(0,rawWindowStart),
+    windowEnd:rawWindowEnd==null?null:Math.max(0,rawWindowEnd),
     limit:boundedLimit,
   },{kind:'semantic-events-first',code:String(code),fightIDs:ids});
 
