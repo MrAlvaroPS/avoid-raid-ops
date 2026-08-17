@@ -78,6 +78,24 @@ Canonical Deep is allowed to increase Deep report/pull coverage and train/holdou
 
 If WCL indicates pagination/incompleteness for any required stream, the result may be cached for diagnostics but **must not count as a canonical Deep report or Deep pull**.
 
+### Event pagination is part of completeness, not an error condition
+
+WCL `events` is paginated. The official API permits `limit` values from 100 to 10,000 events and returns a `nextPageTimestamp` when more matching events remain. A non-null cursor therefore means **continue the same evidence query**, not "this report is bad".
+
+Standing rules:
+
+- A first page of 10,000 events is never considered a complete stream merely because the HTTP/GraphQL request succeeded.
+- Continue a paginated stream using `startTime = nextPageTimestamp` while preserving the exact same report, `fightIDs`, event type, hostility and other filters.
+- When one GraphQL request aliases multiple streams, treat every alias as an **independent paginator**. DamageTaken, Buffs, Debuffs, Casts, etc. can expose different cursors at the same time.
+- Continuation requests should include only aliases that are still paginated; never redownload an already-complete stream merely because another stream needs another page.
+- A cursor must advance. If WCL returns the same/older cursor, stop that stream, mark it incomplete and expose the condition instead of looping.
+- Use a bounded continuation safety limit. Reaching it leaves the stream incomplete; it does not manufacture coverage.
+- Merge all pages before normalization/provenance analysis so counts and temporal relations are computed over the complete selected fight set.
+- Preserve pagination diagnostics (`pages`, event counts, final cursor, query count, stalled/max-round reason) in the derived Deep profile.
+- Canonical Deep still requires all eight streams complete after pagination. Pagination support lowers false incompleteness; it does not weaken the evidence gate.
+
+This is especially important for normal progression reports: several selected pulls can easily push DamageTaken, Buffs or Debuffs beyond 10,000 events even though the underlying report is perfectly valid.
+
 ### Surgical probes
 
 A surgical probe is evidence for a narrow hypothesis, for example:
@@ -153,9 +171,9 @@ This density guidance is a product/domain assumption supplied from real raid pra
 
 ## Current query-guided Deep policy
 
-`query-guided-deep-v2` upgrades already-cached Wide reports before buying more Wide evidence when the canonical Wide pool is trustworthy but Deep evidence is missing.
+`query-guided-deep-v3` upgrades already-cached Wide reports before buying more Wide evidence when the canonical Wide pool is trustworthy but Deep evidence is missing.
 
-The planner:
+The planner/executor:
 
 - selects exact reports from trusted independent sources,
 - selects exact `fightIDs` inside those reports,
@@ -165,8 +183,9 @@ The planner:
 - keeps a conservative per-report fight cap to limit correlated evidence without declaring dense reports invalid,
 - uses unresolved/focus ability IDs as a prioritization signal,
 - fetches full required streams only for selected fights,
+- independently paginates any Deep stream whose WCL `nextPageTimestamp` is non-null,
 - keeps ability/time-window probes separate as non-counting diagnostics,
-- refuses to manufacture Deep coverage from incomplete streams.
+- refuses to manufacture Deep coverage from incomplete or stalled streams.
 
 This means a model with strong Wide diversity but zero/weak Deep should normally ask for **query-guided targeted Deep**, not another broad Wide crawl merely because `deepOutcomeCoverage` is currently false. Deep coverage is repaired by acquiring Deep evidence.
 
