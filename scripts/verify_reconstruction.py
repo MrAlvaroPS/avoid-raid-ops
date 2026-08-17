@@ -4,6 +4,12 @@ root=Path(__file__).resolve().parents[1]
 pairs={
  'K0':'features/command-center/CommandCenter.js','k0':'features/progress/Progress.js','J0':'features/pull-lab/PullLab.js','W0':'features/damage-healing/DamageHealing.js','F0':'features/mechanics/Mechanics.js','$0':'features/defensive-audit/DefensiveAudit.js','I0':'features/players/Players.js','P0':'features/live/Live.js','l1':'features/composition/Composition.js','Xf':'app/AppShell.js'
 }
+# Golden protects visual/content reconstruction, but obsolete mock facts must not be
+# reintroduced after Data Truth replaces them with explicit pending/evidence states.
+# Keep this allowlist exact and tiny: every retirement needs deliberate review.
+intentional_data_truth_retirements={
+ 'I0':{'"91%"','"Peer median 84%"'},
+}
 fail=[]
 # Compare literal payloads (strings) after decoding JS escapes conservatively by raw literal token.
 def strings(s): return set(re.findall(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'',s))
@@ -47,11 +53,13 @@ for symbol,rel in pairs.items():
    fail.append(str(exc)); continue
  src=(root/'apps/web/src'/rel).read_text()
  gs=strings(golden); ss=strings(src)
- # Ignore import-path strings and React module strings; every golden literal must survive.
- lost=sorted(gs-ss)
+ retired=intentional_data_truth_retirements.get(symbol,set())
+ # Every Golden literal must survive unless it is an explicitly reviewed obsolete mock fact.
+ lost=sorted((gs-ss)-retired)
  if lost: fail.append(f'{symbol}: {len(lost)} golden string literals missing, e.g. {lost[:3]}')
 if fail:
  print('RECONSTRUCTION VERIFICATION: FAIL'); [print(' -',x) for x in fail]; sys.exit(1)
 print('RECONSTRUCTION VERIFICATION: PASS')
-print(' - every string literal from all 9 screens + AppShell survives the split')
+print(' - every non-retired string literal from all 9 screens + AppShell survives the split')
+print(' - obsolete mock facts may be retired only through the explicit Data Truth allowlist')
 print(' - missing case-collided extracts fall back to immutable golden-master/main.js')
