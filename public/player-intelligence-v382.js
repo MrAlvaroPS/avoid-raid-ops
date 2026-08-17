@@ -151,9 +151,10 @@
     return`<div class="player-evidence-card ${tone}"><label>${esc(label)}</label><b>${esc(value)}</b><small>${esc(meta)}</small></div>`;
   }
 
+  function playerDetailRoot(){return q('.player-detail-v382,.player-detail');}
   function renderDetail(p){
-    const detail=q('.player-detail');if(!detail||!p)return;
-    detail.classList.add('player-detail-v382');
+    const detail=playerDetailRoot();if(!detail||!p)return;
+    detail.classList.remove('player-detail');detail.classList.add('player-detail-v382');
     const profile=p.reliabilityProfile||{};
     const mechanics=component(p,'mechanics'),survival=component(p,'survival'),defensives=component(p,'defensives'),duties=component(p,'duties');
     const attendance=attendanceFor(p);
@@ -176,12 +177,12 @@
     const dutiesMeta=componentMeta(p,'duties');
 
     detail.innerHTML=`
-      <div class="player-identity">
+      <div class="player-identity-v382">
         <i>${esc(String(p.name||'?')[0])}</i>
         <span><span class="badge ${badgeTone}">${rel==null?'RELIABILITY PENDING':`${Math.round(rel)} RELIABILITY`}</span><h2>${esc(p.name)}</h2><p>${esc([p.spec||p.className||'Unknown',roleOf(p),'AvoiD raider'].join(' · '))}</p></span>
         <b>${rel==null?'—':Math.round(rel)}<small>RELIABILITY · ${esc(confidence)} CONF.</small></b>
       </div>
-      <div class="player-scores">
+      <div class="player-scores-v382">
         ${stat('PERFORMANCE',outputText(p),'CONTEXT','Best-pull output · never changes Reliability','info')}
         ${stat('MECHANICS',scoreText(mechanics?.value),mechanics?.value==null?'PENDING':'SCORED',componentMeta(p,'mechanics'),toneFor(mechanics?.value))}
         ${stat('SURVIVAL',scoreText(survival?.value),survival?.value==null?'PENDING':'SCORED',componentMeta(p,'survival'),toneFor(survival?.value))}
@@ -198,7 +199,7 @@
           ${evidenceCard('PUBLICATION',publicationValue,publicationMeta,profile?.publication?.publishable?'good':'pending')}
         </div>
       </div>
-      <div class="coaching player-evidence-summary"><span class="badge info">EVIDENCE STATUS</span><p>${esc(profile?.explanation?.summary||`Reliability is ${publicationValue.toLowerCase()}. ${failures} classified failures are preserved as evidence; unproven clean executions are never fabricated.`)} ${performanceDoesNotScore?'Performance is shown separately and contributes 0 points to Reliability.':''}</p></div>`;
+      <div class="player-evidence-summary"><span class="badge info">EVIDENCE STATUS</span><p>${esc(profile?.explanation?.summary||`Reliability is ${publicationValue.toLowerCase()}. ${failures} classified failures are preserved as evidence; unproven clean executions are never fabricated.`)} ${performanceDoesNotScore?'Performance is shown separately and contributes 0 points to Reliability.':''}</p></div>`;
   }
 
   function renderSelection(players){
@@ -213,15 +214,14 @@
     return`<span><b>${esc(value)}</b><small>${esc(meta)}</small>${miniBar(barValue,{performance,pending})}</span>`;
   }
 
+  function matrixRoot(){return q('.reliability-table-v382,.reliability-table');}
   function renderMatrix(players){
-    const table=q('.reliability-table');if(!table)return;
+    const table=matrixRoot();if(!table)return;
+    table.classList.remove('reliability-table');table.classList.add('reliability-table-v382');
     const panel=table.closest('.panel');const subtitle=q('.panel-title p',panel);
     if(subtitle)subtitle.textContent=`Full encounter roster · ${players.length} raiders · Performance is context only`;
-    const signature=players.map(p=>{
-      const pr=p.reliabilityProfile||{};
-      return`${profileKey(p)}:${profileValue(p)??'p'}:${component(p,'mechanics')?.value??'m'}:${component(p,'survival')?.value??'s'}:${component(p,'defensives')?.value??'d'}`;
-    }).join('|');
-    if(signature===lastMatrixSignature)return;
+    const signature=players.map(p=>`${profileKey(p)}:${profileValue(p)??'p'}:${component(p,'mechanics')?.value??'m'}:${component(p,'survival')?.value??'s'}:${component(p,'defensives')?.value??'d'}`).join('|');
+    if(signature===lastMatrixSignature&&table.children.length===players.length+1)return;
     lastMatrixSignature=signature;
     table.replaceChildren();
     const head=document.createElement('div');head.className='rt-head';head.innerHTML='<span>PLAYER</span><span>PERFORMANCE</span><span>MECHANICS</span><span>SURVIVAL</span><span>DEFENSIVES</span><span>STATUS</span>';table.append(head);
@@ -238,7 +238,7 @@
         ${matrixCell(scoreText(s?.value),`${enc.firstDeaths??0} first · ${enc.meaningfulDeaths??0} meaningful`,s?.value,{pending:s?.value==null})}
         ${matrixCell(scoreText(d?.value),`${d?.sample?.opportunityCount||0} confirmed opportunities`,d?.value,{pending:d?.value==null})}
         <span class="badge ${statusTone}">${esc(status)}</span>`;
-      row.addEventListener('click',()=>{selectedKey=profileKey(p);renderSelection(players);q('.player-detail')?.scrollIntoView?.({block:'nearest',behavior:'smooth'});});
+      row.addEventListener('click',()=>{selectedKey=profileKey(p);renderSelection(players);playerDetailRoot()?.scrollIntoView?.({block:'nearest',behavior:'smooth'});});
       table.append(row);
     }
   }
