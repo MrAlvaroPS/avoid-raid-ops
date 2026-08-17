@@ -7,8 +7,44 @@ pairs={
 fail=[]
 # Compare literal payloads (strings) after decoding JS escapes conservatively by raw literal token.
 def strings(s): return set(re.findall(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'',s))
+
+def extract_function(bundle,symbol):
+ marker=f'function {symbol}('
+ start=bundle.find(marker)
+ if start < 0:
+  raise ValueError(f'function {symbol} not found in golden bundle')
+ brace=bundle.find('{',start)
+ if brace < 0:
+  raise ValueError(f'function {symbol} has no body in golden bundle')
+ depth=0; quote=None; escape=False
+ for i in range(brace,len(bundle)):
+  ch=bundle[i]
+  if quote:
+   if escape: escape=False
+   elif ch=='\\': escape=True
+   elif ch==quote: quote=None
+   continue
+  if ch in ('"',"'",'`'):
+   quote=ch; continue
+  if ch=='{': depth+=1
+  elif ch=='}':
+   depth-=1
+   if depth==0: return bundle[start:i+1]
+ raise ValueError(f'function {symbol} body is unterminated in golden bundle')
+
+golden_bundle=None
 for symbol,rel in pairs.items():
- golden=(root/'tools/extracted-golden'/f'{symbol}.compiled.js').read_text()
+ extracted=root/'tools/extracted-golden'/f'{symbol}.compiled.js'
+ if extracted.exists():
+  golden=extracted.read_text()
+ else:
+  # Historical extraction produced both K0 and k0. Case-insensitive filesystems can
+  # collapse that pair, so fall back to the immutable Golden bundle instead of
+  # weakening the reconstruction check or aliasing two different screens.
+  if golden_bundle is None: golden_bundle=(root/'golden-master/main.js').read_text()
+  try: golden=extract_function(golden_bundle,symbol)
+  except ValueError as exc:
+   fail.append(str(exc)); continue
  src=(root/'apps/web/src'/rel).read_text()
  gs=strings(golden); ss=strings(src)
  # Ignore import-path strings and React module strings; every golden literal must survive.
@@ -18,3 +54,4 @@ if fail:
  print('RECONSTRUCTION VERIFICATION: FAIL'); [print(' -',x) for x in fail]; sys.exit(1)
 print('RECONSTRUCTION VERIFICATION: PASS')
 print(' - every string literal from all 9 screens + AppShell survives the split')
+print(' - missing case-collided extracts fall back to immutable golden-master/main.js')
