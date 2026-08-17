@@ -100,6 +100,10 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
     targetPulls: Number(job?.targetPulls) || Number.POSITIVE_INFINITY,
     mode: 'wide',
     homeOwnerIds,
+    sourceCaps: {
+      maxReportShare: config.maxSourceReportShareToPublish,
+      maxPullShare: config.maxSourcePullShareToPublish,
+    },
   });
   const selectedWideCodes = new Set(wideSample.selectedCodes);
   const deepEligible = deepProfiles.filter(profile => selectedWideCodes.has(String(profile?.code || '')));
@@ -108,6 +112,10 @@ export async function rebuildCanonicalBossCorpus({ args, job, currentAggregate =
     targetPulls: Number(job?.deepTargetPulls) || Number.POSITIVE_INFINITY,
     mode: 'deep',
     homeOwnerIds,
+    sourceCaps: {
+      maxReportShare: config.maxDeepSourceReportShareToPublish,
+      maxPullShare: config.maxDeepSourcePullShareToPublish,
+    },
   });
 
   const manifest = buildBossSamplingManifest({ scope, wideSample, deepSample });
