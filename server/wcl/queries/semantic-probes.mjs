@@ -4,11 +4,15 @@
 // - anchor discovery: exact fightIDs + one abilityID, no time range;
 // - temporal context: one exact fightID + a bounded start/end window, abilityID=null.
 //
+// WCL Report.events declares abilityID as Float in the v2 GraphQL schema. Keep the
+// variable type aligned exactly with the upstream schema even though game IDs are
+// integer-valued in practice; GraphQL does not coerce an Int variable to Float.
+//
 // Eight aliases mirror the canonical Deep evidence families, but this evidence remains
 // diagnostic-semantic-surgical and never contributes to canonical Deep coverage.
 export const SEMANTIC_PROBE_EVENTS_QUERY = `
 query AvoidSemanticProbeEvents(
- $code:String!,$fightIDs:[Int]!,$abilityID:Int,$windowStart:Float,$windowEnd:Float,$limit:Int!
+ $code:String!,$fightIDs:[Int]!,$abilityID:Float,$windowStart:Float,$windowEnd:Float,$limit:Int!
 ){
  rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}
  reportData{report(code:$code,allowUnlisted:false){
@@ -27,7 +31,7 @@ query AvoidSemanticProbeEvents(
 // only the aliases that still paginate, matching the canonical Deep safety semantics.
 export const SEMANTIC_PROBE_EVENTS_CONTINUATION_QUERY = `
 query AvoidSemanticProbeEventsContinuation(
- $code:String!,$fightIDs:[Int]!,$abilityID:Int,$windowEnd:Float,$limit:Int!,
+ $code:String!,$fightIDs:[Int]!,$abilityID:Float,$windowEnd:Float,$limit:Int!,
  $enemyCastsOn:Boolean!,$enemyCastsStart:Float,
  $friendDamageOn:Boolean!,$friendDamageStart:Float,
  $interruptsOn:Boolean!,$interruptsStart:Float,
