@@ -31,15 +31,25 @@ function dominantOutcome(row={}){
   return entries[0]?.[0]||'earlyWipe';
 }
 
+export function resolveTargetedDeepRequest({addDeepReports,addDeepPulls,currentPulls=0,currentReports=0}={}){
+  const requestedReports=Math.max(1,Math.min(100,Number(addDeepReports)||12));
+  const avg=Number(currentReports)>0?Number(currentPulls)/Number(currentReports):8;
+  const explicitPulls=Number(addDeepPulls);
+  const hasExplicitPullTarget=Number.isFinite(explicitPulls)&&explicitPulls>0;
+  const requestedPulls=hasExplicitPullTarget
+    ? Math.max(requestedReports,Math.ceil(explicitPulls))
+    : Math.max(requestedReports,Math.ceil(avg*requestedReports));
+  return{requestedReports,requestedPulls,targetSource:hasExplicitPullTarget?'explicit-canonical-deficit':'estimated-from-existing-deep'};
+}
+
 export async function startTargetedDeepV373(input={}){
   await assertCorpusStorage();const args=await resolveArgs(input);const [job,aggregate]=await Promise.all([corpusGet(jobKey(args)),corpusGet(aggregateKey(args))]);
   if(!job||!aggregate)throw new Error('Corpus job has not been started');
   if(['running','rate-limited'].includes(job.status))throw new Error('Corpus is already running');
   const keys=await corpusList(`profiles/${corpusId(args)}/`),profiles=[];for(const key of keys){const p=await corpusGet(key);if(p)profiles.push(p);}
   const existingCandidates=prioritizeWideProfilesForDeepV373(profiles,job.processedDeep||[],input.focusAbilityIds||[]);if(!existingCandidates.length)throw new Error('No persisted Wide reports remain available for targeted Deep profiling');
-  const currentPulls=deepPullCount(aggregate),currentReports=num(aggregate.deepReports),avg=currentReports>0?currentPulls/currentReports:8;
-  const requestedReports=Math.max(1,Math.min(100,Number(input.addDeepReports)||12));
-  const requestedPulls=Math.max(requestedReports,Number(input.addDeepPulls)||0,Math.ceil(avg*requestedReports));
+  const currentPulls=deepPullCount(aggregate),currentReports=num(aggregate.deepReports);
+  const {requestedReports,requestedPulls,targetSource}=resolveTargetedDeepRequest({addDeepReports:input.addDeepReports,addDeepPulls:input.addDeepPulls,currentPulls,currentReports});
   const queryPlan=buildQueryGuidedDeepPlan(profiles,{
     processedDeep:job.processedDeep||[],
     focusAbilityIds:input.focusAbilityIds||[],
@@ -52,6 +62,6 @@ export async function startTargetedDeepV373(input={}){
   const buckets={kill:[],deepWipe:[],midWipe:[],earlyWipe:[]};for(const row of queryPlan.selected)buckets[dominantOutcome(row)].push(row.code);
   const deepTargetPulls=Math.min(widePullCount(aggregate),currentPulls+queryPlan.selectedPulls);
   const deepTargetReports=Math.min(num(aggregate.wideReports),currentReports+queryPlan.selectedReports);
-  const updated={...job,engineVersion:'3.7.6-query-guided-deep-v1',schemaVersion:Math.max(5,num(job.schemaVersion)),mode:'targeted-deep',status:'running',phase:'deep',startedAt:now(),updatedAt:now(),completedAt:null,targetPulls:widePullCount(aggregate),deepTargetPulls,deepTargetReports,deepBuckets:buckets,deepCursor:0,resumeAt:null,pauseReason:null,pauseRequestedAt:null,consecutiveFailure:null,activeExecutionToken:null,executionMode:null,workflowRunId:null,workflowStartedAt:null,queryGuidedDeepPlan:queryPlan,deepFightIDsByCode:queryPlan.fightIDsByCode,targetedDeepPlan:{requestedReports:queryPlan.selectedReports,requestedPulls:queryPlan.selectedPulls,deepTargetPulls,deepTargetReports,availableWideReports:existingCandidates.length,focusAbilityIds:queryPlan.focusAbilityIds,queryPolicy:queryPlan.queryPolicy,surgicalProbeExpressions:queryPlan.surgicalProbeExpressions,selectedPreview:queryPlan.selected.slice(0,12)},message:`QUERY-GUIDED DEEP · existing Wide only · ${queryPlan.selectedReports} reports / ${queryPlan.selectedPulls} exact fights planned across ${queryPlan.selectedSources} sources · full streams only for selected fightIDs; surgical ability probes remain non-counting diagnostics.`};
+  const updated={...job,engineVersion:'3.7.6-query-guided-deep-v1',schemaVersion:Math.max(5,num(job.schemaVersion)),mode:'targeted-deep',status:'running',phase:'deep',startedAt:now(),updatedAt:now(),completedAt:null,targetPulls:widePullCount(aggregate),deepTargetPulls,deepTargetReports,deepBuckets:buckets,deepCursor:0,resumeAt:null,pauseReason:null,pauseRequestedAt:null,consecutiveFailure:null,activeExecutionToken:null,executionMode:null,workflowRunId:null,workflowStartedAt:null,queryGuidedDeepPlan:queryPlan,deepFightIDsByCode:queryPlan.fightIDsByCode,targetedDeepPlan:{requestedReports:queryPlan.selectedReports,requestedPulls:queryPlan.selectedPulls,requestedTargetSource:targetSource,deepTargetPulls,deepTargetReports,availableWideReports:existingCandidates.length,focusAbilityIds:queryPlan.focusAbilityIds,queryPolicy:queryPlan.queryPolicy,surgicalProbeExpressions:queryPlan.surgicalProbeExpressions,selectedPreview:queryPlan.selected.slice(0,12)},message:`QUERY-GUIDED DEEP · existing Wide only · ${queryPlan.selectedReports} reports / ${queryPlan.selectedPulls} exact fights planned across ${queryPlan.selectedSources} sources · full streams only for selected fightIDs; surgical ability probes remain non-counting diagnostics.`};
   await corpusSet(jobKey(args),updated);return{args,job:updated,plan:updated.targetedDeepPlan};
 }
