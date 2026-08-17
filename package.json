@@ -1,7 +1,7 @@
 {
   "name": "avoid-raid-ops-vercel",
   "private": true,
-  "version": "0.3.7-14-vercel.0",
+  "version": "0.3.8-0-vercel.0",
   "type": "module",
   "workspaces": ["apps/web"],
   "scripts": {
