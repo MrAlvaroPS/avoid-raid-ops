@@ -13,12 +13,12 @@ import { assertCorpusStorage, corpusGet, corpusStorageErrorInfo } from '../../..
 import { launchCorpusExecution, corpusExecutionDescriptor } from '../../../server/corpus/execution.mjs';
 import { aggregateKey, jobKey } from '../../../server/corpus/keys.mjs';
 import { aggregateSummary } from '../../../server/corpus/aggregate.mjs';
-import { applyBossSamplingPolicyV376, modelDiagnosticsV376 } from '../../../server/corpus/model-policy-v376.mjs';
+import { applyBossSamplingPolicyV377, modelDiagnosticsV377 } from '../../../server/corpus/model-policy-v377.mjs';
 import { startTargetedDeepV373 } from '../../../server/corpus/targeted-deep-v373.mjs';
 import { IRIS_KNOWLEDGE_CONTRACT_VERSION, homeGuildId } from '../../../server/knowledge/scopes.mjs';
 import { BOSS_SAMPLING_POLICY_VERSION } from '../../../server/corpus/sampling-v2.mjs';
 
-const ENGINE_VERSION = '3.7.6';
+const ENGINE_VERSION = '3.7.7';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -58,16 +58,16 @@ async function decorateStatus(input, status) {
     deepTargetReports: Number(job?.deepTargetReports || 0) || null,
     targetReports: Number(job?.targetReports || 0) || null,
     aggregate: aggregate ? aggregateSummary(aggregate) : status.aggregate,
-    model: raw ? modelDiagnosticsV376(raw, aggregate) : (status.model || null),
+    model: raw ? modelDiagnosticsV377(raw, aggregate) : (status.model || null),
   };
 }
 
 async function policyModel(input) {
   const {raw,aggregate} = await policyContext(input);
-  const model=applyBossSamplingPolicyV376(raw, aggregate);
+  const model=applyBossSamplingPolicyV377(raw, aggregate);
   if(model){
     model.engineVersion=ENGINE_VERSION;
-    if(model.validation) model.validation.publicationMode='manual-review-hold-v3.7.6-sampling-v3';
+    if(model.validation) model.validation.publicationMode='manual-review-hold-v3.7.7-query-guided';
   }
   return model;
 }
@@ -121,7 +121,7 @@ export default defineHandler(async (event) => {
           ...corpusExecutionDescriptor(),
           ...health,
           engineVersion: ENGINE_VERSION,
-          policyVersion: 'relation-provenance-v2+boss-sampling-v3',
+          policyVersion: 'relation-provenance-v2+boss-sampling-v3+query-guided-rec-v1',
           knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
           samplingPolicyVersion: BOSS_SAMPLING_POLICY_VERSION,
           homeGuildId: homeGuildId(),
