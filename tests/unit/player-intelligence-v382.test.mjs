@@ -72,5 +72,7 @@ test('Players v3.8.2 runtime owns full-roster rendering and never treats perform
   assert.match(runtime,/reliability-table-v382/);
   assert.match(runtime,/first indexed appearance/i);
   assert.match(runtime,/classified failures/i);
+  assert.match(runtime,/if\(v===null\|\|v===undefined\|\|v==='\'\)return null/);
+  assert.match(runtime,/const scoreText=v=>finite\(v\)==null\?'PENDING'/);
   assert.doesNotMatch(runtime,/itemLevel|talentImport|gearCount/);
 });
