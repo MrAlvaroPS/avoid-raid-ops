@@ -5,7 +5,7 @@ import { fetchCompleteDeepEventData, DEEP_STREAM_PAGINATION_POLICY_VERSION } fro
 import { sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 import { corpusSplit, hashString } from './aggregate.mjs';
 
-export const QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v3';
+export const QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v4';
 export const QUERY_GUIDED_OUTCOME_WEIGHTS = Object.freeze({ kill:0.20, deepWipe:0.30, midWipe:0.30, earlyWipe:0.20 });
 
 const num=value=>Number.isFinite(Number(value))?Number(value):0;
@@ -171,6 +171,7 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
     surgicalProbeExpressions:buildAbilityProbeExpressions(focus),
     queryPolicy:{
       canonicalDeepUsesExactFightIDs:true,
+      canonicalWideEligibilityRequired:true,
       maxFightsPerReport,
       goalSemantics:'minimum-both',
       maySelectAdditionalReportsToMeetPullGoal:true,
@@ -180,7 +181,7 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
       independentStreamCursors:true,
       surgicalAbilityProbesCountAsDeepReports:false,
       surgicalAbilityProbesCountAsDeepPulls:false,
-      rationale:'Use WCL fightIDs to spend full Deep bandwidth only on fights that close report/outcome/source deficits. Report and pull targets are simultaneous minimum gates. Dense progression reports are valid; the per-report cap controls correlation rather than filtering those reports out. Any WCL event stream that paginates is continued from its own nextPageTimestamp before the profile can count as canonical Deep. Ability-filter probes are diagnostic evidence only and must never inflate canonical Deep coverage.',
+      rationale:'Use exact WCL fightIDs only from reports that are eligible in the current canonical Wide sample, then spend full Deep bandwidth on fights that close report/outcome/source deficits. Report and pull targets are simultaneous minimum gates. Dense progression reports are valid; the per-report cap controls correlation rather than filtering those reports out. Any WCL event stream that paginates is continued from its own nextPageTimestamp before the profile can count as canonical Deep. Ability-filter probes are diagnostic evidence only and must never inflate canonical Deep coverage.',
     },
   };
 }
