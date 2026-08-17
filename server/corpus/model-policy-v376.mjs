@@ -19,10 +19,11 @@ function samplingScore(manifest) {
   const deep = manifest.deep || {};
   const reportBalance = clamp(1 - Math.max(0, num(wide.maxSourceReportShare) - CORPUS_DEFAULTS.maxSourceReportShareToPublish) / Math.max(.01, 1 - CORPUS_DEFAULTS.maxSourceReportShareToPublish));
   const pullBalance = clamp(1 - Math.max(0, num(wide.maxSourcePullShare) - CORPUS_DEFAULTS.maxSourcePullShareToPublish) / Math.max(.01, 1 - CORPUS_DEFAULTS.maxSourcePullShareToPublish));
-  const deepBalance = clamp(1 - Math.max(0, num(deep.maxSourceReportShare) - CORPUS_DEFAULTS.maxDeepSourceReportShareToPublish) / Math.max(.01, 1 - CORPUS_DEFAULTS.maxDeepSourceReportShareToPublish));
+  const deepReportBalance = clamp(1 - Math.max(0, num(deep.maxSourceReportShare) - CORPUS_DEFAULTS.maxDeepSourceReportShareToPublish) / Math.max(.01, 1 - CORPUS_DEFAULTS.maxDeepSourceReportShareToPublish));
+  const deepPullBalance = clamp(1 - Math.max(0, num(deep.maxSourcePullShare) - CORPUS_DEFAULTS.maxDeepSourcePullShareToPublish) / Math.max(.01, 1 - CORPUS_DEFAULTS.maxDeepSourcePullShareToPublish));
   const outcomes = coverageScore(wide.strata, CORPUS_DEFAULTS.minSourcesPerOutcomeToPublish);
   const deepOutcomes = coverageScore(deep.strata, CORPUS_DEFAULTS.minDeepSourcesPerOutcomeToPublish);
-  const balance = .4 * reportBalance + .4 * pullBalance + .2 * deepBalance;
+  const balance = .35 * reportBalance + .35 * pullBalance + .15 * deepReportBalance + .15 * deepPullBalance;
   return { score: .55 * balance + .30 * outcomes + .15 * deepOutcomes, balance, outcomes, deepOutcomes };
 }
 
@@ -35,6 +36,7 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     maxSourceReportShare: CORPUS_DEFAULTS.maxSourceReportShareToPublish,
     maxSourcePullShare: CORPUS_DEFAULTS.maxSourcePullShareToPublish,
     maxDeepSourceReportShare: CORPUS_DEFAULTS.maxDeepSourceReportShareToPublish,
+    maxDeepSourcePullShare: CORPUS_DEFAULTS.maxDeepSourcePullShareToPublish,
     minSourcesPerOutcome: CORPUS_DEFAULTS.minSourcesPerOutcomeToPublish,
     minDeepSourcesPerOutcome: CORPUS_DEFAULTS.minDeepSourcesPerOutcomeToPublish,
   };
@@ -42,6 +44,7 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     maxSourceReportShare: thresholds.maxSourceReportShare,
     maxSourcePullShare: thresholds.maxSourcePullShare,
     maxDeepSourceReportShare: thresholds.maxDeepSourceReportShare,
+    maxDeepSourcePullShare: thresholds.maxDeepSourcePullShare,
     minSourcesPerOutcome: thresholds.minSourcesPerOutcome,
     minDeepSourcesPerOutcome: thresholds.minDeepSourcesPerOutcome,
   }) : {
@@ -52,6 +55,7 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     sourceReportBalance: false,
     sourcePullBalance: false,
     deepSourceBalance: false,
+    deepSourcePullBalance: false,
     outcomeCoverage: false,
     deepOutcomeCoverage: false,
   };
@@ -63,11 +67,18 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
   if (!samplingChecks.sourceIdentityComplete) { scorePct = Math.min(scorePct, 49); caps.push('source-identity-incomplete'); }
   if (!samplingChecks.sourceReportBalance || !samplingChecks.sourcePullBalance) { scorePct = Math.min(scorePct, 74); caps.push('source-concentration'); }
   if (!samplingChecks.outcomeCoverage) { scorePct = Math.min(scorePct, 69); caps.push('outcome-strata-under-covered'); }
-  if (!samplingChecks.deepSourceBalance || !samplingChecks.deepOutcomeCoverage) { scorePct = Math.min(scorePct, 79); caps.push('deep-sample-under-balanced'); }
+  if (!samplingChecks.deepSourceBalance || !samplingChecks.deepSourcePullBalance || !samplingChecks.deepOutcomeCoverage) { scorePct = Math.min(scorePct, 79); caps.push('deep-sample-under-balanced'); }
   if (!samplingChecks.homeSourceExcluded || Number(manifest?.homeSourceSelectedReports || 0) > 0) { scorePct = 0; caps.push('home-source-contamination'); }
 
   const previousRec = model?.learning?.enrichmentRecommendation || {};
-  const samplingBlocked = !samplingChecks.homeSourceExcluded || !samplingChecks.sourceIdentityComplete || !samplingChecks.sourceReportBalance || !samplingChecks.sourcePullBalance || !samplingChecks.outcomeCoverage || !samplingChecks.deepOutcomeCoverage;
+  const samplingBlocked = !samplingChecks.homeSourceExcluded
+    || !samplingChecks.sourceIdentityComplete
+    || !samplingChecks.sourceReportBalance
+    || !samplingChecks.sourcePullBalance
+    || !samplingChecks.deepSourceBalance
+    || !samplingChecks.deepSourcePullBalance
+    || !samplingChecks.outcomeCoverage
+    || !samplingChecks.deepOutcomeCoverage;
   const recommendation = samplingBlocked ? {
     ...previousRec,
     priority: 'high',
@@ -87,12 +98,13 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     sourceReportBalance: Boolean(samplingChecks.sourceReportBalance),
     sourcePullBalance: Boolean(samplingChecks.sourcePullBalance),
     deepSourceBalance: Boolean(samplingChecks.deepSourceBalance),
+    deepSourcePullBalance: Boolean(samplingChecks.deepSourcePullBalance),
     outcomeCoverage: Boolean(samplingChecks.outcomeCoverage),
     deepOutcomeCoverage: Boolean(samplingChecks.deepOutcomeCoverage),
   };
 
-  model.engineVersion = '3.7.6-sampling-v2';
-  model.policyVersion = 'relation-provenance-v2+boss-sampling-v2';
+  model.engineVersion = '3.7.6-sampling-v3';
+  model.policyVersion = 'relation-provenance-v2+boss-sampling-v3';
   model.status = 'candidate';
   model.knowledgeContract = {
     version: IRIS_KNOWLEDGE_CONTRACT_VERSION,
@@ -121,7 +133,7 @@ export function applyBossSamplingPolicyV376(input, aggregate = null) {
     cachedWideReports: manifest.cachedWideReports,
     cachedDeepReports: manifest.cachedDeepReports,
   } : null;
-  model.validation = { ...(model.validation || {}), thresholds, publishChecks: checks, publicationMode: 'manual-review-hold-v3.7.6-sampling-v2' };
+  model.validation = { ...(model.validation || {}), thresholds, publishChecks: checks, publicationMode: 'manual-review-hold-v3.7.6-sampling-v3' };
   model.learning = {
     ...(model.learning || {}),
     scorePct,
