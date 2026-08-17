@@ -67,7 +67,7 @@ async function policyModel(input) {
   const model=applyBossSamplingPolicyV376(raw, aggregate);
   if(model){
     model.engineVersion=ENGINE_VERSION;
-    if(model.validation) model.validation.publicationMode='manual-review-hold-v3.7.6-sampling-v2';
+    if(model.validation) model.validation.publicationMode='manual-review-hold-v3.7.6-sampling-v3';
   }
   return model;
 }
@@ -121,7 +121,7 @@ export default defineHandler(async (event) => {
           ...corpusExecutionDescriptor(),
           ...health,
           engineVersion: ENGINE_VERSION,
-          policyVersion: 'relation-provenance-v2+boss-sampling-v2',
+          policyVersion: 'relation-provenance-v2+boss-sampling-v3',
           knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
           samplingPolicyVersion: BOSS_SAMPLING_POLICY_VERSION,
           homeGuildId: homeGuildId(),
