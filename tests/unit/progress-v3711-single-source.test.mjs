@@ -114,7 +114,7 @@ test('History now builds and returns canonical Progress model v2', async () => {
   assert.match(history,/progress-metrics-v2\.mjs/);
   assert.match(history,/const built=buildProgressModel\(rawProgressionPulls\)/);
   assert.match(history,/progressModel/);
-  assert.match(history,/engineVersion:'3\.7\.12'/);
+  assert.match(history,/engineVersion:'3\.8\.2'/);
   assert.match(history,/server-derived-single-source-v2-data-integrity/);
 });
 
