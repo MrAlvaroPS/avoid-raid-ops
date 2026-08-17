@@ -101,12 +101,22 @@ test('CRITICAL KNOWLEDGE ACTIVATION: activating a candidate persists revision an
   }
 });
 
+test('CRITICAL KNOWLEDGE REINDEX: activation invalidates derived browser snapshots and refreshes the current screen',async()=>{
+  const source=await read('public/knowledge-reindex-v390.js');
+  new vm.Script(source,{filename:'knowledge-reindex-v390.js'});
+  for(const path of ['/api/wcl/report','/api/wcl/status','/api/wcl/telemetry','/api/wcl/history','/api/wcl/intelligence'])assert.ok(source.includes(`'${path}'`));
+  assert.match(source,/cache\.delete\(request\)/);
+  assert.match(source,/document\.querySelector\('\.wcl button'\)\?\.click\(\)/);
+  assert.match(source,/rawEvidence:'immutable'/);
+});
+
 test('CRITICAL RELEASE WIRING: v3.9 activity/data runtime and styles are active before report consumers',async()=>{
   const index=await read('index.html');
   const bootstrap=index.indexOf('/wcl-bootstrap-v389.js?v=3.8.9.1');
   const hub=index.indexOf('/data-hub-v390.js?v=3.9.0-refactor');
+  const reindex=index.indexOf('/knowledge-reindex-v390.js?v=3.9.0-refactor');
   const runtime=index.indexOf('/wcl-runtime.js?v=3.8.5');
   assert.ok(index.includes('/raidops-v390.css?v=3.9.0-refactor'));
-  assert.ok(bootstrap>=0&&hub>bootstrap&&runtime>hub);
+  assert.ok(bootstrap>=0&&hub>bootstrap&&reindex>hub&&runtime>reindex);
   assert.ok(index.includes('/corpus-ui-stability-v1.js?v=1.1.0'));
 });
