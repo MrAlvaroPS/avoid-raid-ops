@@ -14,7 +14,7 @@ const [rootPkgSource,webPkgSource,bootstrap,appShell,route,service]=await Promis
 const rootPkg=JSON.parse(rootPkgSource),webPkg=JSON.parse(webPkgSource);
 expect(rootPkg.private===true,'root package must remain private');
 expect(webPkg.private===true,'web package must remain private');
-expect(rootPkg.version==='0.3.9-2-vercel.0','root Vercel package transport version must preserve the v3.9.2 compatibility contract');
+expect(rootPkg.version==='0.3.9-4-vercel.0','root Vercel package transport version must preserve the v3.9.4 compatibility contract');
 expect(rootPkg.version!==PRODUCT_RELEASE_VERSION,'root npm transport version must not be treated as the product release');
 expect(webPkg.version==='0.0.0-private.0','web npm version must not masquerade as product release');
 expect(rootPkg.workspaces?.includes('packages/release'),'root workspaces must include @avoid/release');
