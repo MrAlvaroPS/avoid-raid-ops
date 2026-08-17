@@ -10,10 +10,10 @@ import {
   executeSemanticProbePlanV1,
   semanticProbeRunKey,
 } from '../../../server/corpus/semantic-surgical-probe-executor-v1.mjs';
-import { verifySemanticProbeEvidenceV2 } from '../../../server/corpus/semantic-probe-verifier-v2.mjs';
+import { verifySemanticProbeEvidenceV3 } from '../../../server/corpus/semantic-probe-verifier-v3.mjs';
 import { buildStoredSemanticSourceEvidenceV2,buildStoredFlankBackgroundEvidenceV2 } from '../../../server/corpus/semantic-probe-stored-evidence-v2.mjs';
 
-const API_VERSION='semantic-probe-api-v3';
+const API_VERSION='semantic-probe-api-v4';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 
 function inputFrom(request,body={}){
@@ -108,7 +108,7 @@ async function reverifyStored(input){
     const stored=buildStoredSemanticSourceEvidenceV2({signalId:signal.id,evidenceRecords});
     const innerRadius=Math.min(...SEMANTIC_PROBE_EXECUTION_DEFAULTS.windowRadiiMs);
     const background=buildStoredFlankBackgroundEvidenceV2({signalId:signal.id,evidenceRecords,innerRadiusMs:innerRadius});
-    const verification=verifySemanticProbeEvidenceV2({
+    const verification=verifySemanticProbeEvidenceV3({
       signalId:signal.id,sourceEvidence:stored.sourceEvidence,backgroundEvidence:background.backgroundEvidence,abilityKnowledge,
       minimumIndependentSources:signal?.verificationContract?.minimumIndependentSources||3,
       minimumAnchorOccurrences:signal?.verificationContract?.minimumAnchorOccurrences||6,
@@ -116,7 +116,7 @@ async function reverifyStored(input){
     results.push({signalId:Number(signal.id),stored:stored.summary,background:background.summary,verification});
   }
   return{
-    version:'semantic-stored-reverification-v2',scope:ctx.args,wclCallsExecuted:0,providerNetworkCallsExecuted:0,
+    version:'semantic-stored-reverification-v3',scope:ctx.args,wclCallsExecuted:0,providerNetworkCallsExecuted:0,
     evidenceSource:'persisted-diagnostic-semantic-surgical',providerKnowledgeSource:abilityKnowledge?'caller-supplied':'none',
     results,
     safety:{canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false},
