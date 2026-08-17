@@ -7,6 +7,10 @@ import {
   executeSemanticProbePlanV1,
   semanticProbeExecutionFingerprint,
 } from '../../server/corpus/semantic-surgical-probe-executor-v1.mjs';
+import {
+  SEMANTIC_PROBE_EVENTS_QUERY,
+  SEMANTIC_PROBE_EVENTS_CONTINUATION_QUERY,
+} from '../../server/wcl/queries/semantic-probes.mjs';
 
 const TARGET=700001,NEIGHBOR=700002;
 const CONFIG={...SEMANTIC_PROBE_EXECUTION_DEFAULTS,maxWclCalls:20,maxAnchorContinuationRounds:1,maxContextContinuationRounds:0,maxContextQueries:6,windowRadiiMs:[2500]};
@@ -59,6 +63,13 @@ function fakeFetcher(log){
     return{rateLimitData,reportData:{report}};
   };
 }
+
+test('semantic probe queries match the WCL v2 Report.events abilityID Float contract',()=>{
+  for(const query of [SEMANTIC_PROBE_EVENTS_QUERY,SEMANTIC_PROBE_EVENTS_CONTINUATION_QUERY]){
+    assert.match(query,/\$abilityID:Float\b/);
+    assert.doesNotMatch(query,/\$abilityID:Int\b/);
+  }
+});
 
 test('execution preview is stable, 0-WCL and exposes an honest bounded call budget',()=>{
   const p=plan();
