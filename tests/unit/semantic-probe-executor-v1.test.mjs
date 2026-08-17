@@ -178,17 +178,22 @@ test('executor uses exact fights, reproduces a generic pattern across sources, p
 
 test('semantic execution surface is isolated from corpus Improve and remains POST-confirmed',async()=>{
   const route=await readFile(new URL('../../routes/api/wcl/semantic-probe.js',import.meta.url),'utf8');
-  assert.match(route,/action!=='execute'/);
-  assert.match(route,/confirmExecution!==true/);
-  assert.match(route,/Preview fingerprint is missing or stale/);
-  assert.match(route,/GET supports only preview or result/);
-  assert.doesNotMatch(route,/startCorpus|launchCorpusExecution|improveModel/);
+  const service=await readFile(new URL('../../server/services/semantic-probe-service.mjs',import.meta.url),'utf8');
+  assert.match(route,/semantic-probe-service\.mjs/,'Nitro transport must delegate semantic-probe policy to its service owner');
+  assert.doesNotMatch(route,/action!==['"]execute['"]|confirmExecution|Preview fingerprint/,'Nitro transport must stay policy-free');
+  assert.match(service,/action!==['"]execute['"]/);
+  assert.match(service,/request\.method!==['"]POST['"]/);
+  assert.match(service,/confirmExecution!==true/);
+  assert.match(service,/Preview fingerprint is missing or stale/);
+  assert.match(service,/GET supports only preview or result/);
+  assert.doesNotMatch(service,/startCorpus|launchCorpusExecution|improveModel/);
 
   const genericPaths=[
     '../../server/corpus/semantic-surgical-probe-executor-v1.mjs',
     '../../server/corpus/semantic-probe-wcl-v1.mjs',
     '../../server/corpus/semantic-probe-verifier-v1.mjs',
     '../../server/wcl/queries/semantic-probes.mjs',
+    '../../server/services/semantic-probe-service.mjs',
     '../../routes/api/wcl/semantic-probe.js',
   ];
   const banned=[/Belo['’]?ren/i,/Voidlight Rupture/i,/\b3182\b/,/\b1243866\b/];
