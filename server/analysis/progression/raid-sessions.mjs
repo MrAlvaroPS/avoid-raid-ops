@@ -6,6 +6,7 @@ const absStart=(report,fight)=>Number(report.startTime||0)+Number(fight.startTim
 const absEnd=(report,fight)=>Number(report.startTime||0)+Number(fight.endTime||0);
 const duration=(fight)=>Math.max(0,Number(fight.endTime||0)-Number(fight.startTime||0));
 const clean=v=>String(v||'').trim().toLowerCase();
+const eligibleFight=(fight,includeAllClosed=false)=>!fight?.inProgress&&(includeAllClosed||classifyPullForAnalysis(fight).eligible);
 
 function actorIdentity(actor){
   if(!actor)return null;
@@ -52,10 +53,10 @@ function normalizePull(report,fight){
   };
 }
 
-export function dedupeSessionPulls(reports){
+export function dedupeSessionPulls(reports,{includeAllClosed=false}={}){
   const candidates=[];
   for(const report of reports||[]){
-    for(const fight of (report.fights||[]).filter(f=>!f.inProgress&&classifyPullForAnalysis(f).eligible)){
+    for(const fight of (report.fights||[]).filter(f=>eligibleFight(f,includeAllClosed))){
       candidates.push(normalizePull(report,fight));
     }
   }
@@ -76,7 +77,7 @@ export function dedupeSessionPulls(reports){
   return out;
 }
 
-export function clusterRaidSessions(reports,{gapMs=45*60*1000,currentReportCode=null}={}){
+export function clusterRaidSessions(reports,{gapMs=45*60*1000,currentReportCode=null,includeAllClosed=false}={}){
   const sorted=(reports||[]).filter(Boolean).slice().sort((a,b)=>Number(a.startTime)-Number(b.startTime));
   const clusters=[];
   for(const report of sorted){
@@ -90,7 +91,7 @@ export function clusterRaidSessions(reports,{gapMs=45*60*1000,currentReportCode=
     session.endTime=Math.max(session.endTime,Number(report.endTime));
   }
   return clusters.map((session,index)=>{
-    const pulls=dedupeSessionPulls(session.reports);
+    const pulls=dedupeSessionPulls(session.reports,{includeAllClosed});
     const pcts=pulls.map(p=>p.fightPercentage).filter(Number.isFinite);
     const reportCodes=session.reports.map(r=>r.code);
     const preferred=session.reports.find(r=>r.code===currentReportCode)||session.reports[0];
@@ -111,7 +112,8 @@ export function clusterRaidSessions(reports,{gapMs=45*60*1000,currentReportCode=
       bestFightPercentage:pcts.length?Math.min(...pcts):null,
       medianFightPercentage:pcts.length?median(pcts):null,
       rosterSizeMedian:median(pulls.map(p=>p.rosterSize).filter(Number.isFinite)),
-      deduplicatedPulls:candidatesCount(session.reports)-pulls.length,
+      deduplicatedPulls:candidatesCount(session.reports,{includeAllClosed})-pulls.length,
+      population:includeAllClosed?'all-closed-boss-pulls':'analytical-pulls',
       progressionPulls:pulls.map((p,pullIndex)=>({
         ...p,
         sessionId,
@@ -122,6 +124,6 @@ export function clusterRaidSessions(reports,{gapMs=45*60*1000,currentReportCode=
   }).filter(s=>s.pulls>0);
 }
 
-function candidatesCount(reports){
-  return (reports||[]).reduce((n,r)=>n+(r.fights||[]).filter(f=>!f.inProgress&&classifyPullForAnalysis(f).eligible).length,0);
+function candidatesCount(reports,{includeAllClosed=false}={}){
+  return (reports||[]).reduce((n,r)=>n+(r.fights||[]).filter(f=>eligibleFight(f,includeAllClosed)).length,0);
 }
