@@ -11,13 +11,14 @@
     "build:web": "npm --workspace @avoid/web run build",
     "verify:golden": "python3 scripts/verify_golden.py",
     "verify:architecture": "python3 scripts/verify_architecture.py",
-    "verify": "npm run verify:golden && npm run verify:architecture && npm run verify:reconstruction && npm test",
-    "test": "node --test tests/unit/*.test.mjs",
     "verify:reconstruction": "python3 scripts/verify_reconstruction.py",
     "verify:data-truth": "python3 scripts/verify_data_truth_ui.py",
+    "verify:vercel": "node scripts/verify-vercel.mjs",
+    "verify": "npm run verify:golden && npm run verify:architecture && npm run verify:reconstruction && npm run verify:data-truth && npm test",
+    "verify:all": "npm run verify && npm run build",
+    "test": "node --test tests/unit/*.test.mjs",
     "build": "npm run verify:vercel && npm test && vite build",
-    "preview": "vite preview",
-    "verify:vercel": "node scripts/verify-vercel.mjs"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@vercel/blob": "2.6.1",
