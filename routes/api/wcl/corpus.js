@@ -15,7 +15,7 @@ import { aggregateKey, jobKey, corpusId } from '../../../server/corpus/keys.mjs'
 import { aggregateSummary } from '../../../server/corpus/aggregate.mjs';
 import { applyBossSamplingPolicyV380, modelDiagnosticsV380 } from '../../../server/corpus/model-policy-v380.mjs';
 import { buildSurgicalProbePlanV1 } from '../../../server/corpus/surgical-probe-planner-v1.mjs';
-import { buildSemanticSurgicalProbePlanV1, SEMANTIC_SURGICAL_PROBE_PLAN_VERSION } from '../../../server/corpus/semantic-surgical-probe-planner-v1.mjs';
+import { buildSemanticSurgicalProbePlanV2, SEMANTIC_SURGICAL_PROBE_PLAN_V2_VERSION } from '../../../server/corpus/semantic-surgical-probe-planner-v2.mjs';
 import { startTargetedDeepV373 } from '../../../server/corpus/targeted-deep-v373.mjs';
 import { IRIS_KNOWLEDGE_CONTRACT_VERSION, homeGuildId } from '../../../server/knowledge/scopes.mjs';
 import { BOSS_SAMPLING_POLICY_VERSION } from '../../../server/corpus/sampling-v2.mjs';
@@ -75,12 +75,15 @@ async function policyModel(input) {
   return model;
 }
 
-async function persistedProfiles(args){
-  const keys=await corpusList(`profiles/${corpusId(args)}/`);
+async function persistedProfilesAt(prefix,args){
+  const keys=await corpusList(`${prefix}/${corpusId(args)}/`);
   const profiles=[];
   for(const key of keys){const profile=await corpusGet(key);if(profile)profiles.push(profile);}
   return profiles;
 }
+
+async function persistedProfiles(args){return persistedProfilesAt('profiles',args);}
+async function persistedDeepProfiles(args){return persistedProfilesAt('deep',args);}
 
 async function probePlan(input) {
   const {raw,aggregate,args}=await policyContext(input);
@@ -104,11 +107,12 @@ async function semanticProbePlan(input){
   const {raw,aggregate,args}=await policyContext(input);
   if(!raw||!aggregate||!args)throw new Error('No persisted canonical boss model is available for semantic probe planning');
   const model=applyBossSamplingPolicyV380(raw,aggregate);
-  const profiles=await persistedProfiles(args);
-  return buildSemanticSurgicalProbePlanV1({
+  const [wideProfiles,deepProfiles]=await Promise.all([persistedProfiles(args),persistedDeepProfiles(args)]);
+  return buildSemanticSurgicalProbePlanV2({
     model,
     aggregate,
-    profiles,
+    wideProfiles,
+    deepProfiles,
     encounterId:args.encounterId,
     difficulty:args.difficulty,
     partition:args.partition,
@@ -179,7 +183,7 @@ export default defineHandler(async (event) => {
           ...health,
           engineVersion: ENGINE_VERSION,
           policyVersion: 'signal-triage-v1+local-mechanic-synthesis-v1+semantic-contract-v1+decision-separation-v1',
-          semanticProbePlanVersion:SEMANTIC_SURGICAL_PROBE_PLAN_VERSION,
+          semanticProbePlanVersion:SEMANTIC_SURGICAL_PROBE_PLAN_V2_VERSION,
           bossAgnosticLearningContract:'iris-boss-agnostic-learning-pipeline-v1',
           knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
           samplingPolicyVersion: BOSS_SAMPLING_POLICY_VERSION,
