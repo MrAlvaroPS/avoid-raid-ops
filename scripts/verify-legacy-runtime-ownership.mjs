@@ -4,7 +4,8 @@ import {
   LEGACY_RUNTIME_OWNERSHIP_VERSION,
   LEGACY_RUNTIME_PATH,
   LEGACY_RUNTIME_RESPONSIBILITIES,
-  LEGACY_RUNTIME_PROGRESS_SHADOWED,
+  LEGACY_RUNTIME_PROGRESS_INTERCEPTED,
+  LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES,
 } from '../config/legacy-runtime-ownership.mjs';
 
 const root=new URL('../',import.meta.url);
@@ -40,16 +41,22 @@ const legacyAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtim
 const progressAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='progress-runtime');
 expect(legacyAsset?.authority==='compatibility','wcl-runtime.js must remain compatibility-only in active asset ownership');
 expect(progressAsset?.authority==='primary'&&progressAsset?.owner==='progress','Progress runtime must remain the primary Progress owner');
-expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Progress owner must load after the legacy runtime it shadows');
+expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Progress owner must load after the legacy runtime it intercepts');
 
 const progressEntry=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='progress-shadowed-writers');
-expect(progressEntry?.status==='shadowed-by-primary-owner','Progress legacy writers must be explicitly shadowed, not primary');
-expect(progressEntry?.canonicalOwner==='public/progress-runtime-v3713.js','Progress legacy writers must point to the canonical Progress owner');
-expect(JSON.stringify(progressEntry?.functions)===JSON.stringify(LEGACY_RUNTIME_PROGRESS_SHADOWED),'Progress shadowed writer list must have one canonical declaration');
-for(const fn of LEGACY_RUNTIME_PROGRESS_SHADOWED){
+expect(progressEntry?.status==='shadowed-by-primary-owner','retirable Progress legacy writers must be explicitly shadowed, not primary');
+expect(progressEntry?.canonicalOwner==='public/progress-runtime-v3713.js','retirable Progress legacy writers must point to the canonical Progress owner');
+expect(JSON.stringify(progressEntry?.functions)===JSON.stringify(LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES),'Progress retirement candidates must have one canonical declaration');
+for(const fn of LEGACY_RUNTIME_PROGRESS_INTERCEPTED){
   expect(new RegExp(`['\"]${fn}['\"]`).test(progress),`canonical Progress owner no longer intercepts ${fn}`);
 }
 expect(/writerPolicy:'single-progress-writer'/.test(progress),'Progress owner must retain single-writer policy');
+
+const curveEntry=classified.get('applyProgressCurve');
+expect(curveEntry?.id==='shared-progression-curve','applyProgressCurve must remain classified separately from retirable Progress writers');
+expect(curveEntry?.status==='shared-compatibility-helper','applyProgressCurve is still shared compatibility behavior, not dead Progress code');
+expect(curveEntry?.canonicalOwner==='public/wcl-runtime.js','applyProgressCurve must stay owned by compatibility runtime until its Command Center use is extracted');
+expect((legacy.match(/applyProgressCurve\s*\(\s*\)/g)||[]).length>=2,'applyProgressCurve no longer has the known cross-screen call pattern; review ownership before changing it');
 
 const applyAll=classified.get('applyAll');
 expect(applyAll?.status==='compatibility-orchestrator','applyAll must stay classified as orchestration, not a product-domain owner');
@@ -65,5 +72,6 @@ for(const entry of LEGACY_RUNTIME_RESPONSIBILITIES)statusCounts[entry.status]=(s
 console.log('LEGACY RUNTIME OWNERSHIP VERIFICATION: PASS');
 console.log(` - ${declared.length} function declarations are explicitly classified; 0 unowned`);
 console.log(` - ${LEGACY_RUNTIME_RESPONSIBILITIES.length} responsibilities have named domains and retirement paths`);
-console.log(` - Progress has ${LEGACY_RUNTIME_PROGRESS_SHADOWED.length} legacy writers shadowed by progress-runtime-v3713.js`);
+console.log(` - Progress intercepts ${LEGACY_RUNTIME_PROGRESS_INTERCEPTED.length} legacy functions but only ${LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES.length} are currently physical-retirement candidates`);
+console.log(' - applyProgressCurve remains shared with Command Center and cannot be removed as Progress-only code');
 console.log(` - status distribution ${JSON.stringify(statusCounts)}`);

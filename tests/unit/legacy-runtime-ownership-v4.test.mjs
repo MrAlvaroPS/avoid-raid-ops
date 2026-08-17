@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   LEGACY_RUNTIME_OWNERSHIP,
   LEGACY_RUNTIME_RESPONSIBILITIES,
-  LEGACY_RUNTIME_PROGRESS_SHADOWED,
+  LEGACY_RUNTIME_PROGRESS_INTERCEPTED,
+  LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES,
 } from '../../config/legacy-runtime-ownership.mjs';
 
 test('legacy WCL runtime responsibilities are explicit and contain no miscellaneous bucket',()=>{
@@ -17,12 +18,21 @@ test('legacy WCL runtime responsibilities are explicit and contain no miscellane
   }
 });
 
-test('Progress legacy writers are explicitly shadowed by the canonical Progress runtime',()=>{
-  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_SHADOWED,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
+test('Progress interception is broader than the safe physical-retirement set',()=>{
+  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_INTERCEPTED,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
+  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES,['applyProgressPage','applyHistoryData','applyRealProgressMatrix']);
   const progress=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='progress-shadowed-writers');
   assert.equal(progress.status,'shadowed-by-primary-owner');
   assert.equal(progress.canonicalOwner,'public/progress-runtime-v3713.js');
-  assert.deepEqual(progress.functions,LEGACY_RUNTIME_PROGRESS_SHADOWED);
+  assert.deepEqual(progress.functions,LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES);
+});
+
+test('applyProgressCurve stays shared until Command Center is extracted from the compatibility monolith',()=>{
+  const curve=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='shared-progression-curve');
+  assert.equal(curve.domain,'command-center-progress');
+  assert.equal(curve.status,'shared-compatibility-helper');
+  assert.equal(curve.canonicalOwner,'public/wcl-runtime.js');
+  assert.match(curve.retirement,/extract-shared-curve/);
 });
 
 test('Corpus workbench remains classified but migration does not resume corpus operations',()=>{

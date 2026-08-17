@@ -13,8 +13,11 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('command-center','command-center','compatibility-writer','public/wcl-runtime.js','move-to-command-center-source-owner',[
     'applyCommandCenter','applyTelemetryCoreCorrections','applyPullIntelligenceToCommand','applyIntelligenceCommandCenter',
   ]),
+  responsibility('shared-progression-curve','command-center-progress','shared-compatibility-helper','public/wcl-runtime.js','extract-shared-curve-before-removing-progress-wrapper',[
+    'applyProgressCurve',
+  ]),
   responsibility('progress-shadowed-writers','progress','shadowed-by-primary-owner','public/progress-runtime-v3713.js','remove-after-wrapper-free-regression-proof',[
-    'applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix',
+    'applyProgressPage','applyHistoryData','applyRealProgressMatrix',
   ]),
   responsibility('progress-compatibility-guard','progress','compatibility-guard','public/wcl-runtime.js','move-missing-history-policy-to-progress-owner',[
     'neutralizeMissingHistory',
@@ -48,11 +51,13 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   ]),
 ]);
 
-export const LEGACY_RUNTIME_PROGRESS_SHADOWED=Object.freeze(['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
+export const LEGACY_RUNTIME_PROGRESS_INTERCEPTED=Object.freeze(['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
+export const LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES=Object.freeze(['applyProgressPage','applyHistoryData','applyRealProgressMatrix']);
 
 export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   version:LEGACY_RUNTIME_OWNERSHIP_VERSION,
   path:LEGACY_RUNTIME_PATH,
   responsibilities:LEGACY_RUNTIME_RESPONSIBILITIES,
-  progressShadowed:LEGACY_RUNTIME_PROGRESS_SHADOWED,
+  progressIntercepted:LEGACY_RUNTIME_PROGRESS_INTERCEPTED,
+  progressRetirementCandidates:LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES,
 });

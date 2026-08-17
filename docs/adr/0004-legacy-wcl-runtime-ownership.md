@@ -4,7 +4,7 @@ Status: accepted during the pre-4.0 repository reorganization.
 
 ## Problem
 
-`public/wcl-runtime.js` is still active, but its historical shape hides several different kinds of code in one file: shared DOM/format helpers, WCL fetch orchestration, screen writers, Data Truth guards, Corpus controls and writers that have already been superseded by newer domain runtimes.
+`public/wcl-runtime.js` is still active, but its historical shape hides several different kinds of code in one file: shared DOM/format helpers, WCL fetch orchestration, screen writers, Data Truth guards, Corpus controls and functions intercepted by newer domain runtimes.
 
 Treating the whole file as either "legacy" or "owner" is unsafe. Deleting it would lose active behavior; allowing it to remain an undefined catch-all would let ownership drift back into a monolith.
 
@@ -23,18 +23,24 @@ Treating the whole file as either "legacy" or "owner" is unsafe. Deleting it wou
 
 This first stage is intentionally observational: it does not move or delete runtime behavior.
 
-## Progress is the first retirement candidate
+## Progress interception is not the same as safe deletion
 
-Four Progress functions remain physically present in the compatibility runtime:
+`public/progress-runtime-v3713.js` loads after the compatibility runtime and intercepts four global functions while the strategic Progress screen is active:
 
 - `applyProgressPage`
 - `applyProgressCurve`
 - `applyHistoryData`
 - `applyRealProgressMatrix`
 
-They are not the active Progress owner. `public/progress-runtime-v3713.js` loads after the compatibility runtime and wraps those exact global functions so they do nothing while the strategic Progress screen is active. Its declared policy remains `single-progress-writer`.
+However, only three are currently classified as Progress-only physical-retirement candidates:
 
-That existing handoff makes Progress the safest first domain for physical retirement from `wcl-runtime.js`, but removal will be a separate gated change. The next stage must prove the canonical Progress runtime no longer needs wrapper interception before those legacy functions are deleted.
+- `applyProgressPage`
+- `applyHistoryData`
+- `applyRealProgressMatrix`
+
+`applyProgressCurve` is deliberately excluded from that set. The compatibility implementation is also called by Command Center to render its progression curve, so removing it as if it were dead Progress code would create a cross-screen regression. It remains `shared-compatibility-helper` until that curve is extracted behind an explicit shared or Command Center owner.
+
+This distinction is a migration invariant: interception proves who may write on a screen; it does not by itself prove a function has no callers elsewhere.
 
 ## Other domains
 
