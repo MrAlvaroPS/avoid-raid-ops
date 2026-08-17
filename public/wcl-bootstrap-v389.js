@@ -58,7 +58,8 @@ function statusCard(){return document.getElementById('raidops-wcl-bootstrap-stat
 function patchVisibleRelease(){
   const label=document.querySelector('.division b');
   if(!label)return;
-  label.dataset.release=`v${RELEASE}`;
+  const release=`v${RELEASE}`;
+  if(label.dataset.release!==release)label.dataset.release=release;
   if(!document.getElementById('raidops-release-v389-style')){
     const style=document.createElement('style');
     style.id='raidops-release-v389-style';
