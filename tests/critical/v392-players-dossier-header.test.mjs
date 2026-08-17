@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read=file=>readFile(new URL(`../../${file}`,import.meta.url),'utf8');
 
-test('CRITICAL v3.9.2 PLAYERS: dossier remains column owner and roster scrolls only after consuming useful height',async()=>{
+test('CRITICAL v3.9.2 PLAYERS: dossier remains column owner, is reacquired after shell rebuilds, and roster scrolls only after useful height',async()=>{
   const [css,runtime,index]=await Promise.all([
     read('public/raidops-v392.css'),read('public/player-intelligence-v392.js'),read('index.html')
   ]);
@@ -16,6 +16,11 @@ test('CRITICAL v3.9.2 PLAYERS: dossier remains column owner and roster scrolls o
   assert.match(runtime,/dossier\.getBoundingClientRect\(\)\.height/);
   assert.match(runtime,/--players-roster-max-height/);
   assert.match(runtime,/list\.scrollHeight>target\+1\?'auto':'visible'/);
+  assert.match(runtime,/detailNode!==ownedDetail/);
+  assert.match(runtime,/listNode!==ownedList/);
+  assert.match(runtime,/matrixNode!==ownedMatrix/);
+  assert.match(runtime,/if\(!force&&sig===last&&!domRebuilt\)/);
+  assert.match(runtime,/playerDossierOwned='true'/);
   assert.ok(index.indexOf('/raidops-v392.css?v=3.9.2')>index.indexOf('/raidops-v390.css?v=3.9.0'));
   assert.match(index,/player-intelligence-v392\.js\?v=3\.9\.2/);
 });
