@@ -9,8 +9,10 @@ import {
   executeSemanticProbePlanV1,
   semanticProbeRunKey,
 } from '../corpus/semantic-surgical-probe-executor-v1.mjs';
+import { verifySemanticProbeEvidenceV2 } from '../corpus/semantic-probe-verifier-v2.mjs';
+import { buildStoredSemanticSourceEvidenceV2,buildStoredFlankBackgroundEvidenceV2 } from '../corpus/semantic-probe-stored-evidence-v2.mjs';
 
-const API_VERSION='semantic-probe-api-v2';
+const API_VERSION='semantic-probe-api-v3';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 
 function inputFrom(request,body={}){
@@ -101,6 +103,34 @@ async function preview(input){
   return{...ctx,config,preview:probePreview};
 }
 
+async function reverifyStored(input){
+  const ctx=await context(input);
+  const keys=await corpusList(`semantic-probes/${corpusId(ctx.args)}/evidence/`);
+  const evidenceRecords=(await Promise.all(keys.map(key=>corpusGet(key).catch(()=>null)))).filter(Boolean);
+  const requestedId=Number(input.signalId||0);
+  const signals=(ctx.plan.signals||[]).filter(signal=>!requestedId||Number(signal.id)===requestedId);
+  if(!signals.length)throw new Error(requestedId?'Requested signal is not in the current semantic probe plan':'Current semantic probe plan has no signals');
+  const abilityKnowledge=input.abilityKnowledge||input.providerKnowledge||null;
+  const results=[];
+  for(const signal of signals){
+    const stored=buildStoredSemanticSourceEvidenceV2({signalId:signal.id,evidenceRecords});
+    const innerRadius=Math.min(...SEMANTIC_PROBE_EXECUTION_DEFAULTS.windowRadiiMs);
+    const background=buildStoredFlankBackgroundEvidenceV2({signalId:signal.id,evidenceRecords,innerRadiusMs:innerRadius});
+    const verification=verifySemanticProbeEvidenceV2({
+      signalId:signal.id,sourceEvidence:stored.sourceEvidence,backgroundEvidence:background.backgroundEvidence,abilityKnowledge,
+      minimumIndependentSources:signal?.verificationContract?.minimumIndependentSources||3,
+      minimumAnchorOccurrences:signal?.verificationContract?.minimumAnchorOccurrences||6,
+    });
+    results.push({signalId:Number(signal.id),stored:stored.summary,background:background.summary,verification});
+  }
+  return{
+    version:'semantic-stored-reverification-v2',scope:ctx.args,wclCallsExecuted:0,providerNetworkCallsExecuted:0,
+    evidenceSource:'persisted-diagnostic-semantic-surgical',providerKnowledgeSource:abilityKnowledge?'caller-supplied':'none',
+    results,
+    safety:{canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false},
+  };
+}
+
 export default async function semanticProbeService(request){
   const url=new URL(request.url);
   const queryAction=String(url.searchParams.get('action')||'preview');
@@ -118,7 +148,7 @@ export default async function semanticProbeService(request){
         const result=await corpusGet(semanticProbeRunKey(row.plan,String(input.fingerprint)));
         return json({ok:Boolean(result),apiVersion:API_VERSION,wclCallsExecuted:0,result},result?200:404);
       }
-      return json({ok:false,error:'GET supports only preview or result. Semantic probe execution is POST-only.'},405);
+      return json({ok:false,error:'GET supports only preview or result. Semantic probe execution and stored re-verification are POST-only.'},405);
     }
 
     if(request.method!=='POST')return json({ok:false,error:'Method not allowed'},405);
@@ -129,6 +159,10 @@ export default async function semanticProbeService(request){
     if(action==='preview'){
       const row=await preview(input);
       return json({ok:true,apiVersion:API_VERSION,wclCallsExecuted:0,preview:row.preview});
+    }
+    if(action==='reverify'){
+      const result=await reverifyStored(input);
+      return json({ok:true,apiVersion:API_VERSION,wclCallsExecuted:0,providerNetworkCallsExecuted:0,result});
     }
     if(action!=='execute')return json({ok:false,error:`Unsupported semantic probe action: ${action}`},400);
     if(body.confirmExecution!==true)return json({ok:false,error:'confirmExecution:true is required; no WCL call was made',wclCallsExecuted:0},400);
