@@ -22,26 +22,11 @@ function response(overrides={},spent=100){
 test('Deep pagination advances each WCL stream from its own nextPageTimestamp',async()=>{
   const calls=[];
   const pages=[
-    response({
-      enemyCasts:stream([{id:'cast-1'}],null),
-      friendDamage:stream([{id:'damage-1'}],100),
-      buffs:stream([{id:'buff-1'}],200),
-    },100),
-    response({
-      friendDamage:stream([{id:'damage-2'}],150),
-      buffs:stream([{id:'buff-2'}],null),
-    },140),
-    response({
-      friendDamage:stream([{id:'damage-3'}],null),
-    },160),
+    response({enemyCasts:stream([{id:'cast-1'}],null),friendDamage:stream([{id:'damage-1'}],100),buffs:stream([{id:'buff-1'}],200)},100),
+    response({friendDamage:stream([{id:'damage-2'}],150),buffs:stream([{id:'buff-2'}],null)},140),
+    response({friendDamage:stream([{id:'damage-3'}],null)},160),
   ];
-  const fetcher=async(query,variables)=>{
-    calls.push({query,variables});
-    const page=pages[calls.length-1];
-    if(!page)throw new Error('unexpected extra WCL page');
-    return page;
-  };
-
+  const fetcher=async(query,variables)=>{calls.push({query,variables});const page=pages[calls.length-1];if(!page)throw new Error('unexpected extra WCL page');return page;};
   const out=await fetchCompleteDeepEventData({code:'ABC',fightIDs:[1,2,2],fetcher});
   assert.equal(out.pagination.policyVersion,DEEP_STREAM_PAGINATION_POLICY_VERSION);
   assert.equal(out.pagination.complete,true);
@@ -55,7 +40,6 @@ test('Deep pagination advances each WCL stream from its own nextPageTimestamp',a
   assert.deepEqual(out.data.reportData.report.buffs.data.map(x=>x.id),['buff-1','buff-2']);
   assert.equal(out.data.reportData.report.friendDamage.nextPageTimestamp,null);
   assert.equal(out.data.rateLimitData.pointsSpentThisHour,160);
-
   assert.deepEqual(calls[0].variables.fightIDs,[1,2]);
   assert.equal(calls[1].variables.friendDamageOn,true);
   assert.equal(calls[1].variables.friendDamageStart,100);
@@ -68,58 +52,30 @@ test('Deep pagination advances each WCL stream from its own nextPageTimestamp',a
 });
 
 test('Deep pagination keeps a stalled cursor incomplete instead of looping or fabricating coverage',async()=>{
-  let n=0;
-  const fetcher=async()=>{
-    n++;
-    if(n===1)return response({friendDamage:stream([{id:1}],100)});
-    return response({friendDamage:stream([{id:2}],100)});
-  };
+  let n=0;const fetcher=async()=>{n++;if(n===1)return response({friendDamage:stream([{id:1}],100)});return response({friendDamage:stream([{id:2}],100)});};
   const out=await fetchCompleteDeepEventData({code:'STALL',fightIDs:[7],fetcher});
-  assert.equal(n,2);
-  assert.equal(out.pagination.complete,false);
-  assert.equal(out.pagination.reason,'stalled-cursor');
-  assert.deepEqual(out.pagination.stalledStreams,['friendDamage']);
-  assert.deepEqual(out.pagination.remainingStreams,['friendDamage']);
-  assert.equal(out.data.reportData.report.friendDamage.nextPageTimestamp,100);
+  assert.equal(n,2);assert.equal(out.pagination.complete,false);assert.equal(out.pagination.reason,'stalled-cursor');assert.deepEqual(out.pagination.stalledStreams,['friendDamage']);assert.deepEqual(out.pagination.remainingStreams,['friendDamage']);assert.equal(out.data.reportData.report.friendDamage.nextPageTimestamp,100);
 });
 
 test('Deep pagination exposes an honest shortfall when the continuation safety limit is reached',async()=>{
-  let n=0;
-  const fetcher=async()=>{
-    n++;
-    if(n===1)return response({debuffs:stream([{id:1}],100)});
-    return response({debuffs:stream([{id:2}],200)});
-  };
+  let n=0;const fetcher=async()=>{n++;if(n===1)return response({debuffs:stream([{id:1}],100)});return response({debuffs:stream([{id:2}],200)});};
   const out=await fetchCompleteDeepEventData({code:'CAP',fightIDs:[9],maxContinuationRounds:1,fetcher});
-  assert.equal(n,2);
-  assert.equal(out.pagination.complete,false);
-  assert.equal(out.pagination.reason,'max-continuation-rounds');
-  assert.deepEqual(out.pagination.remainingStreams,['debuffs']);
-  assert.equal(out.data.reportData.report.debuffs.nextPageTimestamp,200);
+  assert.equal(n,2);assert.equal(out.pagination.complete,false);assert.equal(out.pagination.reason,'max-continuation-rounds');assert.deepEqual(out.pagination.remainingStreams,['debuffs']);assert.equal(out.data.reportData.report.debuffs.nextPageTimestamp,200);
 });
 
 test('continuation query has independent start cursors and skips already-complete aliases',()=>{
-  for(const key of DEEP_STREAM_KEYS){
-    assert.match(CORPUS_DEEP_EVENTS_CONTINUATION_QUERY,new RegExp(`\\$${key}Start:Float`));
-    assert.match(CORPUS_DEEP_EVENTS_CONTINUATION_QUERY,new RegExp(`@include\\(if:\\$${key}On\\)`));
-    assert.match(CORPUS_DEEP_EVENTS_CONTINUATION_QUERY,new RegExp(`startTime:\\$${key}Start`));
-  }
+  for(const key of DEEP_STREAM_KEYS){assert.match(CORPUS_DEEP_EVENTS_CONTINUATION_QUERY,new RegExp(`\\$${key}Start:Float`));assert.match(CORPUS_DEEP_EVENTS_CONTINUATION_QUERY,new RegExp(`@include\\(if:\\$${key}On\\)`));assert.match(CORPUS_DEEP_EVENTS_CONTINUATION_QUERY,new RegExp(`startTime:\\$${key}Start`));}
 });
 
 test('all current Deep acquisition paths use the shared paginator before normalization',()=>{
-  for(const path of ['../../server/corpus/deep-profile.mjs','../../server/corpus/deep-profile-v373.mjs','../../server/corpus/query-guided-deep-v1.mjs']){
-    const source=fs.readFileSync(new URL(path,import.meta.url),'utf8');
-    assert.match(source,/fetchCompleteDeepEventData/);
-  }
+  for(const path of ['../../server/corpus/deep-profile.mjs','../../server/corpus/deep-profile-v373.mjs','../../server/corpus/query-guided-deep-v1.mjs']){const source=fs.readFileSync(new URL(path,import.meta.url),'utf8');assert.match(source,/fetchCompleteDeepEventData/);}
   const queryGuided=fs.readFileSync(new URL('../../server/corpus/query-guided-deep-v1.mjs',import.meta.url),'utf8');
   assert.match(queryGuided,/normalized\.deepStreamPagination=fetched\.pagination/);
-  assert.match(queryGuided,/QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v3'/);
+  assert.match(queryGuided,/QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v4'/);
+  assert.match(queryGuided,/canonicalWideEligibilityRequired:true/);
 });
 
 test('a fresh targeted Deep plan retries diagnostic-only profiles and excludes only canonical-complete Deep',()=>{
   const source=fs.readFileSync(new URL('../../server/corpus/targeted-deep-v373.mjs',import.meta.url),'utf8');
-  assert.match(source,/canonicalDeepCodes/);
-  assert.match(source,/isCanonicalDeepComplete\(profile\)/);
-  assert.match(source,/const processedDeep=await canonicalDeepCodes\(args\)/);
-  assert.match(source,/queryGuidedIncompleteReports:0/);
+  assert.match(source,/canonicalDeepCodes/);assert.match(source,/isCanonicalDeepComplete\(profile\)/);assert.match(source,/const processedDeep=await canonicalDeepCodes\(args\)/);assert.match(source,/queryGuidedIncompleteReports:0/);
 });
