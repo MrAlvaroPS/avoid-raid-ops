@@ -23,12 +23,12 @@ export async function recompileCorpusModelV2(input = {}) {
   if (!job) throw new Error('Corpus job has not been started');
   const config = clampCorpusConfig(input);
   const { aggregate, model, manifest } = await rebuildCanonicalBossCorpus({ args, job, currentAggregate, config, purgeHomeGuild: true });
-  job.engineVersion = '3.7.6-sampling-v2';
+  job.engineVersion = '3.7.6-sampling-v3';
   job.status = 'ready';
   job.phase = 'complete';
   job.updatedAt = Date.now();
   job.completedAt = Date.now();
-  job.message = `RECOMPILE · 0 WCL · canonical sampling v2 selected ${aggregate.wideReports.toLocaleString()} Wide reports / ${aggregate.deepReports.toLocaleString()} Deep reports across ${manifest.wide.sources.toLocaleString()} independent sources; AvoiD/home uploaders excluded.`;
+  job.message = `RECOMPILE · 0 WCL · canonical sampling v3 selected ${aggregate.wideReports.toLocaleString()} Wide reports / ${aggregate.deepReports.toLocaleString()} Deep reports across ${manifest.wide.sources.toLocaleString()} independent sources; hard source caps applied where mathematically feasible; AvoiD/home uploaders excluded.`;
   await Promise.all([
     corpusSet(jobKey(args), job),
     corpusSet(aggregateKey(args), aggregate),
