@@ -1,6 +1,6 @@
 import { wclGraphql } from '../wcl/client/graphql-client.mjs';
 import { ENCOUNTER_META_QUERY } from '../wcl/queries/telemetry.mjs';
-import { ENCOUNTER_INTELLIGENCE_QUERY,MECHANIC_DAMAGE_PAGE_QUERY,FEATHER_DEBUFF_PAGE_QUERY,FEATHER_BUFF_PAGE_QUERY,idsFilter } from '../wcl/queries/intelligence.mjs';
+import { ENCOUNTER_INTELLIGENCE_QUERY,MECHANIC_DAMAGE_PAGE_QUERY,FEATHER_DEBUFF_PAGE_QUERY,FEATHER_BUFF_PAGE_QUERY,MEANINGFUL_DEATH_PAGE_QUERY,idsFilter } from '../wcl/queries/intelligence.mjs';
 import { selectEncounter } from '../wcl/normalization/fights.mjs';
 import { paginatorEvents,eventTargetId,eventAbilityId,eventSourceId } from '../wcl/normalization/events.mjs';
 import { getEncounterRulePack } from '../rule-packs/encounters/registry.mjs';
@@ -92,7 +92,7 @@ async function paginateEvents({query,field,initial,vars,maxPages=12}){
   return{events,next,pages,truncated:next!=null};
 }
 
-function buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight,reportCode,encounter}){
+function buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight,survivalSourceComplete=false,reportCode,encounter}){
   const ledgers=buildReliabilityEvidenceLedger({
     players:telemetry?.players||[],
     fights:closed,
@@ -102,6 +102,7 @@ function buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight
     // Do not turn raid-level cast counts into fake player successes.
     mechanicOpportunities:mechanicsRaw?.playerOpportunities||[],
     meaningfulDeathsByFight:meaningfulByFight,
+    survivalSourceComplete,
     defensiveOpportunities:telemetry?.reliabilityEvidence?.defensiveOpportunities||[],
     dutyOpportunities:telemetry?.reliabilityEvidence?.dutyOpportunities||[],
     reportCode,
@@ -114,6 +115,7 @@ function buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight
     status:'shadow',
     scope:'report-encounter',
     parseIndependent:true,
+    survivalSourceComplete:Boolean(survivalSourceComplete),
     profiles,
     summary:{
       players:profiles.length,
@@ -121,6 +123,7 @@ function buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight
       pending:profiles.filter(p=>p.value==null).length,
       mechanicFailuresObserved:ledgers.reduce((s,l)=>s+(l.mechanics?.unscoredFailures?.length||0),0),
       playerMechanicOpportunities:ledgers.reduce((s,l)=>s+(l.mechanics?.opportunities?.length||0),0),
+      survivalOpportunities:ledgers.reduce((s,l)=>s+(l.survival?.opportunities?.length||0),0),
       confirmedDefensiveOpportunities:ledgers.reduce((s,l)=>s+(l.defensives?.opportunities?.length||0),0),
       provenDutyOpportunities:ledgers.reduce((s,l)=>s+(l.duties?.opportunities?.length||0),0)
     },
@@ -131,13 +134,13 @@ function buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight
 export async function getEncounterIntelligence({reportCode,encounterId}){
   const meta=await wclGraphql(ENCOUNTER_META_QUERY,{code:reportCode});const report=meta?.reportData?.report;if(!report)return null;
   const selected=selectEncounter(report.fights,encounterId);const rawClosed=selected.filter(f=>!f.inProgress);const initialSplit=splitAnalyticalPulls(rawClosed);const closed=initialSplit.eligible;const encounter=closed.at(-1)||rawClosed.at(-1)||selected.at(-1);
-  if(!encounter)return{generatedAt:Date.now(),engineVersion:'3.8.0',status:'no-encounter'};
-  if(!closed.length)return{generatedAt:Date.now(),engineVersion:'3.8.0',status:'no-eligible-pulls',encounter:{id:encounter.encounterID,name:encounter.name,pulls:0,rawPulls:rawClosed.length},analysisPopulation:{rawPulls:rawClosed.length,eligiblePulls:0,excludedPulls:initialSplit.excluded,eligibleFightIds:[],policy:'called-wipe/reset pulls remain in WCL history but are excluded from product analytics'},dataTruth:{policy:'real-derived-or-explicit-pending',pullEligibility:'first-class called-wipe/reset exclusion',reliability:'shadow-v1'}};
+  if(!encounter)return{generatedAt:Date.now(),engineVersion:'3.8.2',status:'no-encounter'};
+  if(!closed.length)return{generatedAt:Date.now(),engineVersion:'3.8.2',status:'no-eligible-pulls',encounter:{id:encounter.encounterID,name:encounter.name,pulls:0,rawPulls:rawClosed.length},analysisPopulation:{rawPulls:rawClosed.length,eligiblePulls:0,excludedPulls:initialSplit.excluded,eligibleFightIds:[],policy:'called-wipe/reset pulls remain in WCL history but are excluded from product analytics'},dataTruth:{policy:'real-derived-or-explicit-pending',pullEligibility:'first-class called-wipe/reset exclusion',reliability:'shadow-v1'}};
 
   const generatedModel=await loadPublishedEncounterModel({encounterId:encounter.encounterID,difficulty:encounter.difficulty||5,partition:0}).catch(()=>null);
   const pack=generatedModel?.pack||getEncounterRulePack(encounter.encounterID);
   const packSource=generatedModel?'generated-wcl-corpus':pack?'manual-fallback':null;
-  if(!pack)return{generatedAt:Date.now(),engineVersion:'3.8.0',encounter:{id:encounter.encounterID,name:encounter.name,pulls:closed.length,rawPulls:rawClosed.length},analysisPopulation:{rawPulls:rawClosed.length,eligiblePulls:closed.length,excludedPulls:initialSplit.excluded},status:'no-rule-pack',corpusModel:{status:'missing',action:'Build the encounter corpus from the Mechanics page.'},dataTruth:{policy:'real-derived-or-explicit-pending',reliability:'shadow-v1-no-encounter-denominators'}};
+  if(!pack)return{generatedAt:Date.now(),engineVersion:'3.8.2',encounter:{id:encounter.encounterID,name:encounter.name,pulls:closed.length,rawPulls:rawClosed.length},analysisPopulation:{rawPulls:rawClosed.length,eligiblePulls:closed.length,excludedPulls:initialSplit.excluded},status:'no-rule-pack',corpusModel:{status:'missing',action:'Build the encounter corpus from the Mechanics page.'},dataTruth:{policy:'real-derived-or-explicit-pending',reliability:'shadow-v1-no-encounter-denominators'}};
 
   const filters=filtersForPack(pack);const fightIds=closed.map(f=>Number(f.id));
   const raw=await wclGraphql(ENCOUNTER_INTELLIGENCE_QUERY,{code:reportCode,all:fightIds,damageFilter:idsFilter(filters.damage),castFilter:idsFilter(filters.casts),enemyBuffFilter:idsFilter(filters.enemyBuffs),featherFilter:idsFilter(filters.friendlyAuras)});
@@ -146,7 +149,8 @@ export async function getEncounterIntelligence({reportCode,encounterId}){
   const damagePage=await paginateEvents({query:MECHANIC_DAMAGE_PAGE_QUERY,field:'mechanicDamage',initial:r.mechanicDamage,vars:{code:reportCode,all:fightIds,damageFilter:idsFilter(filters.damage)},maxPages:12});
   const debuffPage=await paginateEvents({query:FEATHER_DEBUFF_PAGE_QUERY,field:'feather',initial:r.featherDebuffs,vars:{code:reportCode,all:fightIds,featherFilter:idsFilter(filters.friendlyAuras)},maxPages:12});
   const buffPage=await paginateEvents({query:FEATHER_BUFF_PAGE_QUERY,field:'feather',initial:r.featherBuffs,vars:{code:reportCode,all:fightIds,featherFilter:idsFilter(filters.friendlyAuras)},maxPages:12});
-  const damageEvents=dedupeEvents(damagePage.events);const castEvents=paginatorEvents(r.mechanicCasts);const enemyBuffEvents=paginatorEvents(r.mechanicEnemyBuffs);const friendlyAuraEvents=dedupeEvents([...debuffPage.events,...buffPage.events]);const meaningfulDeathEvents=paginatorEvents(r.meaningfulDeaths);
+  const deathPage=await paginateEvents({query:MEANINGFUL_DEATH_PAGE_QUERY,field:'meaningfulDeaths',initial:r.meaningfulDeaths,vars:{code:reportCode,all:fightIds},maxPages:12});
+  const damageEvents=dedupeEvents(damagePage.events);const castEvents=paginatorEvents(r.mechanicCasts);const enemyBuffEvents=paginatorEvents(r.mechanicEnemyBuffs);const friendlyAuraEvents=dedupeEvents([...debuffPage.events,...buffPage.events]);const meaningfulDeathEvents=dedupeEvents(deathPage.events);
 
   const mechanicsRaw=analyzeEncounterMechanics({pack,fights:closed,damageEvents,castEvents,enemyBuffEvents,friendlyAuraEvents});
   const actors=new Map((report.masterData?.actors||[]).map(a=>[Number(a.id),a]));const meaningfulByFight=normalizeMeaningfulDeaths(meaningfulDeathEvents,closed,actors);
@@ -155,7 +159,7 @@ export async function getEncounterIntelligence({reportCode,encounterId}){
   const blocker=findCurrentBlocker({mechanicsAnalysis:{...mechanicsRaw,mechanics},deathChains,recentFightIds});
 
   const telemetry=await getTelemetry({reportCode,encounterId:encounter.encounterID});
-  const reliability=buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight,reportCode,encounter});
+  const reliability=buildReliabilityShadow({telemetry,closed,mechanicsRaw,meaningfulByFight,survivalSourceComplete:!deathPage.truncated,reportCode,encounter});
   const playerMatrix=buildPlayerMatrix({failures:mechanicsRaw.failures,deathChains,actors,recentFightIds});
   const reliabilityByActor=new Map((reliability.profiles||[]).map(p=>[Number(p.identity?.actorId),p]));
   for(const row of playerMatrix){const rel=reliabilityByActor.get(Number(row.actorId));if(rel)row.reliability={status:rel.status,value:rel.value,confidence:rel.confidence?.level||'unknown',explanation:rel.explanation};}
@@ -164,7 +168,7 @@ export async function getEncounterIntelligence({reportCode,encounterId}){
   const analyticalExcluded=telemetry?.pullIntelligence?.excludedPulls?.length?telemetry.pullIntelligence.excludedPulls:initialSplit.excluded;
 
   return{
-    generatedAt:Date.now(),engineVersion:'3.8.0',status:'ready',
+    generatedAt:Date.now(),engineVersion:'3.8.2',status:'ready',
     encounter:{id:encounter.encounterID,name:encounter.name,pulls:closed.length,rawPulls:rawClosed.length},
     analysisPopulation:{rawPulls:rawClosed.length,eligiblePulls:closed.length,excludedPulls:analyticalExcluded,eligibleFightIds:fightIds,policy:'called-wipe/reset pulls remain in WCL history but are excluded from product analytics'},
     rulePack:{slug:pack.slug,version:pack.version,mechanics:pack.mechanics.length,source:packSource},
@@ -177,13 +181,14 @@ export async function getEncounterIntelligence({reportCode,encounterId}){
       enemyBuffs:{events:enemyBuffEvents.length,truncated:Boolean(r.mechanicEnemyBuffs?.nextPageTimestamp)},
       assignmentAuras:{events:friendlyAuraEvents.length,debuffPages:debuffPage.pages,buffPages:buffPage.pages,truncated:debuffPage.truncated||buffPage.truncated,abilityIds:filters.friendlyAuras},
       featherAssignments:{events:friendlyAuraEvents.length,debuffPages:debuffPage.pages,buffPages:buffPage.pages,truncated:debuffPage.truncated||buffPage.truncated,abilityIds:filters.friendlyAuras},
-      meaningfulDeaths:{events:meaningfulDeathEvents.length,truncated:Boolean(r.meaningfulDeaths?.nextPageTimestamp)},
-      reliability:{modelVersion:RELIABILITY_MODEL_VERSION,profiles:reliability.summary.players,published:reliability.summary.published,playerMechanicOpportunities:reliability.summary.playerMechanicOpportunities,confirmedDefensiveOpportunities:reliability.summary.confirmedDefensiveOpportunities,provenDutyOpportunities:reliability.summary.provenDutyOpportunities}
+      meaningfulDeaths:{events:meaningfulDeathEvents.length,truncated:deathPage.truncated,pages:deathPage.pages,sourceComplete:!deathPage.truncated},
+      reliability:{modelVersion:RELIABILITY_MODEL_VERSION,profiles:reliability.summary.players,published:reliability.summary.published,playerMechanicOpportunities:reliability.summary.playerMechanicOpportunities,survivalOpportunities:reliability.summary.survivalOpportunities,confirmedDefensiveOpportunities:reliability.summary.confirmedDefensiveOpportunities,provenDutyOpportunities:reliability.summary.provenDutyOpportunities}
     },
     dataTruth:{policy:'real-derived-or-explicit-pending',mechanicFailures:packSource==='generated-wcl-corpus'?'validated-generated-rule-derived-WCL-evidence':'manual-fallback-rule-derived-WCL-evidence',deathCausality:'probable-temporal-association',defensiveAvailability:'pending',reliability:'shadow-v1-parse-independent-publication-gated',pullEligibility:'first-class called-wipe/reset exclusion',encounterKnowledge:packSource},
     warnings:[
       'Death cause is an evidence-ranked temporal association, not proof of causation.',
       packSource==='generated-wcl-corpus'?'Encounter semantics are auto-generated from a persisted WCL training/holdout corpus.':'Generated encounter model not published yet; using the curated fallback pack for this encounter.',
+      deathPage.truncated?'Meaningful-death pagination did not complete; Survival remains pending for affected evidence.':'Meaningful-death evidence is complete for the analysed report scope and may contribute to the Survival evidence ledger.',
       'Reliability v1 is running in shadow mode. Player mechanic failures remain unscored until clean player-opportunity denominators are proven; defensive availability and assigned-duty denominators are also publication gates.',
       'DPS/HPS/parse are explicitly excluded from the Reliability formula.'
     ]
