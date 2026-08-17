@@ -1,0 +1,34 @@
+/* AvoiD Raid Ops v3.9 refactor — shared card rhythm + data/activity shell. */
+:root{--raidops-card-gap:12px;--raidops-control-height:29px}
+
+/* Runtime-owned top-level cards must follow the same 12px rhythm as the Golden UI. */
+.canvas>.corpus-workbench,.canvas>[data-avoid-runtime-card]{margin:0 0 var(--raidops-card-gap)}
+.corpus-workbench .encounter-intelligence-v375{margin:0}
+.corpus-workbench+.panel,.corpus-workbench+.layout-2,.corpus-workbench+.layout-3{margin-top:0}
+
+/* Compact global activity indicator. It reports state transitions, never chatty polling logs. */
+.raidops-activity{display:flex;align-items:center;gap:7px;min-width:112px;max-width:240px;height:var(--raidops-control-height);padding:0 9px;border:1px solid #252e37;border-radius:5px;background:#0f1419;color:#77838c;font-size:7px;font-weight:750;white-space:nowrap;overflow:hidden}
+.raidops-activity>i{width:8px;height:8px;flex:0 0 8px;border-radius:50%;border:1px solid #50606b;border-top-color:var(--green)}
+.raidops-activity.busy>i{animation:raidopsActivitySpin .8s linear infinite}
+.raidops-activity.ready>i{border:0;background:var(--green);box-shadow:0 0 7px #58e3af55}
+.raidops-activity.error{color:#d88984;border-color:#593335}.raidops-activity.error>i{border:0;background:var(--red)}
+@keyframes raidopsActivitySpin{to{transform:rotate(360deg)}}
+
+.raidops-data-button{height:var(--raidops-control-height)!important;color:#8df1cb!important;border-color:#58e3af35!important}
+.raidops-data-drawer{position:fixed;z-index:2147482000;top:70px;right:24px;width:min(540px,calc(100vw - 48px));max-height:calc(100vh - 92px);overflow:auto;border:1px solid #29343c;border-radius:9px;background:rgba(10,14,18,.985);box-shadow:0 24px 80px #0009;padding:16px;color:var(--text);font-size:9px}
+.raidops-data-drawer[hidden]{display:none!important}
+.raidops-data-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid #202831}
+.raidops-data-head label,.raidops-data-section>label{display:block;color:var(--green);font-size:6px;font-weight:950;letter-spacing:1.3px}
+.raidops-data-head h3{font-size:15px;margin:3px 0}.raidops-data-head p{font-size:7px;color:#68747d;margin:0;line-height:1.45}
+.raidops-data-head button{border:0;color:#849099;font-size:18px;cursor:pointer;padding:0 4px}
+.raidops-data-section{padding:13px 0;border-bottom:1px solid #202831}.raidops-data-section:last-child{border-bottom:0;padding-bottom:0}
+.raidops-data-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.raidops-data-row select{min-width:210px;flex:1;height:32px;border:1px solid #28323b;border-radius:5px;background:#0d1217;color:#aab4ba;padding:0 9px;font-size:8px}
+.raidops-data-row button{height:32px;border:1px solid #29343c;border-radius:5px;background:#11171c;color:#89969f;padding:0 10px;font-size:7px;font-weight:900;cursor:pointer}
+.raidops-data-row button.primary{border-color:#58e3af38;background:#58e3af0d;color:#83e7c1}.raidops-data-row button.warn{border-color:#efb75f38;color:#d8b777}.raidops-data-row button:disabled{opacity:.42;cursor:default}
+.raidops-data-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px}.raidops-data-meta>div{border:1px solid #222b33;background:#0d1217;border-radius:5px;padding:8px}.raidops-data-meta span{display:block;color:#5f6b74;font-size:6px}.raidops-data-meta b{display:block;font-size:8px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.raidops-data-log{display:flex;flex-direction:column;gap:5px;margin-top:8px}.raidops-data-log p{display:grid;grid-template-columns:54px 1fr;gap:7px;margin:0;color:#7a878f;font-size:7px;line-height:1.35}.raidops-data-log time{color:#52606a}.raidops-data-log b{color:#aeb8bd;font-weight:650}.raidops-data-log p.error b{color:#d88984}.raidops-data-log p.ready b{color:#86c7aa}
+.raidops-data-note{margin-top:7px;color:#65727b;font-size:7px;line-height:1.5}.raidops-data-note strong{color:#aab5ba}
+
+@media(max-width:900px){.raidops-activity{display:none}.raidops-data-drawer{right:12px;top:62px;width:calc(100vw - 24px)}}
+@media(max-width:620px){.raidops-data-meta{grid-template-columns:1fr}.raidops-data-row select{min-width:100%}}
