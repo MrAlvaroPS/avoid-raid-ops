@@ -11,6 +11,13 @@
     raidLeader:RAID_LEADER,
     architecture:'multi-encounter',
     corpusScope:'encounter+difficulty+partition',
+    capabilityContract:'iris-capabilities-v1',
+    capabilityEndpoint:'/api/iris/capabilities',
+    operationsDocumentation:'IRIS-OPERATIONS.md',
+    operationsBridge:'window.__AVOID_IRIS_OPERATIONS__',
+    managedDomains:Object.freeze(['activity','data-mode','logs','live','knowledge','corpus']),
+    getOperations:()=>window.__AVOID_IRIS_OPERATIONS__||null,
+    loadCapabilities:()=>window.__AVOID_IRIS_OPERATIONS__?.capabilities?.()||Promise.resolve(window.__AVOID_IRIS_CAPABILITIES__||null),
   });
 
   // Component runtimes must never own the global visible application release label.

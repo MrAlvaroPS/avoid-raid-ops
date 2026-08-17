@@ -18,6 +18,23 @@ All meaningful product changes are recorded here. Git history remains the detail
 - Promoted Golden, architecture, reconstruction and browser Data Truth checks into the normal CI gate and pinned the browser verifier dependency for reproducibility.
 - Fixed a Linux case-sensitive Golden reconstruction check by falling back to the immutable Golden bundle when a historical extracted symbol collides by case.
 
+### Mainline integration — v3.9.0 to v3.9.2
+
+The 4.0.0 refactor baseline has been updated to preserve the developments merged to `main` after the Phase 3 branch was created. Their current stable release identity remains `3.9.2`; this integration does not claim 4.0.0.
+
+Preserved developments include:
+
+- Data Hub and its real-data/runtime ownership work;
+- Players/Reliability evidence and dossier improvements, including the v3.9.2 dossier-header hotfix;
+- Iris capability, operations and external-source registries;
+- Knowledge Store/revision boundaries and report-catalog functionality;
+- live-log controls and release-critical UI/ownership/spacing guards;
+- canonical Deep top-up, signal triage and local mechanic synthesis;
+- boss-agnostic learning and semantic/surgical probe planning/execution paths;
+- the new release-critical regression suite and associated documentation/contracts.
+
+Integration rules deliberately keep the Phase 3 architecture stronger than the pre-refactor layout: Netlify remains quarantined, tests continue to target active Vercel assets, browser Data Truth remains a CI gate, and the new critical test suite is additive rather than replacing existing verification.
+
 ### Verified checkpoint — Phase 3 / batch 1
 
 At commit `21963c9b5c92f5745b4943f9aa190e99911dfbb6` the refactor branch passes:

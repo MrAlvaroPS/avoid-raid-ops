@@ -1,7 +1,7 @@
 {
   "name": "avoid-raid-ops-vercel",
   "private": true,
-  "version": "0.3.8-9-vercel.1",
+  "version": "0.3.9-2-vercel.0",
   "type": "module",
   "workspaces": ["apps/web"],
   "scripts": {
@@ -14,10 +14,12 @@
     "verify:reconstruction": "python3 scripts/verify_reconstruction.py",
     "verify:data-truth": "python3 scripts/verify_data_truth_active.py",
     "verify:vercel": "node scripts/verify-vercel.mjs",
-    "verify": "npm run verify:golden && npm run verify:architecture && npm run verify:reconstruction && npm run verify:data-truth && npm test",
+    "verify": "npm run verify:golden && npm run verify:architecture && npm run verify:reconstruction && npm run verify:data-truth && npm run test:critical && npm test",
     "verify:all": "npm run verify && npm run build",
     "test": "node --test tests/unit/*.test.mjs",
-    "build": "npm run verify:vercel && npm test && vite build",
+    "test:critical": "node --test tests/critical/*.test.mjs",
+    "build": "npm run verify:vercel && npm run test:critical && npm test && vite build",
+    "preversion": "npm run verify:vercel && npm run test:critical",
     "preview": "vite preview"
   },
   "dependencies": {
