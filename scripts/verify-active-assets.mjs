@@ -8,6 +8,7 @@ import {
   RUNTIME_FAMILIES,
   HISTORICAL_ONLY_ASSETS,
 } from '../config/active-assets.mjs';
+import { synchronizeActiveAssetHtml } from './lib/active-asset-html.mjs';
 
 const root=new URL('../',import.meta.url);
 const html=await readFile(new URL('index.html',root),'utf8');
@@ -24,6 +25,9 @@ const cleanLocal=src=>src.split('?')[0];
 const publicPath=src=>`public${cleanLocal(src)}`;
 
 expect(ACTIVE_ASSET_MANIFEST_VERSION==='active-assets-v1','active asset manifest version must remain explicit');
+try{
+  expect(synchronizeActiveAssetHtml(html)===html,'index active asset blocks differ from canonical manifest; run npm run sync:assets');
+}catch(error){fail.push(`index active asset markers are invalid: ${error instanceof Error?error.message:String(error)}`)}
 expect(JSON.stringify(actualStyles)===JSON.stringify(expectedStyles),`index stylesheet transport differs from canonical manifest\n expected ${JSON.stringify(expectedStyles)}\n actual   ${JSON.stringify(actualStyles)}`);
 expect(JSON.stringify(actualScripts)===JSON.stringify(expectedScripts),`index script order differs from canonical manifest\n expected ${JSON.stringify(expectedScripts)}\n actual   ${JSON.stringify(actualScripts)}`);
 expect(ACTIVE_STYLES.length===2,'production must transport exactly Golden CSS plus one generated compatibility bundle');
@@ -87,6 +91,7 @@ if(fail.length){
   process.exit(1);
 }
 console.log('ACTIVE ASSET VERIFICATION: PASS');
+console.log(' - index.html active asset blocks are generated from the canonical manifest');
 console.log(` - ${ACTIVE_STYLES.length} stylesheet transports: immutable Golden + generated compatibility bundle`);
 console.log(` - ${CSS_BUNDLE_SOURCES.length} audited CSS source layers remain ordered and individually unlinked`);
 console.log(` - ${ACTIVE_LOCAL_SCRIPTS.length} local runtimes + ${ACTIVE_EXTERNAL_SCRIPTS.length} external reference script match the canonical load order`);
