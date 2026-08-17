@@ -34,12 +34,12 @@ test('legacy WCL Progress writers remain identifiable and are intercepted by the
 
 test('component versions remain traceable while product release has one shared owner',async()=>{
   const [pkg,webPkg,release,iris,players,bootstrap,capabilities,appShell]=await Promise.all([read('package.json'),read('apps/web/package.json'),read('packages/release/src/index.js'),read('public/iris-runtime-v3713.js'),read('public/player-intelligence-v392.js'),read('public/wcl-bootstrap-v389.js'),read('server/iris/capability-contract-v390.mjs'),read('apps/web/src/app/AppShell.js')]);
-  assert.match(pkg,/"version": "0\.3\.9-2-vercel\.0"/);assert.match(pkg,/"iris": "node --env-file=\.env\.local scripts\/iris-local-worker\.mjs"/);
+  assert.match(pkg,/"version": "0\.3\.9-4-vercel\.0"/);assert.match(pkg,/"iris": "node --env-file=\.env\.local scripts\/iris-local-worker\.mjs"/);
   assert.match(webPkg,/"version": "0\.0\.0-private\.0"/);assert.match(webPkg,/@avoid\/release/);
-  assert.match(release,/PRODUCT_RELEASE_VERSION='3\.9\.2'/);assert.match(release,/PRODUCT_RELEASE_LABEL=`v\$\{PRODUCT_RELEASE_VERSION\}`/);
+  assert.match(release,/PRODUCT_RELEASE_VERSION='3\.9\.4'/);assert.match(release,/PRODUCT_RELEASE_LABEL=`v\$\{PRODUCT_RELEASE_VERSION\}`/);
   assert.match(iris,/const RELEASE='3\.8\.5'/);assert.match(iris,/const IRIS='Iris'/);assert.match(iris,/const RAID_LEADER='Onie'/);
   assert.match(players,/const VERSION='3\.9\.2'/);
-  assert.match(capabilities,/release:'3\.9\.1'/);
+  assert.match(capabilities,/release:'3\.9\.4'/);
   assert.doesNotMatch(iris,/new MutationObserver/);assert.doesNotMatch(iris,/b\.textContent=wanted/);
   assert.doesNotMatch(players,/new MutationObserver/);assert.doesNotMatch(players,/\.division b/);
   assert.match(bootstrap,/const BOOTSTRAP_VERSION='3\.8\.9'/);assert.match(bootstrap,/nativeFetch\('\/api\/release'/);assert.doesNotMatch(bootstrap,/const RELEASE=/);
