@@ -4,13 +4,13 @@ const RELEASE='3.9.0-refactor';
 const CACHE_NAME='avoid-raidops-v390';
 const MODE_KEY='avoid:data-mode:v390';
 const LIVE_POLL_MS=30000;
-const CACHEABLE=new Set(['/api/wcl/report','/api/wcl/status','/api/wcl/telemetry','/api/wcl/history','/api/wcl/intelligence','/api/wcl/corpus','/api/wcl/reports','/api/knowledge']);
+const CACHEABLE=new Set(['/api/wcl/report','/api/wcl/status','/api/wcl/telemetry','/api/wcl/history','/api/wcl/intelligence','/api/wcl/corpus','/api/wcl/reports','/api/knowledge','/api/iris/capabilities']);
 const labels={
   '/api/wcl/report':'Loading report','/api/wcl/status':'Checking live status','/api/wcl/telemetry':'Loading pull telemetry',
-  '/api/wcl/history':'Loading raid history','/api/wcl/intelligence':'Running Iris analysis','/api/wcl/corpus':'Loading Encounter Corpus','/api/wcl/reports':'Updating AvoiD logs','/api/knowledge':'Loading game knowledge'
+  '/api/wcl/history':'Loading raid history','/api/wcl/intelligence':'Running Iris analysis','/api/wcl/corpus':'Loading Encounter Corpus','/api/wcl/reports':'Updating AvoiD logs','/api/knowledge':'Loading game knowledge','/api/iris/capabilities':'Loading Iris capabilities'
 };
 let dataMode=localStorage.getItem(MODE_KEY)==='stored'?'stored':'connected';
-let catalog=null,knowledge=null,liveTimer=null,liveState='stopped',drawer=null,activityNode=null,lastLiveFingerprint=null,liveTickCount=0;
+let catalog=null,knowledge=null,irisCapabilities=null,liveTimer=null,liveState='stopped',drawer=null,activityNode=null,lastLiveFingerprint=null,liveTickCount=0;
 const activity=window.__AVOID_ACTIVITY__=Array.isArray(window.__AVOID_ACTIVITY__)?window.__AVOID_ACTIVITY__:[];
 const previousFetch=window.fetch.bind(window);
 
@@ -56,19 +56,22 @@ async function syncCatalog(days=120,force=false){
   try{catalog=await fetchJson(u);emit(`${catalog.reports?.length||0} current-raid logs ready`,'ready');renderDrawer();return catalog}catch(error){emit(`Log catalogue failed · ${error.message}`,'error');renderDrawer();return null}
 }
 async function loadKnowledge(){try{knowledge=await fetchJson('/api/knowledge');renderDrawer();return knowledge}catch(error){emit(`Knowledge status failed · ${error.message}`,'error');return null}}
-async function refreshKnowledge(){
-  const patch=drawer?.querySelector('[data-k-patch]')?.value?.trim()||'unknown';const season=drawer?.querySelector('[data-k-season]')?.value?.trim()||'unknown';
+async function loadIrisCapabilities(){try{irisCapabilities=await fetchJson('/api/iris/capabilities');window.__AVOID_IRIS_CAPABILITIES__=irisCapabilities;return irisCapabilities}catch(error){emit(`Iris capability contract failed · ${error.message}`,'error');return null}}
+async function refreshKnowledge(input={}){
+  const patch=String(input?.patch??drawer?.querySelector('[data-k-patch]')?.value??'unknown').trim()||'unknown';
+  const season=String(input?.season??drawer?.querySelector('[data-k-season]')?.value??'unknown').trim()||'unknown';
+  const build=String(input?.build??'manual-refresh').trim()||'manual-refresh';
   emit('Staging game knowledge revision','busy');
-  try{knowledge=await fetchJson('/api/knowledge',{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify({action:'refresh',patch,season,build:'manual-refresh'})});emit('Knowledge candidate staged','ready');renderDrawer()}catch(error){emit(`Knowledge refresh failed · ${error.message}`,'error')}
+  try{knowledge=await fetchJson('/api/knowledge',{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify({action:'refresh',patch,season,build})});emit('Knowledge candidate staged','ready');renderDrawer();return knowledge}catch(error){emit(`Knowledge refresh failed · ${error.message}`,'error');return null}
 }
-async function activateKnowledge(){emit('Activating Iris knowledge revision','busy');try{knowledge=await fetchJson('/api/knowledge',{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify({action:'activate'})});emit('Iris revision active · derived data marked for reindex','ready');renderDrawer()}catch(error){emit(`Knowledge activation failed · ${error.message}`,'error')}}
+async function activateKnowledge(){emit('Activating Iris knowledge revision','busy');try{knowledge=await fetchJson('/api/knowledge',{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify({action:'activate'})});emit('Iris revision active · derived data marked for reindex','ready');renderDrawer();return knowledge}catch(error){emit(`Knowledge activation failed · ${error.message}`,'error');return null}}
 
-function selectReport(code){if(!code||code===currentReport())return;const u=new URL(location.href);u.searchParams.set('report',code);u.searchParams.set('guild',guildId());emit(`Switching to report ${code}`,'busy');location.assign(u.href)}
-function setMode(mode){dataMode=mode==='stored'?'stored':'connected';localStorage.setItem(MODE_KEY,dataMode);emit(dataMode==='stored'?'Stored-data mode enabled':'Connected-data mode enabled','ready');location.reload()}
+function selectReport(code){if(!code||code===currentReport())return false;const u=new URL(location.href);u.searchParams.set('report',code);u.searchParams.set('guild',guildId());emit(`Switching to report ${code}`,'busy');location.assign(u.href);return true}
+function setMode(mode){dataMode=mode==='stored'?'stored':'connected';localStorage.setItem(MODE_KEY,dataMode);emit(dataMode==='stored'?'Stored-data mode enabled':'Connected-data mode enabled','ready');location.reload();return dataMode}
 function liveFingerprint(status){const fight=status?.encounter?.latestFight||{};return [status?.encounter?.totalPulls??'',fight.id??'',fight.endTime??'',fight.inProgress?'1':'0'].join('|')}
 
 async function liveTick(){
-  if(liveState!=='running')return;
+  if(liveState!=='running')return null;
   const u=new URL('/api/wcl/status',location.origin);u.searchParams.set('report',currentReport());const encounter=new URLSearchParams(location.search).get('encounter');if(encounter)u.searchParams.set('encounter',encounter);u.searchParams.set('_',String(Date.now()));
   try{
     const status=await fetchJson(u),fingerprint=liveFingerprint(status),inProgress=Boolean(status?.encounter?.latestFight?.inProgress),changed=lastLiveFingerprint!==null&&fingerprint!==lastLiveFingerprint;
@@ -76,11 +79,12 @@ async function liveTick(){
     emit(inProgress?'Live pull detected':changed?'Closed-pull change detected':'Live log checked','ready',{kind:'live',changed});
     if(changed&&!inProgress)document.querySelector('.wcl button')?.click();
     if(liveTickCount%4===0)void syncCatalog(3,false);
-  }catch(error){emit(`Live poll failed · ${error.message}`,'error',{kind:'live'})}
+    return {status,changed,inProgress};
+  }catch(error){emit(`Live poll failed · ${error.message}`,'error',{kind:'live'});return null}
 }
-function startLive(){if(dataMode==='stored'){emit('Live polling requires connected mode','error');return}liveState='running';lastLiveFingerprint=null;liveTickCount=0;clearInterval(liveTimer);liveTimer=setInterval(liveTick,LIVE_POLL_MS);emit('Live log polling started · 30s','busy');void liveTick();renderDrawer()}
-function pauseLive(){if(liveState!=='running')return;liveState='paused';clearInterval(liveTimer);liveTimer=null;emit('Live log polling paused','ready');renderDrawer()}
-function stopLive(){liveState='stopped';clearInterval(liveTimer);liveTimer=null;lastLiveFingerprint=null;liveTickCount=0;emit('Live log polling stopped','ready');renderDrawer()}
+function startLive(){if(dataMode==='stored'){emit('Live polling requires connected mode','error');return liveState}liveState='running';lastLiveFingerprint=null;liveTickCount=0;clearInterval(liveTimer);liveTimer=setInterval(liveTick,LIVE_POLL_MS);emit('Live log polling started · 30s','busy');void liveTick();renderDrawer();return liveState}
+function pauseLive(){if(liveState!=='running')return liveState;liveState='paused';clearInterval(liveTimer);liveTimer=null;emit('Live log polling paused','ready');renderDrawer();return liveState}
+function stopLive(){liveState='stopped';clearInterval(liveTimer);liveTimer=null;lastLiveFingerprint=null;liveTickCount=0;emit('Live log polling stopped','ready');renderDrawer();return liveState}
 
 function renderLog(){const host=drawer?.querySelector('.raidops-data-log');if(!host)return;host.innerHTML=activity.slice(-5).reverse().map(row=>`<p class="${escapeHtml(row.state)}"><time>${new Date(row.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</time><b>${escapeHtml(row.message)}</b></p>`).join('')||'<p><time>—</time><b>No activity yet</b></p>'}
 function reportOptions(){const reports=catalog?.reports||[];if(!reports.length)return`<option value="${escapeHtml(currentReport())}">${escapeHtml(currentReport())} · current</option>`;return reports.map(r=>`<option value="${escapeHtml(r.code)}" ${r.code===currentReport()?'selected':''}>${escapeHtml(fmtDate(r.startTime))} · ${escapeHtml(r.title||r.code)}</option>`).join('')}
@@ -99,20 +103,34 @@ function renderDrawer(){
   drawer.querySelector('[data-history]')?.addEventListener('click',()=>syncCatalog(180,true));
   drawer.querySelector('[data-open]')?.addEventListener('click',()=>selectReport(drawer.querySelector('[data-report]')?.value));
   drawer.querySelector('[data-live-start]')?.addEventListener('click',startLive);drawer.querySelector('[data-live-pause]')?.addEventListener('click',pauseLive);drawer.querySelector('[data-live-stop]')?.addEventListener('click',stopLive);
-  drawer.querySelector('[data-k-refresh]')?.addEventListener('click',refreshKnowledge);drawer.querySelector('[data-k-activate]')?.addEventListener('click',activateKnowledge);
+  drawer.querySelector('[data-k-refresh]')?.addEventListener('click',()=>refreshKnowledge());drawer.querySelector('[data-k-activate]')?.addEventListener('click',activateKnowledge);
   renderLog();
 }
+
+function operationsState(){return Object.freeze({release:RELEASE,contract:'iris-capabilities-v1',dataMode,reportCode:currentReport(),guildId:guildId(),liveState,livePollMs:LIVE_POLL_MS,catalog:{loaded:Boolean(catalog),reports:catalog?.reports?.length||0,latestReport:catalog?.latestReport||null},knowledge:{loaded:Boolean(knowledge),active:knowledge?.active||null,candidate:knowledge?.candidate||null}})}
+
+window.__AVOID_IRIS_OPERATIONS__=Object.freeze({
+  contract:'iris-capabilities-v1',
+  capabilityEndpoint:'/api/iris/capabilities',
+  getState:operationsState,
+  capabilities:loadIrisCapabilities,
+  activity:Object.freeze({recent:()=>activity.slice()}),
+  data:Object.freeze({setMode}),
+  logs:Object.freeze({catalog:()=>catalog,syncLatest:()=>syncCatalog(21,true),loadHistory:()=>syncCatalog(180,true),selectReport}),
+  live:Object.freeze({start:startLive,pause:pauseLive,stop:stopLive,tick:liveTick}),
+  knowledge:Object.freeze({status:loadKnowledge,stage:refreshKnowledge,activate:activateKnowledge}),
+});
 
 function mount(){
   const selectors=document.querySelector('.selectors');if(!selectors||document.getElementById('raidops-data-button'))return;
   activityNode=document.createElement('div');activityNode.className='raidops-activity ready';activityNode.innerHTML='<i></i><span>Ready</span>';selectors.prepend(activityNode);
   const button=document.createElement('button');button.id='raidops-data-button';button.type='button';button.className='raidops-data-button';button.textContent='DATA ⌄';selectors.append(button);
   drawer=document.createElement('aside');drawer.id='raidops-data-hub';drawer.className='raidops-data-drawer';drawer.hidden=true;document.body.append(drawer);
-  button.addEventListener('click',()=>{drawer.hidden=!drawer.hidden;if(!drawer.hidden){renderDrawer();if(!catalog)void syncCatalog(120,false);if(!knowledge)void loadKnowledge();}});
+  button.addEventListener('click',()=>{drawer.hidden=!drawer.hidden;if(!drawer.hidden){renderDrawer();if(!catalog)void syncCatalog(120,false);if(!knowledge)void loadKnowledge();if(!irisCapabilities)void loadIrisCapabilities();}});
   window.addEventListener('avoid:wcl-request-state',event=>{const d=event.detail||{},label=labels[d.path];if(!label)return;if(d.state==='pending')emit(label,'busy',{path:d.path});else if(d.state==='complete')emit(`${label.replace(/^Loading /,'')} ready`,'ready',{path:d.path});else if(d.state==='timeout'||d.state==='error')emit(`${label} failed${d.error?` · ${String(d.error).slice(0,90)}`:''}`,'error',{path:d.path})});
   emit(dataMode==='stored'?'Stored data mode':'Connected data mode','ready');
 }
 
-window.__AVOID_DATA_HUB__=Object.freeze({release:RELEASE,cache:CACHE_NAME,get mode(){return dataMode},livePollMs:LIVE_POLL_MS,reportScope:'selected-report + encounter-wide history',noisePolicy:'exact-current-raid-zone'});
+window.__AVOID_DATA_HUB__=Object.freeze({release:RELEASE,cache:CACHE_NAME,get mode(){return dataMode},livePollMs:LIVE_POLL_MS,reportScope:'selected-report + encounter-wide history',noisePolicy:'exact-current-raid-zone',irisOperationsBridge:'window.__AVOID_IRIS_OPERATIONS__'});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
 })();
