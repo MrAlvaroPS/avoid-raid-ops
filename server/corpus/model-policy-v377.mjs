@@ -14,6 +14,10 @@ function wideSamplingBlocked(model={}){
     || !checks.outcomeCoverage;
 }
 
+function canonicalDeficit(deficits,key,fallback=0){
+  return Object.hasOwn(deficits||{},key)?Math.max(0,num(deficits[key])):Math.max(0,num(fallback));
+}
+
 export function applyQueryGuidedDeepRecommendationV377(model){
   if(!model)return null;
   const previous=model?.learning?.enrichmentRecommendation||{};
@@ -24,16 +28,19 @@ export function applyQueryGuidedDeepRecommendationV377(model){
     num(previous.estimatedExistingWideReportsAvailableForDeep),
     num(corpus.wideReports)-num(corpus.deepReports),
   );
-  const deepReportDeficit=Math.max(0,num(deficits.deepReports||previous.suggestedAdditionalDeepReports));
-  const deepPullDeficit=Math.max(0,num(deficits.deepPulls||previous.suggestedAdditionalDeepPulls));
+  const deepReportDeficit=canonicalDeficit(deficits,'deepReports',previous.suggestedAdditionalDeepReports);
+  const deepPullDeficit=canonicalDeficit(deficits,'deepPulls',previous.suggestedAdditionalDeepPulls);
 
   // A missing/unbalanced Deep sample is not a reason to buy more Wide diversity when
   // the canonical Wide pool itself is already clean. Deep balance is created by Deep
   // acquisition. This specifically avoids the v3.7.6 loop where deepOutcomeCoverage=false
   // forced `diversity-first` even with hundreds of trusted Wide reports ready to upgrade.
   if(!wideSamplingBlocked(model)&&existingWideForDeep>0&&(deepReportDeficit>0||deepPullDeficit>0)){
-    const requestedReports=Math.min(existingWideForDeep,Math.max(1,deepReportDeficit||num(previous.suggestedAdditionalDeepReports)||12));
-    const requestedPulls=Math.max(requestedReports,deepPullDeficit,num(previous.suggestedAdditionalDeepPulls));
+    const requestedReports=Math.min(existingWideForDeep,Math.max(1,deepReportDeficit||12));
+    // Once the v3.7.6 recommendation is being replaced, size the query-guided job from
+    // canonical deficits, not its older broad-enrichment suggestion. In the Belo'ren
+    // zero-Deep case this is 50 reports / 300 pulls, not the stale +400 Deep suggestion.
+    const requestedPulls=Math.max(requestedReports,deepPullDeficit);
     const recommendation={
       ...previous,
       priority:'high',
