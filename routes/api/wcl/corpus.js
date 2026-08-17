@@ -121,7 +121,7 @@ export default defineHandler(async (event) => {
           ...corpusExecutionDescriptor(),
           ...health,
           engineVersion: ENGINE_VERSION,
-          policyVersion: 'relation-provenance-v2+boss-sampling-v3+query-guided-rec-v1',
+          policyVersion: 'relation-provenance-v2+boss-sampling-v3+query-guided-rec-v2',
           knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
           samplingPolicyVersion: BOSS_SAMPLING_POLICY_VERSION,
           homeGuildId: homeGuildId(),
