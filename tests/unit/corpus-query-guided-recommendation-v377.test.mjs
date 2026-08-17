@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyQueryGuidedDeepRecommendationV377 } from '../../server/corpus/model-policy-v377.mjs';
+import { QUERY_GUIDED_DEEP_POLICY_VERSION } from '../../server/corpus/query-guided-deep-v1.mjs';
 
 function model({sourceIdentityComplete=true}={}){
   return {
@@ -45,7 +46,7 @@ test('zero/under-covered Deep routes to query-guided cached Wide and sizes from 
   assert.equal(rec.suggestedAdditionalWideReports,0);
   assert.equal(rec.suggestedAdditionalDeepReports,50);
   assert.equal(rec.suggestedAdditionalDeepPulls,300);
-  assert.equal(rec.queryGuidance.policyVersion,'query-guided-deep-v2');
+  assert.equal(rec.queryGuidance.policyVersion,QUERY_GUIDED_DEEP_POLICY_VERSION);
   assert.equal(rec.queryGuidance.exactFightIDs,true);
   assert.equal(rec.queryGuidance.goalSemantics,'minimum-both');
   assert.equal(rec.queryGuidance.additionalReportsMayBeSelectedToMeetPullGoal,true);

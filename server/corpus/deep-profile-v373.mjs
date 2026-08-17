@@ -1,8 +1,7 @@
-import { wclGraphql } from '../wcl/client/graphql-client.mjs';
-import { CORPUS_DEEP_EVENTS_QUERY } from '../wcl/queries/corpus.mjs';
 import { paginatorEvents,eventAbilityId,eventSourceId } from '../wcl/normalization/events.mjs';
 import { fetchReportHeader } from './wide-profile.mjs';
 import { normalizeDeepProfile } from './deep-profile.mjs';
+import { fetchCompleteDeepEventData } from './deep-events-pagination.mjs';
 import { isHomeSourceProfile, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null;};
@@ -59,11 +58,15 @@ export async function fetchDeepProfileV373({code,encounterId,difficulty=5,partit
   if(!header||!header.fights?.length)return null;
   if(isHomeSourceProfile(header))return null;
   const fightIDs=header.fights.map(f=>Number(f.id)).filter(Number.isFinite);if(!fightIDs.length)return null;
-  const data=await wclGraphql(CORPUS_DEEP_EVENTS_QUERY,{code:String(code),fightIDs});
+  const fetched=await fetchCompleteDeepEventData({code:String(code),fightIDs});
+  const data=fetched.data;
   // Provenance needs transient friendly actor ids; sanitization happens only after
   // origin classification so no player-id list survives in the persisted boss profile.
   const normalized=normalizeDeepProfile(header,data,{encounterId,difficulty});
-  if(normalized)normalized.partition=Number(partition||header.partition||0);
+  if(normalized){
+    normalized.partition=Number(partition||header.partition||0);
+    normalized.deepStreamPagination=fetched.pagination;
+  }
   const withOrigin=attachOriginEvidenceV373(normalized,data);
   return sanitizeGlobalBossProfile(withOrigin);
 }
