@@ -9,6 +9,7 @@ const clamp=value=>Math.max(0,Math.min(1,num(value)));
 const pct=value=>Math.round(clamp(value)*1000)/10;
 const uniq=values=>[...new Set((values||[]).filter(x=>x!==null&&x!==undefined))];
 const grade=score=>score>=95?'VERIFIED':score>=85?'MATURE':score>=70?'STRONG':score>=50?'PARTIAL':score>=25?'LEARNING':'DISCOVERY';
+const mechanicPrimary=m=>{const x=Number(m?.generated?.primaryAbilityId??m?.primaryAbilityId);if(Number.isFinite(x))return x;for(const key of ['castIds','damageIds','failureDamageIds','failureAuraIds','auraIds']){const id=Number(m?.[key]?.[0]);if(Number.isFinite(id))return id;}return null;};
 
 export function classifyOriginEvidenceV379(row={}){
   const friendly=num(row?.friendlySourceEvents);
@@ -48,12 +49,42 @@ export function classifyOriginEvidenceV379(row={}){
   };
 }
 
-function mechanicPrimaryIds(mechanics=[]){return resolvedAbilityIds(mechanics||[]);}
+function fallbackTriage(model={}){
+  const existing=model?.learning?.signalCoverage||{};
+  const critical=(model?.learning?.criticalUnresolvedSignals||[]).map(row=>({
+    ...row,
+    resolved:false,
+    eligibleForBossDenominator:true,
+    critical:true,
+    origin:classifyOriginEvidenceV379({}),
+    action:'surgical-provenance-probe',
+    actionReason:'Aggregate origin evidence is unavailable in this caller; keep the signal unresolved rather than fabricating classification.',
+  }));
+  const score=Number.isFinite(Number(existing.score))?clamp(existing.score):clamp(num(model?.learning?.components?.signalCoveragePct??model?.learning?.components?.signalDiscoveryPct)/100);
+  return{
+    policyVersion:SIGNAL_TRIAGE_POLICY_VERSION,
+    score,
+    scorePct:pct(score),
+    rawSignals:num(existing.total),
+    eligibleSignals:num(existing.total),
+    resolvedSignals:num(existing.resolved),
+    unresolvedSignals:Math.max(0,num(existing.total)-num(existing.resolved)),
+    excludedFriendlySignals:0,
+    criticalUnresolved:critical,
+    criticalProbeQueue:critical,
+    criticalLocalQueue:[],
+    excludedFriendly:[],
+    signals:critical,
+    aggregateEvidenceAvailable:false,
+    denominatorRule:'No aggregate ability/origin evidence was available, so v3.7.9 preserves the prior denominator and critical rows rather than assuming success.',
+  };
+}
 
 export function triageSignalsV379(model={},aggregate={}){
   const split=aggregate?.splits?.train||{};
+  if(!Object.keys(split?.abilities||{}).length)return fallbackTriage(model);
   const mechanics=model?.pack?.mechanics||[];
-  const resolved=mechanicPrimaryIds(mechanics);
+  const resolved=resolvedAbilityIds(mechanics);
   const rawSignals=importantSignals(split);
   const rows=rawSignals.map(signal=>{
     const origin=classifyOriginEvidenceV379(split?.originEvidence?.[String(signal.id)]||{});
@@ -95,6 +126,7 @@ export function triageSignalsV379(model={},aggregate={}){
     criticalLocalQueue,
     excludedFriendly:excludedFriendly.map(row=>({id:row.id,name:row.name,importance:row.importance,origin:row.origin})),
     signals:rows.slice(0,80),
+    aggregateEvidenceAvailable:true,
     denominatorRule:'Signals with sufficiently established friendly-player origin are excluded from GLOBAL BOSS signal coverage. Mixed/unknown evidence stays in the denominator until resolved.',
   };
 }
@@ -104,7 +136,8 @@ export function relationProvenanceSummaryV379(model={}){
   const filtered=model?.discovery?.filteredRelationCandidates||[];
   const friendlyOrNoisy=filtered.filter(row=>['friendly-source-cast','friendly-target-aura'].includes(String(row?.originRejectReason||'')));
   const awaiting=filtered.filter(row=>['mixed-target-origin','origin-not-yet-verified'].includes(String(row?.originRejectReason||'')));
-  const otherRejected=filtered.filter(row=>!friendlyOrNoisy.includes(row)&&!awaiting.includes(row));
+  const friendlySet=new Set(friendlyOrNoisy),awaitingSet=new Set(awaiting);
+  const otherRejected=filtered.filter(row=>!friendlySet.has(row)&&!awaitingSet.has(row));
   return{
     verified:verified.length,
     friendlyOrNoisy:friendlyOrNoisy.length,
@@ -123,6 +156,38 @@ function relationAwaitingAbilityIds(summary={}){
     for(const id of row?.triggerCastIds||[])ids.push(Number(id));
   }
   return uniq(ids.filter(id=>Number.isFinite(id)&&id>0));
+}
+
+function mechanicTouchesAbility(mechanic={},id){
+  const n=Number(id);
+  if(mechanicPrimary(mechanic)===n)return true;
+  for(const key of ['castIds','damageIds','failureDamageIds','failureAuraIds','auraIds','triggerCastIds','stateValueIds'])if((mechanic?.[key]||[]).map(Number).includes(n))return true;
+  return false;
+}
+
+export function localSignalReviewV379(model={},triage={}){
+  const queue=triage?.criticalLocalQueue||[];
+  const accepted=model?.pack?.mechanics||[];
+  const rejected=model?.rejected||[];
+  const relations=[...(model?.discovery?.relationCandidates||[]),...(model?.discovery?.filteredRelationCandidates||[])];
+  const families=model?.discovery?.variantFamilies||[];
+  return queue.map(signal=>{
+    const id=Number(signal.id);
+    const relationRows=relations.filter(row=>Number(row?.targetId)===id||(row?.triggerCastIds||[]).map(Number).includes(id));
+    const familyRows=families.filter(row=>(row?.encounterMemberIds||row?.memberIds||row?.members?.map(x=>x.id)||[]).map(Number).includes(id));
+    return{
+      id,
+      name:signal.name,
+      importance:signal.importance,
+      origin:signal.origin,
+      acceptedMechanics:accepted.filter(row=>mechanicTouchesAbility(row,id)).map(row=>({key:row.key,name:row.name,category:row.category,inference:row.inference||row.semanticInference||null})),
+      rejectedCandidates:rejected.filter(row=>mechanicTouchesAbility(row,id)||Number(row?.primaryAbilityId)===id).slice(0,8).map(row=>({key:row.key,name:row.name,reason:row.reason||null,inference:row.inference||null,validationScore:row.validationScore??row?.generated?.validationScore??null})),
+      relationRows:relationRows.slice(0,8),
+      variantFamilies:familyRows.slice(0,6).map(row=>({key:row.key,tokenGroup:row.tokenGroup,confidence:row.confidence,encounterSupported:row.encounterSupported})),
+      wclCallsExecuted:0,
+      next:'Inspect rejected candidates, relation rows and family/state context before authoring any new WCL query.',
+    };
+  });
 }
 
 function rescoreLearning(components={},critical=[]){
@@ -183,11 +248,13 @@ export function applySignalTriageOverlayV379(model,aggregate=null){
   if(!model)return null;
   const triage=triageSignalsV379(model,aggregate||{});
   const relations=relationProvenanceSummaryV379(model);
+  const localReview=localSignalReviewV379(model,triage);
   const components={...(model?.learning?.components||{})};
   components.signalDiscoveryPct=triage.scorePct;
   components.signalCoveragePct=triage.scorePct;
-  const technicalSemanticScore=clamp(model?.learning?.semantic?.score);
-  components.semanticCoverageTechnicalPct=pct(technicalSemanticScore);
+  const hasTechnicalSemantic=Number.isFinite(Number(model?.learning?.semantic?.score));
+  const technicalSemanticScore=hasTechnicalSemantic?clamp(model.learning.semantic.score):null;
+  if(hasTechnicalSemantic)components.semanticCoverageTechnicalPct=pct(technicalSemanticScore);
   delete components.semanticResolutionPct;
 
   const score=rescoreLearning(components,triage.criticalUnresolved);
@@ -197,8 +264,10 @@ export function applySignalTriageOverlayV379(model,aggregate=null){
   const checks={...(model?.validation?.publishChecks||{})};
   checks.signalCoverage=triage.score>=num(thresholds.minSignalCoverage||.75);
   checks.criticalUnresolved=triage.criticalUnresolved.length<=num(thresholds.maxCriticalUnresolved||0);
-  checks.semanticCoverageTechnical=technicalSemanticScore>=thresholds.minSemanticCoverageTechnical;
-  checks.semanticCoverage=checks.semanticCoverageTechnical;
+  if(hasTechnicalSemantic){
+    checks.semanticCoverageTechnical=technicalSemanticScore>=thresholds.minSemanticCoverageTechnical;
+    checks.semanticCoverage=checks.semanticCoverageTechnical;
+  }
   checks.learningScore=score.scorePct>=num(thresholds.minLearnedPct||82);
 
   const priorNeeds=(model?.learning?.needsEvidence||[]).filter(row=>!['relations','relations-origin','signal-provenance','signal-local'].includes(row?.kind));
@@ -243,9 +312,10 @@ export function applySignalTriageOverlayV379(model,aggregate=null){
     criticalUnresolvedSignals:triage.criticalUnresolved,
     signalCoverage:{resolved:triage.resolvedSignals,total:triage.eligibleSignals,score:triage.score,excludedFriendly:triage.excludedFriendlySignals},
     signalTriage:triage,
+    localSignalReview:localReview,
     relationProvenance:relations,
     enrichmentFocusAbilityIds:focus,
-    semanticCoverageTechnical:{...(model.learning?.semantic||{}),score:technicalSemanticScore,scorePct:pct(technicalSemanticScore),metric:'semanticCoverageTechnical'},
+    ...(hasTechnicalSemantic?{semanticCoverageTechnical:{...(model.learning?.semantic||{}),score:technicalSemanticScore,scorePct:pct(technicalSemanticScore),metric:'semanticCoverageTechnical'}}:{}),
     metricSemantics:{
       signalCoverage:'How much important GLOBAL BOSS signal weight is represented by accepted mechanics after proven friendly-player signals are excluded.',
       relationUnderstanding:'How mature origin-verified temporal/structural encounter relationships are.',
@@ -286,6 +356,7 @@ export function modelDiagnosticsV379(input,aggregate=null){
     actionBottleneck:model.learning?.actionBottleneck,
     publicationActionBottleneck:model.learning?.publicationActionBottleneck,
     signalTriage:model.learning?.signalTriage,
+    localSignalReview:model.learning?.localSignalReview,
     relationProvenance:model.learning?.relationProvenance,
     recommendations:model.learning?.recommendations,
     enrichmentFocusAbilityIds:model.learning?.enrichmentFocusAbilityIds||[],
