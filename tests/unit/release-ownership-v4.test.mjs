@@ -26,5 +26,6 @@ test('active release consumers derive product version instead of owning a duplic
   assert.match(appShell,/PRODUCT_RELEASE_LABEL/);assert.match(appShell,/@avoid\/release/);assert.doesNotMatch(appShell,new RegExp(PRODUCT_RELEASE_VERSION.replaceAll('.','\\.')));
   assert.match(route,/release-service\.mjs/);assert.doesNotMatch(route,new RegExp(PRODUCT_RELEASE_VERSION.replaceAll('.','\\.')));
   assert.match(service,/from '@avoid\/release'/);assert.doesNotMatch(service,new RegExp(PRODUCT_RELEASE_VERSION.replaceAll('.','\\.')));
-  assert.equal(JSON.parse(rootPkg).version,'0.0.0-private.0');assert.equal(JSON.parse(webPkg).version,'0.0.0-private.0');
+  assert.equal(JSON.parse(rootPkg).version,'0.3.9-2-vercel.0');assert.equal(JSON.parse(webPkg).version,'0.0.0-private.0');
+  assert.notEqual(JSON.parse(rootPkg).version,PRODUCT_RELEASE_VERSION,'root package transport version is not the product release owner');
 });

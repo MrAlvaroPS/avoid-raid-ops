@@ -8,12 +8,13 @@ Status: accepted during the pre-4.0 repository reorganization.
 
 The browser shell source imports `PRODUCT_RELEASE_LABEL` from that package. The active compatibility bootstrap cannot import ESM directly, so it reads the same contract through the thin `GET /api/release` route and never embeds a product-version fallback.
 
-NPM workspace versions are intentionally `0.0.0-private.0`: these packages are private implementation units and their package metadata must not be interpreted as the product release.
+`@avoid/web` and `@avoid/release` use the neutral private package version `0.0.0-private.0`. The root Vercel package retains its historical `0.3.9-2-vercel.0` transport/compatibility identifier because the v3.9.2 critical wiring contract depends on it. None of these npm package versions may drive the visible product release.
 
 ## Version taxonomy
 
 Product release is distinct from:
 
+- the root Vercel package transport/compatibility version;
 - runtime/component versions such as Iris, Players, bootstrap, or historical `public/*-vNNN` assets;
 - asset cache-busting query versions in `index.html`;
 - metric, schema, engine, capability and storage contract versions;
