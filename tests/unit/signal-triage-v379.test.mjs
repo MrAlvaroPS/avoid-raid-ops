@@ -121,7 +121,7 @@ test('corpus route exposes probe-plan as zero-WCL, separates publication Improve
   assert.match(route,/actionFromQuery === 'probe-plan'/);
   assert.match(route,/wclCallsExecuted:0/);
   assert.match(route,/learning\?\.publicationRecommendation/);
-  assert.match(route,/applyBossSamplingPolicyV379/);
+  assert.match(route,/applyBossSamplingPolicyV380/);
   assert.match(route,/explicitNonNegative\(rec\.suggestedAdditionalDeepPulls,100\)/);
   assert.doesNotMatch(route,/Number\(rec\.suggestedAdditionalDeepPulls\) \|\| 100/);
 });
