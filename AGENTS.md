@@ -9,5 +9,8 @@ Read these before making changes in this repository.
 5. **Use persistent evidence first.** Recompile/inspect cached evidence at 0 WCL before buying new API evidence.
 6. **Protect the WCL rate budget** and retain checkpoint/resume behavior.
 7. **UX fidelity matters.** Do not replace the existing visual system or reintroduce mock/fake interactions while wiring real data.
-8. **Git cadence:** develop on a feature branch, validate, bump the appropriate version, PR/merge to `main`, then branch again for the next unit of work. Feature branches must not enable Vercel preview deployments; `main` is the production branch.
-9. Never commit `.env*`, WCL credentials, local corpus data, `node_modules`, build output, or other local secrets/state.
+8. **Git/deployment cadence:** `main` is the Vercel production branch. Normal work develops on a feature branch, validates, bumps the appropriate release when ready, then merges. The 4.0.0 repository refactor is the explicit long-lived exception: work stays on `refactor/reorganizacion-2026-08-17`, and the stable product/package version must not become `4.0.0` until the complete refactor passes its release gates. Non-main branches must not require Vercel preview deployment for validation.
+9. **Quarantine is not source.** Active code must never import from `old/` or `old/quarantine/`. Do not hotfix quarantined implementations; fix the canonical owner.
+10. **Netlify is retired.** Do not add new Netlify deployment/runtime dependencies. Historical Netlify material may exist only in archive/quarantine while 4.0.0 migration proof is collected.
+11. **Release filenames are not version control.** Do not create new ordinary implementation files named after product releases. Retain version identifiers only for real contracts, persisted models or compatibility boundaries.
+12. Never commit `.env*`, WCL credentials, local corpus data, `node_modules`, build output, or other local secrets/state.
