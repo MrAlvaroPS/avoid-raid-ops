@@ -26,9 +26,9 @@ test('legacy WCL Progress writers remain identifiable and are intercepted by the
   for(const fn of ['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']){assert.match(legacy,new RegExp(`function ${fn}\\(`));assert.match(owner,new RegExp(`['"]${fn}['"]`));}
 });
 
-test('v3.8.7 package metadata is active while v3.8.5 shared runtimes and v3.8.6 player intelligence remain preserved',async()=>{
+test('v3.8.8 package metadata is active while v3.8.5 shared runtimes and v3.8.6 player intelligence remain preserved',async()=>{
   const [pkg,iris,players]=await Promise.all([read('package.json'),read('public/iris-runtime-v3713.js'),read('public/player-intelligence-v386.js')]);
-  assert.match(pkg,/"version": "0\.3\.8-7-vercel\.0"/);assert.match(pkg,/"iris": "node --env-file=\.env\.local scripts\/iris-local-worker\.mjs"/);
+  assert.match(pkg,/"version": "0\.3\.8-8-vercel\.0"/);assert.match(pkg,/"iris": "node --env-file=\.env\.local scripts\/iris-local-worker\.mjs"/);
   assert.match(iris,/const RELEASE='3\.8\.5'/);assert.match(iris,/const IRIS='Iris'/);assert.match(iris,/const RAID_LEADER='Onie'/);
   assert.match(players,/const VERSION='3\.8\.6'/);
 });
