@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   fetchCompleteDeepEventData,
   DEEP_STREAM_KEYS,
@@ -103,4 +104,22 @@ test('continuation query has independent start cursors and skips already-complet
     assert.match(CORPUS_DEEP_EVENTS_CONTINUATION_QUERY,new RegExp(`@include\\(if:\\$${key}On\\)`));
     assert.match(CORPUS_DEEP_EVENTS_CONTINUATION_QUERY,new RegExp(`startTime:\\$${key}Start`));
   }
+});
+
+test('all current Deep acquisition paths use the shared paginator before normalization',()=>{
+  for(const path of ['../../server/corpus/deep-profile.mjs','../../server/corpus/deep-profile-v373.mjs','../../server/corpus/query-guided-deep-v1.mjs']){
+    const source=fs.readFileSync(new URL(path,import.meta.url),'utf8');
+    assert.match(source,/fetchCompleteDeepEventData/);
+  }
+  const queryGuided=fs.readFileSync(new URL('../../server/corpus/query-guided-deep-v1.mjs',import.meta.url),'utf8');
+  assert.match(queryGuided,/deepStreamPagination:fetched\.pagination/);
+  assert.match(queryGuided,/QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v3'/);
+});
+
+test('a fresh targeted Deep plan retries diagnostic-only profiles and excludes only canonical-complete Deep',()=>{
+  const source=fs.readFileSync(new URL('../../server/corpus/targeted-deep-v373.mjs',import.meta.url),'utf8');
+  assert.match(source,/canonicalDeepCodes/);
+  assert.match(source,/isCanonicalDeepComplete\(profile\)/);
+  assert.match(source,/const processedDeep=await canonicalDeepCodes\(args\)/);
+  assert.match(source,/queryGuidedIncompleteReports:0/);
 });
