@@ -135,15 +135,34 @@ Do not select Deep evidence randomly when the model tells us what is missing. Pr
 
 For event-level questions, narrow the query further with `startTime/endTime`, phase or actor filters when that preserves the evidence needed to answer the question.
 
+## Raid-night density is context, not an anomaly filter
+
+AvoiD's observed progression cadence is an important domain constraint for corpus logic: **a roughly two-hour progression session can legitimately contain around 20–25 pulls of the same boss**, especially while wiping and iterating quickly. A clear/farm night can move through bosses much faster and therefore show far fewer attempts on each boss.
+
+Engineering consequences:
+
+- Do **not** reject, down-rank or mark a report suspicious merely because it contains 20+ valid pulls of one progression boss.
+- Pull count per report is not a quality score and is not evidence of duplication by itself.
+- Deduplication must use actual report/fight/source evidence, not an arbitrary "too many pulls" threshold.
+- A per-report Deep sampling cap exists to control statistical correlation and WCL cost, **not** because pulls beyond that cap are considered invalid.
+- If a report contains 25 valid progression pulls and the current policy samples 6, the other 19 remain valid cached evidence that can be used by a later query or policy version.
+- Deep report and Deep pull targets are simultaneous **minimum** evidence gates. If 50 independent reports provide only 265 selected fights under the per-report cap, Iris should add more independent reports/sources until the pull minimum is met, rather than lowering the pull target or assuming the sparse sample is complete.
+- If the available cache cannot satisfy both minima, expose the exact shortfall and stop honestly; never fabricate coverage.
+
+This density guidance is a product/domain assumption supplied from real raid practice. It should be revisited only if observed WCL data shows a materially different distribution, and any resulting sampling-policy change must be versioned.
+
 ## Current query-guided Deep policy
 
-`query-guided-deep-v1` upgrades already-cached Wide reports before buying more Wide evidence when the canonical Wide pool is trustworthy but Deep evidence is missing.
+`query-guided-deep-v2` upgrades already-cached Wide reports before buying more Wide evidence when the canonical Wide pool is trustworthy but Deep evidence is missing.
 
 The planner:
 
 - selects exact reports from trusted independent sources,
 - selects exact `fightIDs` inside those reports,
 - balances progression outcomes,
+- treats requested Deep report and pull counts as simultaneous minimum gates,
+- may select additional independent reports beyond the report minimum to satisfy the pull minimum,
+- keeps a conservative per-report fight cap to limit correlated evidence without declaring dense reports invalid,
 - uses unresolved/focus ability IDs as a prioritization signal,
 - fetches full required streams only for selected fights,
 - keeps ability/time-window probes separate as non-counting diagnostics,
