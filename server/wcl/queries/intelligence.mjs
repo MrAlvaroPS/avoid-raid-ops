@@ -8,7 +8,7 @@ query AvoidEncounterIntelligence(
  mechanicEnemyBuffs:events(dataType:Buffs,fightIDs:$all,hostilityType:Enemies,filterExpression:$enemyBuffFilter,limit:10000,useAbilityIDs:true,useActorIDs:true){data nextPageTimestamp}
  featherDebuffs:events(dataType:Debuffs,fightIDs:$all,hostilityType:Friendlies,filterExpression:$featherFilter,limit:10000,useAbilityIDs:true,useActorIDs:true){data nextPageTimestamp}
  featherBuffs:events(dataType:Buffs,fightIDs:$all,hostilityType:Friendlies,filterExpression:$featherFilter,limit:10000,useAbilityIDs:true,useActorIDs:true){data nextPageTimestamp}
- meaningfulDeaths:events(dataType:Deaths,fightIDs:$all,limit:10000,wipeCutoff:5,useAbilityIDs:true,useActorIDs:true){data nextPageTimestamp}
+ meaningfulDeaths:events(dataType:Deaths,fightIDs:$all,hostilityType:Friendlies,limit:10000,wipeCutoff:5,useAbilityIDs:true,useActorIDs:true){data nextPageTimestamp}
 }}}`;
 
 export function idsFilter(ids=[]){
@@ -34,5 +34,12 @@ export const FEATHER_BUFF_PAGE_QUERY=`
 query AvoidFeatherBuffPage($code:String!,$all:[Int],$featherFilter:String!,$start:Float){
  reportData{report(code:$code,allowUnlisted:true){
   feather:events(dataType:Buffs,fightIDs:$all,hostilityType:Friendlies,filterExpression:$featherFilter,startTime:$start,limit:10000,useAbilityIDs:true,useActorIDs:true){data nextPageTimestamp}
+ }}}
+`;
+
+export const MEANINGFUL_DEATH_PAGE_QUERY=`
+query AvoidMeaningfulDeathPage($code:String!,$all:[Int],$start:Float){
+ reportData{report(code:$code,allowUnlisted:true){
+  meaningfulDeaths:events(dataType:Deaths,fightIDs:$all,hostilityType:Friendlies,startTime:$start,limit:10000,wipeCutoff:5,useAbilityIDs:true,useActorIDs:true){data nextPageTimestamp}
  }}}
 `;
