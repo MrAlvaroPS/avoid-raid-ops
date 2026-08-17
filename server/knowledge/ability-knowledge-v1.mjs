@@ -81,15 +81,16 @@ function aggregateAbility(id,{internal,lorrgs,lorrgsBossMember,lorrgsBossCatalog
   const uniqueNames=[...new Set(names.map(([,name])=>name.toLowerCase()))];
   const encounterSupport=[];
   if(internal?.encounterMatch)encounterSupport.push({provider:'raidops-rule-pack',reason:'ability is already associated with this encounter by an active internal rule pack'});
-  if(lorrgsBossMember)encounterSupport.push({provider:'lorrgs',reason:`ability is listed by Lorrgs under boss ${bossSlug}`});
+  if(lorrgsBossMember)encounterSupport.push({provider:'lorrgs',reason:`ability is explicitly tracked by Lorrgs for boss ${bossSlug} as a curated timeline/analysis marker`});
   const association=encounterSupport.length?'supported':(bossSlug&&lorrgsBossCatalogResolved?'not-listed-by-lorrgs':'unknown');
   const semanticClass=association==='supported'?'boss-ability-candidate':'unclassified';
   const confidence=encounterSupport.length>=2?'high':encounterSupport.length===1?'medium':'low';
+  const catalogSemantics='curated-boss-timeline-markers-not-exhaustive';
   const lorrgsSignal=lorrgs
-    ?{status:'resolved',name:lorrgs.name||null,icon:lorrgs.icon||null,spellType:lorrgs.spell_type||null,tags:lorrgs.tags||[],bossMember:Boolean(lorrgsBossMember),bossCatalogResolved:Boolean(lorrgsBossCatalogResolved),role:'secondary-semantic-discovery'}
+    ?{status:'resolved',name:lorrgs.name||null,icon:lorrgs.icon||null,spellType:lorrgs.spell_type||null,tags:lorrgs.tags||[],bossMember:Boolean(lorrgsBossMember),bossCatalogResolved:Boolean(lorrgsBossCatalogResolved),catalogSemantics,role:'secondary-boss-timeline-marker-discovery'}
     :lorrgsBossCatalogResolved
-      ?{status:'not-listed-by-boss-catalog',bossMember:false,bossCatalogResolved:true,role:'secondary-semantic-discovery'}
-      :{status:'not-requested-or-unresolved',bossCatalogResolved:false};
+      ?{status:'not-listed-by-boss-catalog',bossMember:false,bossCatalogResolved:true,catalogSemantics,role:'secondary-boss-timeline-marker-discovery'}
+      :{status:'not-requested-or-unresolved',bossCatalogResolved:false,catalogSemantics};
   return {
     abilityId:id,
     identity:{name:names[0]?.[1]||null,icon:wcl?.icon||lorrgs?.icon||null,wowheadUrl:parse?.url||`https://www.wowhead.com/spell=${id}`},
@@ -104,7 +105,7 @@ function aggregateAbility(id,{internal,lorrgs,lorrgsBossMember,lorrgsBossCatalog
     disagreements:uniqueNames.length>1?[{kind:'name-mismatch',providers:names.map(([provider,name])=>({provider,name}))}]:[],
     confidence,
     interpretation:{
-      structuralUse:association==='supported'?'provider metadata supports treating this ID as an encounter-mechanic candidate':association==='not-listed-by-lorrgs'?'Lorrgs boss catalogue was resolved and did not list this ID; treat as weak negative evidence only':'provider metadata does not yet establish encounter membership',
+      structuralUse:association==='supported'?'Lorrgs explicitly tracks this ID as a boss timeline/analysis marker, supporting encounter relevance':association==='not-listed-by-lorrgs'?'Lorrgs resolved the boss tracking catalogue but does not track this ID there; this is weak negative evidence only because the catalogue is curated and non-exhaustive':'provider metadata does not yet establish encounter relevance',
       canonicalCombatEvidence:false,
       promotionEligible:false,
       automaticPromotion:false,
@@ -168,11 +169,11 @@ export async function resolveAbilityKnowledgeV1(input={},options={}){
   return {
     version:ABILITY_KNOWLEDGE_VERSION,previewFingerprint:preview.fingerprint,request,
     providers:{
-      lorrgs:{requested:request.providers.lorrgs,bossCatalogResolved:lorrgsBossCatalogResolved,role:'secondary semantic/discovery metadata'},
+      lorrgs:{requested:request.providers.lorrgs,bossCatalogResolved:lorrgsBossCatalogResolved,catalogSemantics:'curated-boss-timeline-markers-not-exhaustive',role:'secondary curated boss timeline/analysis markers'},
       parseWowhead:{requested:request.providers.parseWowhead,configured:parseWowheadConfigured({PARSE_API_KEY:options.parseApiKey??process.env.PARSE_API_KEY}),role:'independent maintained Wowhead wrapper; identity/reference only'},
       wcl:{requested:request.providers.wcl,role:'official static identity/scope metadata'},
     },
     encounter:wclEncounter||{id:request.encounterId,name:null,journalID:null},abilities,usage,errors,
-    evidenceContract:{combatTruth:'WCL observed combat events remain canonical',providerMetadata:'enrichment/hypothesis support only',lorrgs:'secondary derived data; successful boss-catalog absence is weak negative evidence, never contradiction',parseWowhead:'non-official wrapper over public Wowhead data',promotionAutomatic:false,deepContribution:{reports:0,pulls:0},directScoreDelta:0},
+    evidenceContract:{combatTruth:'WCL observed combat events remain canonical',providerMetadata:'enrichment/hypothesis support only',lorrgs:'secondary derived data; boss catalogue is a curated timeline/analysis marker set, so successful absence is weak negative evidence only',parseWowhead:'non-official wrapper over public Wowhead data',promotionAutomatic:false,deepContribution:{reports:0,pulls:0},directScoreDelta:0},
   };
 }
