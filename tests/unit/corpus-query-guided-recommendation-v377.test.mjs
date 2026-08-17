@@ -22,7 +22,9 @@ function model({sourceIdentityComplete=true}={}){
         priority:'high',
         mode:'diversity-first',
         suggestedAdditionalWidePulls:500,
-        suggestedAdditionalDeepPulls:300,
+        // This deliberately matches the stale broad v3.7.6 recommendation observed
+        // on the real zero-Deep Belo'ren model. Query-guided v3.7.7 must not inherit it.
+        suggestedAdditionalDeepPulls:400,
         suggestedAdditionalWideReports:0,
         suggestedAdditionalDeepReports:50,
         estimatedExistingWideReportsAvailableForDeep:210,
@@ -32,7 +34,7 @@ function model({sourceIdentityComplete=true}={}){
   };
 }
 
-test('zero/under-covered Deep routes to query-guided cached Wide when Wide sampling is trustworthy',()=>{
+test('zero/under-covered Deep routes to query-guided cached Wide and sizes from canonical deficits',()=>{
   const out=applyQueryGuidedDeepRecommendationV377(model());
   const rec=out.learning.enrichmentRecommendation;
   assert.equal(out.engineVersion,'3.7.7');
@@ -44,6 +46,15 @@ test('zero/under-covered Deep routes to query-guided cached Wide when Wide sampl
   assert.equal(rec.suggestedAdditionalDeepPulls,300);
   assert.equal(rec.queryGuidance.exactFightIDs,true);
   assert.equal(rec.queryGuidance.surgicalProbesCountTowardDeepCoverage,false);
+});
+
+test('explicit zero canonical deficits are not replaced by stale previous suggestions',()=>{
+  const input=model();
+  input.learning.enrichmentRecommendation.deficits.deepPulls=0;
+  input.learning.enrichmentRecommendation.deficits.deepReports=0;
+  const out=applyQueryGuidedDeepRecommendationV377(input);
+  assert.equal(out.learning.enrichmentRecommendation.mode,'diversity-first');
+  assert.equal(out.learning.enrichmentRecommendation.suggestedAdditionalDeepPulls,400);
 });
 
 test('real Wide sampling blockers still prevent query-guided Deep from pretending the source pool is trustworthy',()=>{
