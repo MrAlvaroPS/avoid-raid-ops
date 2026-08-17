@@ -113,7 +113,8 @@ test('all current Deep acquisition paths use the shared paginator before normali
   }
   const queryGuided=fs.readFileSync(new URL('../../server/corpus/query-guided-deep-v1.mjs',import.meta.url),'utf8');
   assert.match(queryGuided,/normalized\.deepStreamPagination=fetched\.pagination/);
-  assert.match(queryGuided,/QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v3'/);
+  assert.match(queryGuided,/QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v4'/);
+  assert.match(queryGuided,/canonicalWideEligibilityRequired:true/);
 });
 
 test('a fresh targeted Deep plan retries diagnostic-only profiles and excludes only canonical-complete Deep',()=>{
