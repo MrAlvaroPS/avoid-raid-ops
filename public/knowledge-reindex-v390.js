@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const RELEASE='3.9.0-refactor';
+const RELEASE='3.9.0';
 const CACHE_NAME='avoid-raidops-v390';
 const PENDING_KEY='avoid:knowledge-reindex-pending:v390';
 const DERIVED_PATHS=new Set(['/api/wcl/report','/api/wcl/status','/api/wcl/telemetry','/api/wcl/history','/api/wcl/intelligence']);
