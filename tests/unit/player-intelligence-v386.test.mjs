@@ -40,25 +40,32 @@ test('overlapping logger reports keep one pull and union player identities',()=>
   assert.deepEqual(pulls[0].rosterIdentities.map(x=>x.name).sort(),['Alpha','Beta']);
 });
 
-test('v3.8.8 Players remains a stable component inside the v3.9.0 app release',async()=>{
-  const [runtime,legacyCss,releaseCss,index,pkg]=await Promise.all([
-    read('public/player-intelligence-v386.js'),read('public/raidops-v386.css'),read('public/raidops-v390.css'),read('index.html'),read('package.json')
+test('v3.8.8 Players remains historical while v3.9.1 owns the active dossier and Reliability presentation',async()=>{
+  const [historical,active,legacyCss,releaseCss,hotfixCss,index,pkg]=await Promise.all([
+    read('public/player-intelligence-v386.js'),read('public/player-intelligence-v391.js'),read('public/raidops-v386.css'),read('public/raidops-v390.css'),read('public/raidops-v391.css'),read('index.html'),read('package.json')
   ]);
-  assert.match(runtime,/const VERSION='3\.8\.8'/);
-  assert.match(runtime,/typeof telemetry!=='undefined'\?telemetry:null/);
-  assert.match(runtime,/s\.t\?\.players/);
-  assert.match(runtime,/playerAttendance/);
-  assert.match(runtime,/Raid attendance/);
-  assert.match(runtime,/output is deliberately separate from Reliability/);
-  assert.doesNotMatch(runtime,/gear|talent|itemLevel/i);
-  assert.doesNotMatch(runtime,/MutationObserver/);
-  assert.doesNotMatch(runtime,/\.division b/);
-  assert.doesNotMatch(runtime,/patchVersion/);
-  assert.match(runtime,/setInterval\(\(\)=>render\(\),750\)/);
+  assert.match(historical,/const VERSION='3\.8\.8'/);
+  assert.match(active,/const VERSION='3\.9\.1'/);
+  assert.match(active,/typeof telemetry!=='undefined'\?telemetry:null/);
+  assert.match(active,/s\.t\?\.players/);
+  assert.match(active,/playerAttendance/);
+  assert.match(active,/Raid attendance/);
+  assert.match(active,/output is deliberately separate from Reliability/);
+  assert.doesNotMatch(active,/gear|talent|itemLevel/i);
+  assert.doesNotMatch(active,/MutationObserver/);
+  assert.doesNotMatch(active,/\.division b/);
+  assert.doesNotMatch(active,/patchVersion/);
+  assert.match(active,/setInterval\(\(\)=>render\(\),750\)/);
+  assert.match(active,/publication\?\.publishable===true/);
+  assert.match(active,/function syncRosterHeight\(\)/);
   assert.match(legacyCss,/player-list-v386\{[^}]*overflow-y:auto/);
   assert.match(releaseCss,/\.layout-player>\.player-list\{[^}]*max-height:none!important[^}]*overflow:visible!important/s);
-  assert.match(index,/player-intelligence-v386\.js\?v=3\.8\.9\.1/);
+  assert.match(hotfixCss,/--players-roster-max-height/);
+  assert.match(hotfixCss,/data-reliability-owned/);
+  assert.doesNotMatch(index,/player-intelligence-v386\.js\?v=3\.8\.9\.1/);
+  assert.match(index,/player-intelligence-v391\.js\?v=3\.9\.1/);
   assert.match(index,/raidops-v386\.css\?v=3\.8\.6/);
   assert.match(index,/raidops-v390\.css\?v=3\.9\.0/);
-  assert.equal(JSON.parse(pkg).version,'0.3.9-0-vercel.0');
+  assert.match(index,/raidops-v391\.css\?v=3\.9\.1/);
+  assert.equal(JSON.parse(pkg).version,'0.3.9-1-vercel.0');
 });
