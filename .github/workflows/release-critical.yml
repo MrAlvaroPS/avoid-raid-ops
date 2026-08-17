@@ -1,0 +1,33 @@
+name: Release Critical Gate
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: release-critical-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-critical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Syntax and deployment contracts
+        run: npm run verify:vercel
+      - name: Critical screen/data tests
+        run: npm run test:critical
+      - name: Full unit regression
+        run: npm test
+      - name: Production build contract
+        run: vite build
