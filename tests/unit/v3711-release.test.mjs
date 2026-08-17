@@ -11,12 +11,13 @@ test('v3.7.11 browser runtimes remain valid regression assets',async()=>{
   }
 });
 
-test('index preserves historical styles and activates the v3.8.8 player hotfix after shared data runtimes',async()=>{
+test('index preserves historical styles and activates the v3.8.9 bootstrap before shared WCL data runtime',async()=>{
   const index=await read('index.html');
   assert.match(index,/raidops-v3711\.css\?v=3\.7\.11/);assert.match(index,/raidops-v3712\.css\?v=3\.7\.12/);assert.match(index,/raidops-v3713\.css\?v=3\.8\.5/);assert.match(index,/raidops-v386\.css\?v=3\.8\.6/);
-  assert.match(index,/wcl-runtime\.js\?v=3\.8\.5/);assert.match(index,/progress-runtime-v3713\.js\?v=3\.8\.5/);assert.match(index,/iris-runtime-v3713\.js\?v=3\.8\.5/);assert.match(index,/player-intelligence-v386\.js\?v=3\.8\.8/);
+  assert.match(index,/wcl-bootstrap-v389\.js\?v=3\.8\.9/);assert.match(index,/wcl-runtime\.js\?v=3\.8\.5/);assert.match(index,/progress-runtime-v3713\.js\?v=3\.8\.5/);assert.match(index,/iris-runtime-v3713\.js\?v=3\.8\.5/);assert.match(index,/player-intelligence-v386\.js\?v=3\.8\.8/);
   assert.match(index,/encounter-intelligence-v375\.js\?v=3\.8\.5[\s\S]*corpus-ui-stability-v1\.js\?v=1\.0\.0/);
   assert.doesNotMatch(index,/progress-runtime-v3712\.js\?v=3\.7\.12/);assert.doesNotMatch(index,/iris-runtime-v3712\.js\?v=3\.7\.12/);
+  assert.ok(index.indexOf('/wcl-bootstrap-v389.js?v=3.8.9')<index.indexOf('/wcl-runtime.js?v=3.8.5'));
   assert.ok(index.indexOf('/wcl-runtime.js?v=3.8.5')<index.indexOf('/player-intelligence-v386.js?v=3.8.8'));
   assert.ok(index.indexOf('/iris-runtime-v3713.js?v=3.8.5')<index.indexOf('/player-intelligence-v386.js?v=3.8.8'));
 });
@@ -26,10 +27,11 @@ test('legacy WCL Progress writers remain identifiable and are intercepted by the
   for(const fn of ['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']){assert.match(legacy,new RegExp(`function ${fn}\\(`));assert.match(owner,new RegExp(`['"]${fn}['"]`));}
 });
 
-test('v3.8.8 package metadata is active while shared runtimes remain preserved',async()=>{
-  const [pkg,iris,players]=await Promise.all([read('package.json'),read('public/iris-runtime-v3713.js'),read('public/player-intelligence-v386.js')]);
-  assert.match(pkg,/"version": "0\.3\.8-8-vercel\.0"/);assert.match(pkg,/"iris": "node --env-file=\.env\.local scripts\/iris-local-worker\.mjs"/);
+test('v3.8.9 package metadata is active while component runtimes remain preserved',async()=>{
+  const [pkg,iris,players,bootstrap]=await Promise.all([read('package.json'),read('public/iris-runtime-v3713.js'),read('public/player-intelligence-v386.js'),read('public/wcl-bootstrap-v389.js')]);
+  assert.match(pkg,/"version": "0\.3\.8-9-vercel\.0"/);assert.match(pkg,/"iris": "node --env-file=\.env\.local scripts\/iris-local-worker\.mjs"/);
   assert.match(iris,/const RELEASE='3\.8\.5'/);assert.match(iris,/const IRIS='Iris'/);assert.match(iris,/const RAID_LEADER='Onie'/);
   assert.match(players,/const VERSION='3\.8\.8'/);
   assert.match(players,/e&&e\.textContent!==next/);
+  assert.match(bootstrap,/const RELEASE='3\.8\.9'/);
 });
