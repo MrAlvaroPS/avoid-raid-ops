@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='3.8.6';let selected=null,last='';
+const VERSION='3.8.8';let selected=null,last='';
 const qa=(s,r=document)=>r?Array.from(r.querySelectorAll(s)):[];
 const make=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=String(x);return e};
 const n=v=>Number.isFinite(Number(v))?Number(v):null;
@@ -19,7 +19,7 @@ function maps(s){return{profiles:new Map((s.i?.reliability?.profiles||[]).map(x=
 function facts(p,m){const e=p?.encounter||p||{};return{first:+e.firstDeaths||0,deaths:+e.meaningfulDeaths||0,interrupts:+e.interrupts||0,dispels:+e.dispels||0,failures:+m?.failures||0,recent:+m?.recentFailures||0,linked:+m?.linkedDeaths||0}}
 const component=(p,k)=>p?.components?.[k]||null;
 const componentValue=c=>c?.value==null?'—':String(Math.round(c.value));
-function patchVersion(){const e=document.querySelector('.division b');if(e)e.textContent=`v${VERSION}`}
+function patchVersion(){const e=document.querySelector('.division b'),next=`v${VERSION}`;if(e&&e.textContent!==next)e.textContent=next}
 function rebuildList(players,m){const panel=document.querySelector('.player-list');if(!panel)return;qa(':scope > button',panel).forEach(x=>x.remove());panel.classList.add('player-list-v386');for(const p of players){const pr=m.profiles.get(+p.actorId),mx=m.matrix.get(+p.actorId),f=facts(p,mx),b=make('button',+p.actorId===+selected?'selected':'');b.type='button';b.dataset.actorId=p.actorId;const icon=make('i','',String(p.name||'?')[0]),copy=make('span');copy.append(make('b','',p.name),make('small','',[p.spec,role(p),output(p)].filter(Boolean).join(' · ')));b.append(icon,copy,make('strong','',pr?.value==null?'—':Math.round(pr.value)),make('em',f.first>1?'bad-text':f.failures?'warn-text':'good-text',pr?.value!=null?'READY':f.failures?`${f.failures} obs.`:'PENDING'));b.onclick=()=>{selected=+p.actorId;render(true)};panel.append(b)}}
 function detail(players,m,s){const p=players.find(x=>+x.actorId===+selected)||players[0],pr=m.profiles.get(+p.actorId),mx=m.matrix.get(+p.actorId),at=m.attendance.get(norm(p.name)),f=facts(p,mx),panel=document.querySelector('.player-detail');if(!panel)return;panel.replaceChildren();panel.classList.add('player-detail-v386');
 const head=make('div','pi386-head'),ident=make('div','pi386-identity'),names=make('span'),score=make('div',`pi386-score ${pr?.status==='data-error'?'bad':'pending'}`);ident.append(make('i','',String(p.name||'?')[0]));names.append(badge(pr?.value!=null?'PUBLISHED':'WCL + SHADOW MODEL',pr?.value!=null?'good':'info'),make('h2','',p.name),make('p','',[p.spec,role(p)].filter(Boolean).join(' · ')));ident.append(names);score.append(make('b','',pr?.value==null?(pr?.status==='data-error'?'!':'—'):Math.round(pr.value)),make('small','',pr?.value==null?'RELIABILITY · PENDING':'RELIABILITY'));head.append(ident,score);panel.append(head);
