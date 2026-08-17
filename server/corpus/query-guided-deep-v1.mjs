@@ -6,7 +6,7 @@ import { attachOriginEvidenceV373 } from './deep-profile-v373.mjs';
 import { sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 import { corpusSplit, hashString } from './aggregate.mjs';
 
-export const QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v1';
+export const QUERY_GUIDED_DEEP_POLICY_VERSION = 'query-guided-deep-v2';
 export const QUERY_GUIDED_OUTCOME_WEIGHTS = Object.freeze({ kill:0.20, deepWipe:0.30, midWipe:0.30, earlyWipe:0.20 });
 
 const num=value=>Number.isFinite(Number(value))?Number(value):0;
@@ -107,10 +107,18 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
   let selectedPulls=0;
   const selectedSources=new Map();
 
-  while(selected.length<reportGoal&&candidates.length){
-    const remainingReports=Math.max(1,reportGoal-selected.length);
-    const remainingPulls=Math.max(0,pullGoal-selectedPulls);
-    const perReport=Math.max(1,Math.min(maxFightsPerReport,Math.ceil(remainingPulls/remainingReports)||1));
+  // Reports and pulls are simultaneous minimum evidence goals, not alternatives and
+  // not report-count ceilings. If 50 independent reports only yield 265 selected fights,
+  // keep adding the least-used independent sources until the pull goal is met. The
+  // per-report cap remains deliberately conservative so a normal dense progression night
+  // can be valid without allowing one night's correlated pulls to dominate the sample.
+  while((selected.length<reportGoal||selectedPulls<pullGoal)&&candidates.length){
+    const reportsStillNeeded=Math.max(0,reportGoal-selected.length);
+    const pullsStillNeeded=Math.max(0,pullGoal-selectedPulls);
+    const remainingReports=Math.max(1,reportsStillNeeded);
+    const perReport=reportsStillNeeded>0
+      ? Math.max(1,Math.min(maxFightsPerReport,Math.ceil(pullsStillNeeded/remainingReports)||1))
+      : Math.max(1,Math.min(maxFightsPerReport,pullsStillNeeded||1));
     candidates.sort((a,b)=>
       (sourceCounts.get(a.source)||0)+(selectedSources.get(a.source)||0)-(sourceCounts.get(b.source)||0)-(selectedSources.get(b.source)||0)
       || Number(b.split==='validation')-Number(a.split==='validation')
@@ -140,6 +148,8 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
     selectedSources.set(row.source,(selectedSources.get(row.source)||0)+1);
   }
 
+  const reportGoalMet=selected.length>=reportGoal;
+  const pullGoalMet=selectedPulls>=pullGoal;
   return {
     policyVersion:QUERY_GUIDED_DEEP_POLICY_VERSION,
     requestedReports:reportGoal,
@@ -147,6 +157,14 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
     selectedReports:selected.length,
     selectedPulls,
     selectedSources:new Set(selected.map(row=>row.source)).size,
+    goals:{
+      semantics:'minimum-both',
+      reportGoalMet,
+      pullGoalMet,
+      bothMet:reportGoalMet&&pullGoalMet,
+      reportShortfall:Math.max(0,reportGoal-selected.length),
+      pullShortfall:Math.max(0,pullGoal-selectedPulls),
+    },
     selected,
     fightIDsByCode:Object.fromEntries(selected.map(row=>[row.code,row.fightIDs])),
     outcomeCounts:currentOutcomes,
@@ -155,10 +173,13 @@ export function buildQueryGuidedDeepPlan(profiles=[],{
     queryPolicy:{
       canonicalDeepUsesExactFightIDs:true,
       maxFightsPerReport,
+      goalSemantics:'minimum-both',
+      maySelectAdditionalReportsToMeetPullGoal:true,
+      denseReportFightCountIsNotAnAnomaly:true,
       canonicalDeepUsesCompleteStreamsForSelectedFights:true,
       surgicalAbilityProbesCountAsDeepReports:false,
       surgicalAbilityProbesCountAsDeepPulls:false,
-      rationale:'Use WCL fightIDs to spend full Deep bandwidth only on fights that close report/outcome/source deficits. Ability-filter probes are diagnostic evidence only and must never inflate canonical Deep coverage.',
+      rationale:'Use WCL fightIDs to spend full Deep bandwidth only on fights that close report/outcome/source deficits. Report and pull targets are simultaneous minimum gates. Dense progression reports are valid; the per-report cap controls correlation rather than filtering those reports out. Ability-filter probes are diagnostic evidence only and must never inflate canonical Deep coverage.',
     },
   };
 }
