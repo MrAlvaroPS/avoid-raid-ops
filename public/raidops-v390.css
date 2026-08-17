@@ -6,6 +6,11 @@
 .corpus-workbench .encounter-intelligence-v375{margin:0}
 .corpus-workbench+.panel,.corpus-workbench+.layout-2,.corpus-workbench+.layout-3{margin-top:0}
 
+/* Players: the roster must use its natural vertical space instead of stopping at the legacy 570px cap.
+   Page scrolling is preferable to leaving a dead column below the roster; internal scrolling can be
+   reintroduced later only after the roster has consumed the available layout height. */
+.layout-player>.player-list{max-height:none!important;overflow:visible!important}
+
 /* Compact global activity indicator. It reports state transitions, never chatty polling logs. */
 .raidops-activity{display:flex;align-items:center;gap:7px;min-width:112px;max-width:240px;height:var(--raidops-control-height);padding:0 9px;border:1px solid #252e37;border-radius:5px;background:#0f1419;color:#77838c;font-size:7px;font-weight:750;white-space:nowrap;overflow:hidden}
 .raidops-activity>i{width:8px;height:8px;flex:0 0 8px;border-radius:50%;border:1px solid #50606b;border-top-color:var(--green)}
