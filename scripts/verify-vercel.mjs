@@ -33,7 +33,7 @@ try{
   const pkg=JSON.parse(await readFile('package.json','utf8'));
   if(pkg?.engines?.node!=='22.x')throw new Error('package.json engines.node must remain 22.x');
   if(pkg?.dependencies?.workflow!=='5.0.0-beta.36')throw new Error('workflow dependency pin changed');
-  if(pkg?.dependencies?.nitro!=='3.0.260610-beta.36')throw new Error('nitro dependency pin changed');
+  if(pkg?.dependencies?.nitro!=='3.0.260610-beta')throw new Error('nitro dependency pin changed');
   if(pkg?.dependencies?.['@vercel/blob']!=='2.6.1')throw new Error('@vercel/blob dependency pin changed');
   if(pkg?.scripts?.['test:critical']!=='node --test tests/critical/*.test.mjs')throw new Error('critical test gate missing');
   if(!String(pkg?.scripts?.build||'').includes('test:critical'))throw new Error('build must run critical tests');
