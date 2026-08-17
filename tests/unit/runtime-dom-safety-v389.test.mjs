@@ -55,9 +55,12 @@ test('CRITICAL FEEDBACK GUARD: any active runtime touching the global division l
   }
 });
 
-test('CRITICAL PLAYERS CHURN GUARD: Player Intelligence is signature-gated and never DOM-observer driven', async () => {
+test('CRITICAL PLAYERS CHURN GUARD: Player Intelligence is data-signature gated, node-identity aware and never DOM-observer driven', async () => {
   const source = await read('public/player-intelligence-v392.js');
-  assert.match(source, /if\(!force&&sig===last\)/);
+  assert.match(source, /if\(!force&&sig===last&&!domRebuilt\)/);
+  assert.match(source, /detailNode!==ownedDetail/);
+  assert.match(source, /listNode!==ownedList/);
+  assert.match(source, /matrixNode!==ownedMatrix/);
   assert.match(source, /setInterval\(\(\)=>render\(\),750\)/);
   assert.doesNotMatch(source, OBSERVER_CONSTRUCTION);
   assert.doesNotMatch(source, /\.observe\s*\(/);
