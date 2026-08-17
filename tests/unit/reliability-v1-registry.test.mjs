@@ -11,15 +11,29 @@ test('Reliability metric IDs resolve to one shared model version',()=>{
   }
 });
 
-test('overall Reliability registry explicitly excludes parse/output',()=>{
+test('overall Reliability registry excludes parse/output and peer-group scoring',()=>{
   const overall=RELIABILITY_METRIC_REGISTRY[RELIABILITY_METRIC_IDS.overall];
   assert.ok(overall.excludes.includes('DPS'));
   assert.ok(overall.excludes.includes('HPS'));
   assert.ok(overall.excludes.includes('parse percentile'));
-  assert.match(overall.formula,/publication gates/);
+  assert.ok(overall.excludes.includes('peer-group performance as a scoring prior'));
+  assert.deepEqual([...overall.mandatoryDimensions],['mechanics','survival','defensives']);
+  assert.match(overall.formula,/fixed versioned scoring priors/);
+  assert.match(overall.formula,/peers never enter the score/);
 });
 
-test('adaptation is a signal and not another base-score dimension',()=>{
+test('dimension registries require complete/observable opportunity populations',()=>{
+  const mechanics=RELIABILITY_METRIC_REGISTRY[RELIABILITY_METRIC_IDS.mechanics];
+  const survival=RELIABILITY_METRIC_REGISTRY[RELIABILITY_METRIC_IDS.survival];
+  const defensives=RELIABILITY_METRIC_REGISTRY[RELIABILITY_METRIC_IDS.defensives];
+  assert.match(mechanics.population,/complete, observable, player-owned/);
+  assert.match(survival.population,/complete meaningful-death source/);
+  assert.match(defensives.population,/confirmed personal-defensive availability and observable outcome/);
+});
+
+test('peer delta is explanatory only and adaptation is not another base-score dimension',()=>{
+  const peer=RELIABILITY_METRIC_REGISTRY[RELIABILITY_METRIC_IDS.peerDelta];
   const adaptation=RELIABILITY_METRIC_REGISTRY[RELIABILITY_METRIC_IDS.adaptation];
+  assert.match(peer.formula,/never feeds absolute Reliability/);
   assert.match(adaptation.scoringRole,/never an additional base-score penalty/);
 });

@@ -1,4 +1,4 @@
-export const RELIABILITY_MODEL_VERSION='1.0.0';
+export const RELIABILITY_MODEL_VERSION='1.1.0';
 
 export const RELIABILITY_METRIC_IDS=Object.freeze({
   overall:'reliability.overall.v1',
@@ -13,11 +13,11 @@ export const RELIABILITY_METRIC_IDS=Object.freeze({
 
 export const RELIABILITY_POLICY=Object.freeze({
   version:RELIABILITY_MODEL_VERSION,
-  purpose:'probability-of-dependable-execution-under-observable-progression-responsibility',
+  purpose:'dependable-execution-and-availability-under-observable-progression-responsibility',
   parsePolicy:'performance-and-parse-are-context-only-and-never-enter-reliability-score',
 
-  // Base weights only. If an optional dimension is unavailable, weights may be
-  // renormalized only after the publication gates below are satisfied.
+  // Base weights only. Optional Duties may renormalize after all mandatory
+  // dimensions and the publication coverage gate are satisfied.
   roleWeights:Object.freeze({
     DPS:Object.freeze({mechanics:0.40,survival:0.25,defensives:0.20,duties:0.15}),
     HEAL:Object.freeze({mechanics:0.35,survival:0.25,defensives:0.25,duties:0.15}),
@@ -25,17 +25,21 @@ export const RELIABILITY_POLICY=Object.freeze({
     UNKNOWN:Object.freeze({mechanics:0.40,survival:0.25,defensives:0.20,duties:0.15})
   }),
 
-  // Prior is deliberately weak. Direct evidence dominates quickly. A peer
-  // baseline replaces the fallback rate when a sufficiently comparable peer
-  // sample exists.
+  // The scoring prior is absolute and versioned. It deliberately does NOT use
+  // the current roster/peer median. Otherwise a player's score could change
+  // simply because their comparison group changed. Peers are explanatory only.
   priors:Object.freeze({
     equivalentOpportunityStrength:8,
-    fallbackSuccessRate:Object.freeze({mechanics:0.90,survival:0.92,defensives:0.86,duties:0.90})
+    scoringSuccessRate:Object.freeze({mechanics:0.90,survival:0.92,defensives:0.86,duties:0.90})
   }),
 
   mechanicSeverityImportance:Object.freeze({1:0.40,2:0.55,3:0.70,4:0.85,5:1.00}),
   evidenceConfidence:Object.freeze({confirmed:1.00,high:0.90,medium:0.65,low:0.35,unknown:0.00}),
   survivalIncidentPenalty:Object.freeze({firstMeaningfulDeath:1.00,meaningfulDeath:0.50}),
+
+  // Survival measures raid availability, not proven blame. Cause evidence is
+  // explanatory only; it never adds another Survival penalty.
+  survivalSemantics:Object.freeze({kind:'availability-not-causality',causeDoesNotMultiplyPenalty:true}),
 
   // Recurrence is explanatory and part of the adaptation signal. It does not
   // multiply the base mechanic penalty and therefore cannot double-charge the
@@ -47,6 +51,7 @@ export const RELIABILITY_POLICY=Object.freeze({
   }),
 
   peerSelection:Object.freeze({
+    requireSameEncounterContext:true,
     sameSpecRoleMinPeers:3,
     sameClassRoleMinPeers:3,
     sameRoleMinPeers:5,
@@ -56,8 +61,11 @@ export const RELIABILITY_POLICY=Object.freeze({
   publication:Object.freeze({
     minPullsAttended:15,
     minNights:2,
+    minConfidence:'medium',
     minScoredWeightCoverage:0.75,
-    requiredDimensions:Object.freeze(['mechanics','survival']),
+    // Defensives is mandatory: execution Reliability is not considered mature
+    // until Iris can prove availability rather than infer it from absent casts.
+    requiredDimensions:Object.freeze(['mechanics','survival','defensives']),
     minScoredDimensions:3,
     minMechanicOpportunityMass:20,
     minSurvivalPulls:15,
@@ -77,11 +85,13 @@ export const RELIABILITY_POLICY=Object.freeze({
 
   dataTruth:Object.freeze({
     unknownAvailabilityIsNotFailure:true,
+    incompleteSourceCannotProveCleanSuccess:true,
     raidWideUnassignedFailureIsNotPlayerFailure:true,
     postWipeDeathsAreNotReliabilityFailures:true,
     duplicateLoggerEvidenceCountsOnce:true,
     probableCausalityDoesNotCreateExtraPenalty:true,
     unverifiedCorpusRulesCannotScore:true,
+    peerGroupDoesNotChangeAbsoluteScore:true,
     performanceDoesNotScore:true
   })
 });

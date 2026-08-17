@@ -4,24 +4,23 @@ import { buildReliabilityEvidenceLedger } from '../../server/analysis/reliabilit
 import { scoreReliabilityProfiles,compareReliabilityProfiles } from '../../server/analysis/reliability/reliability-engine-v1.mjs';
 import { RELIABILITY_POLICY } from '../../server/analysis/reliability/reliability-policy-v1.mjs';
 
-const opp=(actorId,i,{success=true,severity=5,mechanicKey='m1'}={})=>({actorId,fightId:i+1,mechanicKey,severity,confidence:'confirmed',occurrenceKey:`m:${i}`,success});
-
 function completeLedger({name='Alpha',actorId=1,role='DPS',className='Mage',spec='Frost',mechanicFails=2,survivalIncidents=2,defensiveFails=1,dutyFails=1}={}){
-  const mechanics=Array.from({length:30},(_,i)=>({key:`mechanic:${actorId}:${i}`,actorId,kind:'mechanic',fightId:i+1,mechanicKey:'m1',occurrenceKey:`m:${i}`,severity:5,confidence:'confirmed',observable:true,assigned:true,success:i>=mechanicFails,failure:i<mechanicFails?{confidence:'confirmed'}:null}));
-  const survival=Array.from({length:40},(_,i)=>({key:`s:${actorId}:${i}`,actorId,fightId:i+1,kind:'survival',observable:true,success:i>=survivalIncidents,incidentPenalty:i<survivalIncidents?(i===0?1:.5):0,firstMeaningfulDeath:i===0,meaningfulDeath:i<survivalIncidents}));
-  const defensives=Array.from({length:10},(_,i)=>({key:`d:${actorId}:${i}`,actorId,fightId:i+1,kind:'defensive',observable:true,availability:'confirmed',success:i>=defensiveFails,dangerWeight:1,confidence:'confirmed'}));
-  const duties=Array.from({length:10},(_,i)=>({key:`u:${actorId}:${i}`,actorId,fightId:i+1,kind:'duty',success:i>=dutyFails,importance:1,confidence:'confirmed'}));
+  const mechanics=Array.from({length:30},(_,i)=>({key:`mechanic:${actorId}:${i}`,actorId,kind:'mechanic',fightId:i+1,mechanicKey:'m1',occurrenceKey:`m:${i}`,severity:5,confidence:'confirmed',observable:true,assigned:true,sourceComplete:true,success:i>=mechanicFails,failure:i<mechanicFails?{confidence:'confirmed'}:null}));
+  const survival=Array.from({length:40},(_,i)=>({key:`s:${actorId}:${i}`,actorId,fightId:i+1,kind:'survival',observable:true,sourceComplete:true,confidence:'confirmed',success:i>=survivalIncidents,incidentPenalty:i<survivalIncidents?(i===0?1:.5):0,firstMeaningfulDeath:i===0,meaningfulDeath:i<survivalIncidents}));
+  const defensives=Array.from({length:10},(_,i)=>({key:`d:${actorId}:${i}`,actorId,fightId:i+1,kind:'defensive',observable:true,sourceComplete:true,availability:'confirmed',success:i>=defensiveFails,dangerWeight:1,confidence:'confirmed'}));
+  const duties=Array.from({length:10},(_,i)=>({key:`u:${actorId}:${i}`,actorId,fightId:i+1,kind:'duty',sourceComplete:true,assigned:true,observable:true,success:i>=dutyFails,importance:1,confidence:'confirmed'}));
   return{
     schemaVersion:1,
     identity:{key:`wcl:${actorId}`,canonicalId:actorId,status:'canonical',actorId,name,className,spec,role},
-    context:{reportCode:'R',encounterId:3182,difficulty:5,nights:3},
+    context:{reportCode:'R',encounterId:3182,difficulty:5,partition:4,nights:3},
     participation:{pullsAttended:40,fightIds:Array.from({length:40},(_,i)=>i+1)},
-    mechanics:{opportunities:mechanics,unscoredFailures:[]},
-    survival:{opportunities:survival},
+    mechanics:{opportunities:mechanics,unscoredFailures:[],unscoredOpportunities:[]},
+    survival:{sourceComplete:true,opportunities:survival,unscored:[]},
     defensives:{opportunities:defensives,unscored:[]},
     duties:{opportunities:duties,unscored:[]},
     adaptation:{status:'observed',repeatOpportunities:10,repeatedFailures:1,repeatedFailureRate:.1,details:[]},
-    integrity:{reportScopedIdentity:false,mechanicDenominatorComplete:true,defensiveAvailabilityComplete:true,dutyDenominatorComplete:true}
+    integrity:{reportScopedIdentity:false,survivalSourceComplete:true,mechanicDenominatorComplete:true,defensiveAvailabilityComplete:true,dutyDenominatorComplete:true},
+    validation:{ok:true,status:'valid',errors:[],warnings:[]}
   };
 }
 
@@ -41,7 +40,7 @@ test('Reliability is parse-independent even when performance fields change radic
 test('unknown defensive availability never creates a scored failure',()=>{
   const players=[{actorId:1,name:'Alpha',className:'Mage',spec:'Frost',role:'DPS'}];
   const fights=Array.from({length:20},(_,i)=>({id:i+1,friendlyPlayers:[1]}));
-  const [ledger]=buildReliabilityEvidenceLedger({players,fights,defensiveOpportunities:[{actorId:1,fightId:1,opportunityKey:'d1',availability:'unknown',used:false}]});
+  const [ledger]=buildReliabilityEvidenceLedger({players,fights,survivalSourceComplete:true,defensiveOpportunities:[{actorId:1,fightId:1,opportunityKey:'d1',availability:'unknown',sourceComplete:true,used:false,late:false}]});
   assert.equal(ledger.defensives.opportunities.length,0);
   assert.equal(ledger.defensives.unscored.length,1);
   const [profile]=scoreReliabilityProfiles([ledger]);
@@ -52,7 +51,7 @@ test('classified mechanic failures without a player denominator remain visible b
   const players=[{actorId:1,name:'Alpha',className:'Mage',spec:'Frost',role:'DPS'}];
   const fights=Array.from({length:20},(_,i)=>({id:i+1,friendlyPlayers:[1]}));
   const failure={actorId:1,fightId:3,mechanicKey:'wrong-color',occurrenceKey:'x',severity:5,confidence:'confirmed',reason:'observed'};
-  const [ledger]=buildReliabilityEvidenceLedger({players,fights,mechanicFailures:[failure],mechanicOpportunities:[]});
+  const [ledger]=buildReliabilityEvidenceLedger({players,fights,survivalSourceComplete:true,mechanicFailures:[failure],mechanicOpportunities:[]});
   assert.equal(ledger.mechanics.opportunities.length,0);
   assert.equal(ledger.mechanics.unscoredFailures.length,1);
   const [profile]=scoreReliabilityProfiles([ledger]);
@@ -65,7 +64,7 @@ test('Survival denominator is pulls attended, not guild pull count',()=>{
   const players=[{actorId:1,name:'Alpha',className:'Mage',spec:'Frost',role:'DPS'}];
   const fights=Array.from({length:20},(_,i)=>({id:i+1,friendlyPlayers:i<7?[1]:[]}));
   const deaths=new Map([[2,[{actorId:1,timestampReportMs:2000}]]]);
-  const [ledger]=buildReliabilityEvidenceLedger({players,fights,meaningfulDeathsByFight:deaths});
+  const [ledger]=buildReliabilityEvidenceLedger({players,fights,meaningfulDeathsByFight:deaths,survivalSourceComplete:true});
   assert.equal(ledger.participation.pullsAttended,7);
   assert.equal(ledger.survival.opportunities.length,7);
   assert.equal(ledger.survival.opportunities.filter(x=>x.firstMeaningfulDeath).length,1);
@@ -79,6 +78,15 @@ test('a complete canonical profile publishes and exact score trace reconstructs 
   assert.equal(profile.value,sum);
   assert.equal(profile.confidence.level,'high');
   assert.equal(profile.scoreTrace.scoredWeightCoverage,1);
+});
+
+test('mandatory Defensives blocks overall publication even when other dimensions score',()=>{
+  const ledger=completeLedger();
+  ledger.defensives={opportunities:[],unscored:[]};
+  const [profile]=scoreReliabilityProfiles([ledger]);
+  assert.equal(profile.value,null);
+  assert.equal(profile.status,'shadow-pending');
+  assert.ok(profile.publication.reasons.some(r=>r.includes('defensives dimension not scored')));
 });
 
 test('one-night/report-scoped data cannot publish an overall Reliability number',()=>{
@@ -103,7 +111,7 @@ test('adaptation is reported but does not change the base score for identical op
   assert.notDeepEqual(sa.adaptation,sb.adaptation);
 });
 
-test('overall comparison refuses mismatched scored dimensions or low confidence',()=>{
+test('overall comparison refuses mismatched scored dimensions',()=>{
   const [a,b]=scoreReliabilityProfiles([completeLedger({name:'A',actorId:1}),completeLedger({name:'B',actorId:2})]);
   const safe=compareReliabilityProfiles(a,b);
   assert.equal(safe.comparable,true);
@@ -114,10 +122,10 @@ test('overall comparison refuses mismatched scored dimensions or low confidence'
   assert.match(unsafe.reason,/same scored Reliability dimensions/);
 });
 
-test('policy keeps parse outside Reliability and exposes versioned hard gates',()=>{
+test('policy keeps parse outside Reliability and exposes mandatory execution gates',()=>{
   assert.match(RELIABILITY_POLICY.parsePolicy,/never-enter-reliability-score/);
   assert.equal(RELIABILITY_POLICY.dataTruth.performanceDoesNotScore,true);
-  assert.equal(RELIABILITY_POLICY.publication.requiredDimensions.includes('mechanics'),true);
-  assert.equal(RELIABILITY_POLICY.publication.requiredDimensions.includes('survival'),true);
+  assert.equal(RELIABILITY_POLICY.dataTruth.peerGroupDoesNotChangeAbsoluteScore,true);
+  assert.deepEqual([...RELIABILITY_POLICY.publication.requiredDimensions],['mechanics','survival','defensives']);
   assert.equal(RELIABILITY_POLICY.publication.minScoredWeightCoverage,.75);
 });
