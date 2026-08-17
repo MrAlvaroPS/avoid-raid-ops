@@ -6,6 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { buildBundledKnowledge } from '../../server/knowledge/game-knowledge-v1.mjs';
 import { stageKnowledgeCandidate,activateKnowledgeCandidate } from '../../server/knowledge/knowledge-store-v1.mjs';
+import { filterCurrentRaidReports } from '../../server/engines/report-catalog-engine.mjs';
 
 const read=file=>readFile(new URL(`../../${file}`,import.meta.url),'utf8');
 
@@ -14,8 +15,15 @@ test('CRITICAL SCREEN ISOLATION: Encounter Corpus is page-owned by Mechanics and
   assert.match(guard,/const PAGE_OWNER = 'Mechanics'/);
   assert.match(guard,/if \(!onMechanics\)/);
   assert.match(guard,/current\.style\.display = 'none'/);
-  assert.match(guard,/data.*avoidPageOwner|dataset\.avoidPageOwner/);
+  assert.match(guard,/dataset\.avoidPageOwner/);
   assert.doesNotMatch(guard,/if \(panel\?\.querySelector\('\.encounter-intelligence-v375'\)\) \{\s*panel\.style\.display = '';\s*return;/s,'the old cross-tab visibility bug must not return');
+});
+
+test('CRITICAL SCREEN LOAD CONTRACT: every navigation destination has an explicit source component',async()=>{
+  const shell=await read('apps/web/src/app/AppShell.js');
+  const expected=['Command Center','LIVE','Progress','Pull Lab','Damage & Healing','Mechanics','Defensive Audit','Players','Composition'];
+  for(const page of expected)assert.ok(shell.includes(`l===\"${page}\"`)||page==='Composition',`${page} must remain explicitly routable`);
+  for(const component of ['CommandCenter','Live','Progress','PullLab','DamageHealing','Mechanics','DefensiveAudit','Players','Composition'])assert.match(shell,new RegExp(`import \\{ ${component} \\}`));
 });
 
 test('CRITICAL UI RHYTHM: runtime cards use the same 12px spacing contract and nested corpus content adds no second margin',async()=>{
@@ -41,11 +49,21 @@ test('CRITICAL LOAD UX: Data Hub supports stored fallback, visible activity and 
   assert.match(source,/location\.assign\(u\.href\)/);
 });
 
-test('CRITICAL REPORT SCOPE: AvoiD log catalogue is exact-current-raid-zone scoped and never title-filtered',async()=>{
+test('CRITICAL REPORT SCOPE: only exact current-raid zone survives; dungeon/old-raid noise cannot leak in',()=>{
+  const reports=filterCurrentRaidReports([
+    {code:'CURRENT',title:'Raid night',startTime:300,zone:{id:44,name:'Current Raid'}},
+    {code:'MPLUS',title:'+15 dungeon',startTime:400,zone:{id:39,name:'Mythic+ Dungeon'}},
+    {code:'OLD',title:'Old raid',startTime:500,zone:{id:12,name:'Legacy Raid'}},
+    {code:'CURRENT2',title:'Current raid alt logger',startTime:200,zone:{id:44,name:'Current Raid'}},
+  ],{zoneId:44,selectedCode:'CURRENT'});
+  assert.deepEqual(reports.map(report=>report.code),['CURRENT','CURRENT2']);
+  assert.equal(reports[0].selected,true);
+});
+
+test('CRITICAL REPORT SCOPE: catalogue query uses exact zone and forbids title heuristics',async()=>{
   const engine=await read('server/engines/report-catalog-engine.mjs');
   const query=await read('server/wcl/queries/report-catalog.mjs');
   assert.match(query,/zoneID:\$zoneId/);
-  assert.match(engine,/Number\(report\?\.zone\?\.id\)===zoneId/);
   assert.match(engine,/mythicPlus:'excluded by exact raid zone scope'/);
   assert.match(engine,/unrelatedRaids:'excluded by exact raid zone scope'/);
   assert.match(engine,/titleHeuristics:false/);
