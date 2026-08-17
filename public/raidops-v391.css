@@ -1,0 +1,25 @@
+/* AvoiD Raid Ops v3.9.1 — Players dossier + Reliability banner hotfix. */
+
+/* The roster may grow until it matches the dossier column. Only after consuming that
+   useful height may it become an internal scroller. Do not let either column stretch
+   the other and do not reintroduce the fixed 560/570px dead-space cap. */
+.layout-player{align-items:start!important}
+.layout-player>.player-list{
+  max-height:var(--players-roster-max-height,none)!important;
+  overflow-y:var(--players-roster-overflow,visible)!important;
+  overflow-x:hidden!important;
+}
+.layout-player>.player-detail{min-width:0!important;width:100%!important}
+
+/* The React golden shell still contains historical mock values. They are never allowed
+   to flash as live Reliability. The active Players runtime reveals the banner only after
+   replacing it with evidence-gated state. If React recreates the node, it becomes hidden
+   again until ownership is reacquired on the next data tick. */
+body:has(.layout-player>.player-detail) .page-banner .banner-stat:not([data-reliability-owned="true"]) b,
+body:has(.layout-player>.player-detail) .page-banner .banner-stat:not([data-reliability-owned="true"]) small{
+  visibility:hidden!important;
+}
+body:has(.layout-player>.player-detail) .page-banner .banner-stat[data-reliability-owned="true"] b,
+body:has(.layout-player>.player-detail) .page-banner .banner-stat[data-reliability-owned="true"] small{
+  visibility:visible!important;
+}
