@@ -87,6 +87,13 @@ test('explicit canonical Deep deficit is authoritative and is not inflated by th
   assert.equal(estimated.targetSource,'estimated-from-existing-deep');
 });
 
+test('targeted Deep audit keeps canonical minima separate from the larger selected execution plan',()=>{
+  const source=fs.readFileSync(new URL('../../server/corpus/targeted-deep-v373.mjs',import.meta.url),'utf8');
+  assert.match(source,/targetedDeepPlan:\{requestedReports,requestedPulls,selectedReports:queryPlan\.selectedReports,selectedPulls:queryPlan\.selectedPulls/);
+  assert.match(source,/goalStatus:queryPlan\.goals/);
+  assert.match(source,/minimum \$\{requestedReports\} reports \/ \$\{requestedPulls\} pulls/);
+});
+
 test('query-guided Deep keeps surgical ability expressions diagnostic-only',()=>{
   const rows=[profile('a1',1,[fight(1,45),fight(2,65),fight(3,95),fight(4,100,true)])];
   const focus=[1,2,3,4,5,6,7,8,9,10];
