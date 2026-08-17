@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyCanonicalDeepTopUpV378 } from '../../server/corpus/model-policy-v378.mjs';
-import { filterCanonicalWideProfilesForDeep, resolveTargetedDeepRequest } from '../../server/corpus/targeted-deep-v373.mjs';
+import { filterCanonicalWideProfilesForDeep, resolveCanonicalWideTargetPulls, resolveTargetedDeepRequest } from '../../server/corpus/targeted-deep-v373.mjs';
 import { QUERY_GUIDED_DEEP_POLICY_VERSION } from '../../server/corpus/query-guided-deep-v1.mjs';
 
 function residualModel(){
@@ -66,4 +66,9 @@ test('query-guided Deep filters persisted cache down to the current canonical Wi
   const profiles=[{code:'A'},{code:'B'},{code:'C'},{code:'D'}];
   assert.deepEqual(filterCanonicalWideProfilesForDeep(profiles,['A','C']).map(x=>x.code),['A','C']);
   assert.deepEqual(filterCanonicalWideProfilesForDeep(profiles,[]).map(x=>x.code),['A','B','C','D']);
+});
+
+test('targeted Deep preserves the existing canonical Wide pull target instead of retargeting to the trimmed count',()=>{
+  assert.equal(resolveCanonicalWideTargetPulls({targetPulls:1576},{killPulls:183,wipePulls:1397}),1576);
+  assert.equal(resolveCanonicalWideTargetPulls({}, {killPulls:183,wipePulls:1397}),1580);
 });
