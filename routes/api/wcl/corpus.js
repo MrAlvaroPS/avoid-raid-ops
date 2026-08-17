@@ -9,20 +9,22 @@ import {
   loadAnyEncounterModel,
 } from '../../../server/corpus/service.mjs';
 import { recompileCorpusModelV2, getBossSamplingManifest } from '../../../server/corpus/service-v2.mjs';
-import { assertCorpusStorage, corpusGet, corpusStorageErrorInfo } from '../../../server/corpus/storage.mjs';
+import { assertCorpusStorage, corpusGet, corpusList, corpusStorageErrorInfo } from '../../../server/corpus/storage.mjs';
 import { launchCorpusExecution, corpusExecutionDescriptor } from '../../../server/corpus/execution.mjs';
-import { aggregateKey, jobKey } from '../../../server/corpus/keys.mjs';
+import { aggregateKey, jobKey, corpusId } from '../../../server/corpus/keys.mjs';
 import { aggregateSummary } from '../../../server/corpus/aggregate.mjs';
-import { applyBossSamplingPolicyV378, modelDiagnosticsV378 } from '../../../server/corpus/model-policy-v378.mjs';
+import { applyBossSamplingPolicyV379, modelDiagnosticsV379 } from '../../../server/corpus/model-policy-v379.mjs';
+import { buildSurgicalProbePlanV1 } from '../../../server/corpus/surgical-probe-planner-v1.mjs';
 import { startTargetedDeepV373 } from '../../../server/corpus/targeted-deep-v373.mjs';
 import { IRIS_KNOWLEDGE_CONTRACT_VERSION, homeGuildId } from '../../../server/knowledge/scopes.mjs';
 import { BOSS_SAMPLING_POLICY_VERSION } from '../../../server/corpus/sampling-v2.mjs';
 
-const ENGINE_VERSION = '3.7.8';
+const ENGINE_VERSION = '3.7.9';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
 });
+const explicitNonNegative=(value,fallback)=>Number.isFinite(Number(value))?Math.max(0,Number(value)):fallback;
 
 function requestInput(request, body = {}) {
   const url = new URL(request.url);
@@ -58,18 +60,38 @@ async function decorateStatus(input, status) {
     deepTargetReports: Number(job?.deepTargetReports || 0) || null,
     targetReports: Number(job?.targetReports || 0) || null,
     aggregate: aggregate ? aggregateSummary(aggregate) : status.aggregate,
-    model: raw ? modelDiagnosticsV378(raw, aggregate) : (status.model || null),
+    model: raw ? modelDiagnosticsV379(raw, aggregate) : (status.model || null),
   };
 }
 
 async function policyModel(input) {
   const {raw,aggregate} = await policyContext(input);
-  const model=applyBossSamplingPolicyV378(raw, aggregate);
+  const model=applyBossSamplingPolicyV379(raw, aggregate);
   if(model){
     model.engineVersion=ENGINE_VERSION;
-    if(model.validation) model.validation.publicationMode='manual-review-hold-v3.7.8-canonical-deep';
+    if(model.validation) model.validation.publicationMode='manual-review-hold-v3.7.9-signal-triage';
   }
   return model;
+}
+
+async function probePlan(input) {
+  const {raw,aggregate,args}=await policyContext(input);
+  if(!raw||!aggregate||!args)throw new Error('No persisted canonical boss model is available for probe planning');
+  const model=applyBossSamplingPolicyV379(raw,aggregate);
+  const keys=await corpusList(`profiles/${corpusId(args)}/`);
+  const profiles=[];
+  for(const key of keys){const profile=await corpusGet(key);if(profile)profiles.push(profile);}
+  return buildSurgicalProbePlanV1({
+    model,
+    aggregate,
+    profiles,
+    encounterId:args.encounterId,
+    difficulty:args.difficulty,
+    partition:args.partition,
+    maxSignals:Number(input.maxSignals)||7,
+    maxSourcesPerSignal:Number(input.maxSourcesPerSignal)||5,
+    maxFightsPerSource:Number(input.maxFightsPerSource)||2,
+  });
 }
 
 async function improveModel(input) {
@@ -86,12 +108,15 @@ async function improveModel(input) {
 
   const model = await policyModel(input);
   if (!model) throw new Error('No encounter model is available to improve');
-  const rec = model.learning?.enrichmentRecommendation || {};
+  // `Improve` remains the explicit publication-evidence action. Learning guidance is
+  // exposed separately via model.learning.recommendations.learningNext and probe-plan.
+  // This prevents a signal-discovery bottleneck from silently launching a broad crawl.
+  const rec = model.learning?.publicationRecommendation || model.learning?.enrichmentRecommendation || {};
   if (rec.mode === 'targeted-deep') {
     await startTargetedDeepV373({
       ...input,
-      addDeepPulls: Number(rec.suggestedAdditionalDeepPulls) || 0,
-      addDeepReports: Number(rec.suggestedAdditionalDeepReports) || 0,
+      addDeepPulls: explicitNonNegative(rec.suggestedAdditionalDeepPulls,0),
+      addDeepReports: explicitNonNegative(rec.suggestedAdditionalDeepReports,0),
       maxFightsPerReport:Number(rec.queryGuidance?.maxFightsPerReport) || 6,
       focusAbilityIds: model.learning?.enrichmentFocusAbilityIds || [],
     });
@@ -100,8 +125,8 @@ async function improveModel(input) {
   await startCorpus({
     ...input,
     mode:'enrich',
-    addPulls:Number(rec.suggestedAdditionalWidePulls) || 500,
-    addDeepPulls:Number(rec.suggestedAdditionalDeepPulls) || 100,
+    addPulls:explicitNonNegative(rec.suggestedAdditionalWidePulls,500),
+    addDeepPulls:explicitNonNegative(rec.suggestedAdditionalDeepPulls,100),
   });
   return launchCorpusExecution({ ...input, mode:'enrich' });
 }
@@ -122,7 +147,7 @@ export default defineHandler(async (event) => {
           ...corpusExecutionDescriptor(),
           ...health,
           engineVersion: ENGINE_VERSION,
-          policyVersion: 'relation-provenance-v2+boss-sampling-v3+query-guided-rec-v3',
+          policyVersion: 'signal-triage-v1+semantic-contract-v1+decision-separation-v1',
           knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
           samplingPolicyVersion: BOSS_SAMPLING_POLICY_VERSION,
           homeGuildId: homeGuildId(),
@@ -138,6 +163,10 @@ export default defineHandler(async (event) => {
       if (actionFromQuery === 'sampling') {
         const sampling = await getBossSamplingManifest(input);
         return json({ ok:Boolean(sampling), sampling }, sampling ? 200 : 404);
+      }
+      if (actionFromQuery === 'probe-plan') {
+        const plan=await probePlan(input);
+        return json({ok:true,wclCallsExecuted:0,plan});
       }
       return json({ ok:true, status:await decorateStatus(input, await getCorpusStatus(input)) });
     }
@@ -156,8 +185,9 @@ export default defineHandler(async (event) => {
     }
     if (action === 'improve') {
       const launched = await improveModel(input);
-      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, executionMode:launched.executionMode, reusedExistingJob:Boolean(launched.reusedExistingJob), plan:(await policyModel(input))?.learning?.enrichmentRecommendation || null }, 202);
+      return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, executionMode:launched.executionMode, reusedExistingJob:Boolean(launched.reusedExistingJob), plan:(await policyModel(input))?.learning?.publicationRecommendation || null }, 202);
     }
+    if (action === 'probe-plan') return json({ok:true,wclCallsExecuted:0,plan:await probePlan(input)});
     if (action === 'targeted-deep') {
       await startTargetedDeepV373(input);
       const launched = await launchCorpusExecution({ ...input, mode:'targeted-deep' });
