@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { buildPlayerAttendance } from '../../server/analysis/reliability/player-attendance-v1.mjs';
+import { clusterRaidSessions } from '../../server/analysis/progression/raid-sessions.mjs';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
 
@@ -40,6 +41,22 @@ test('duplicate logger roster keys inside one canonical pull never double count 
   assert.equal(a.pullAttendancePct,100);
 });
 
+test('raid attendance counts closed resets that Progress correctly excludes',()=>{
+  const report={
+    code:'A',title:'Raid',startTime:1_000_000,endTime:1_300_000,
+    masterData:{actors:[{id:1,name:'Alpha',subType:'Mage',server:'realm'}]},
+    fights:[
+      {id:1,encounterID:3182,name:'Boss',difficulty:5,startTime:0,endTime:28_000,kill:false,fightPercentage:100,bossPercentage:97,lastPhaseAsAbsoluteIndex:0,wipeCalledTime:0,inProgress:false,friendlyPlayers:[1]},
+      {id:2,encounterID:3182,name:'Boss',difficulty:5,startTime:70_000,endTime:190_000,kill:false,fightPercentage:65,bossPercentage:65,lastPhaseAsAbsoluteIndex:2,wipeCalledTime:0,inProgress:false,friendlyPlayers:[1]}
+    ]
+  };
+  const analytical=clusterRaidSessions([report]);
+  const attendance=clusterRaidSessions([report],{includeAllClosed:true});
+  assert.equal(analytical[0].pulls,1);
+  assert.equal(attendance[0].pulls,2);
+  assert.equal(attendance[0].population,'all-closed-boss-pulls');
+});
+
 test('history query carries actor identities and separates encounter from raid attendance populations',async()=>{
   const [query,engine]=await Promise.all([
     read('server/wcl/queries/history.mjs'),
@@ -48,8 +65,9 @@ test('history query carries actor identities and separates encounter from raid a
   assert.match(query,/masterData\{actors\{id name type subType server\}\}/);
   assert.match(query,/encounterFights:fights\(encounterID:\$encounterId,difficulty:\$difficulty/);
   assert.match(query,/raidFights:fights\(killType:Encounters\)/);
-  assert.match(engine,/const raidClustered=clusterRaidSessions\(raidReports/);
+  assert.match(engine,/const raidClustered=clusterRaidSessions\(raidReports,\{currentReportCode:reportCode,includeAllClosed:true\}\)/);
   assert.match(engine,/scope:'raid-zone-history-window'/);
+  assert.match(engine,/all canonical closed boss pulls/i);
   assert.match(engine,/not an inferred guild join date/);
 });
 
