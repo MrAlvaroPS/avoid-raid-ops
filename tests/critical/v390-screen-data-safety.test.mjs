@@ -170,7 +170,7 @@ test('CRITICAL IRIS DOCUMENTATION: architecture and operations docs explicitly b
   assert.match(architecture,/GET \/api\/iris\/capabilities/);
   assert.match(operations,/window\.__AVOID_IRIS_OPERATIONS__/);
   assert.match(operations,/Raw Warcraft Logs evidence is immutable/);
-  assert.match(operations,/planned capability as already available/);
+  assert.match(operations,/planned`? capability as already available/i);
   assert.match(plan,/Iris operations-management contract/);
   assert.match(agents,/Read `IRIS-ARCHITECTURE\.md` and `IRIS-OPERATIONS\.md`/);
 });
