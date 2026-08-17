@@ -1,0 +1,22 @@
+/* AvoiD Raid Ops v3.9.2 — Players dossier + Reliability banner hotfix. */
+
+/* Use the dossier column as the useful desktop height. The roster only becomes
+   internally scrollable after it has consumed that space. */
+.layout-player{align-items:start!important}
+.layout-player>.player-list{
+  max-height:var(--players-roster-max-height,none)!important;
+  overflow-y:var(--players-roster-overflow,visible)!important;
+  overflow-x:hidden!important;
+}
+.layout-player>.player-detail{min-width:0!important;width:100%!important}
+
+/* The reconstructed React shell still exists underneath the real-data runtime.
+   Never expose stale shell values as Reliability while that runtime is taking ownership. */
+body:has(.layout-player>.player-detail) .page-banner .banner-stat:not([data-reliability-owned="true"]) b,
+body:has(.layout-player>.player-detail) .page-banner .banner-stat:not([data-reliability-owned="true"]) small{
+  visibility:hidden!important;
+}
+body:has(.layout-player>.player-detail) .page-banner .banner-stat[data-reliability-owned="true"] b,
+body:has(.layout-player>.player-detail) .page-banner .banner-stat[data-reliability-owned="true"] small{
+  visibility:visible!important;
+}
