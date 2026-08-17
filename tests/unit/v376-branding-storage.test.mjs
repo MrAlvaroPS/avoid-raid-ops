@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { CSS_BUNDLE_SOURCES } from '../../config/active-assets.mjs';
 
 const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -9,11 +10,14 @@ test('v3.7.6 introduced Iris, Onie and its release asset', async () => {
     read('public/iris-runtime-v376.js'),
     read('index.html'),
   ]);
+  const styles=CSS_BUNDLE_SOURCES.map(asset=>asset.src);
   assert.match(runtime, /const RELEASE='3\.7\.6'/);
   assert.match(runtime, /const IRIS='Iris'/);
   assert.match(runtime, /const RAID_LEADER='Onie'/);
   assert.match(runtime, /corpusScope:'encounter\+difficulty\+partition'/);
-  assert.match(index, /raidops-v376\.css\?v=3\.7\.6/);
+  assert.ok(styles.includes('/raidops-v376.css?v=3.7.6'),'v3.7.6 CSS must remain an audited compatibility source');
+  assert.match(index,/raidops-active\.css\?v=3\.9\.2-css1/);
+  assert.doesNotMatch(index,/raidops-v376\.css\?v=3\.7\.6/);
   // Newer releases may replace the active runtime while keeping v3.7.6 as a regression asset.
   assert.match(index, /iris-runtime-v3713\.js\?v=3\.8\.(?:5|9\.1)|iris-runtime-v37(?:6|7|8|9|10|11|12|13)\.js\?v=3\.7\.(?:6|7|8|9|10|11|12|13)/);
 });

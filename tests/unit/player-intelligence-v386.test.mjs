@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { buildIndexedRaidAttendance } from '../../server/analysis/reliability/attendance-history-v1.mjs';
 import { dedupeSessionPulls } from '../../server/analysis/progression/raid-sessions.mjs';
+import { CSS_BUNDLE_SOURCES } from '../../config/active-assets.mjs';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
 const identity=name=>({key:`unknown:${name.toLowerCase()}`,name,server:null,className:'Mage'});
@@ -44,6 +45,7 @@ test('v3.8.8 Players remains historical while v3.9.2 owns the active dossier and
   const [historical,active,legacyCss,releaseCss,hotfixCss,index,pkg]=await Promise.all([
     read('public/player-intelligence-v386.js'),read('public/player-intelligence-v392.js'),read('public/raidops-v386.css'),read('public/raidops-v390.css'),read('public/raidops-v392.css'),read('index.html'),read('package.json')
   ]);
+  const styles=CSS_BUNDLE_SOURCES.map(asset=>asset.src);
   assert.match(historical,/const VERSION='3\.8\.8'/);
   assert.match(active,/const VERSION='3\.9\.2'/);
   assert.match(active,/typeof telemetry!=='undefined'\?telemetry:null/);
@@ -64,8 +66,8 @@ test('v3.8.8 Players remains historical while v3.9.2 owns the active dossier and
   assert.match(hotfixCss,/data-reliability-owned/);
   assert.doesNotMatch(index,/player-intelligence-v386\.js\?v=3\.8\.9\.1/);
   assert.match(index,/player-intelligence-v392\.js\?v=3\.9\.2/);
-  assert.match(index,/raidops-v386\.css\?v=3\.8\.6/);
-  assert.match(index,/raidops-v390\.css\?v=3\.9\.0/);
-  assert.match(index,/raidops-v392\.css\?v=3\.9\.2/);
+  assert.deepEqual(styles.filter(src=>['/raidops-v386.css?v=3.8.6','/raidops-v390.css?v=3.9.0','/raidops-v392.css?v=3.9.2'].includes(src)),['/raidops-v386.css?v=3.8.6','/raidops-v390.css?v=3.9.0','/raidops-v392.css?v=3.9.2']);
+  assert.match(index,/raidops-active\.css\?v=3\.9\.2-css1/);
+  assert.doesNotMatch(index,/raidops-v(?:386|390|392)\.css/);
   assert.equal(JSON.parse(pkg).version,'0.3.9-2-vercel.0');
 });

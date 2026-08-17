@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { clusterRaidSessions } from '../../server/analysis/progression/raid-sessions.mjs';
+import { CSS_BUNDLE_SOURCES } from '../../config/active-assets.mjs';
 
 const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -66,8 +67,13 @@ test('Progress and Live product boundary is documented', async () => {
 
 test('v3.7.9 assets stay available while v3.8.5 Progress and hotfixed Iris remain active', async () => {
   const index = await read('index.html');
-  assert.match(index, /raidops-v379\.css\?v=3\.7\.9/);
-  assert.match(index, /raidops-v3713\.css\?v=3\.8\.5/);
+  const styles=CSS_BUNDLE_SOURCES.map(asset=>asset.src);
+  assert.ok(styles.includes('/raidops-v379.css?v=3.7.9'),'v3.7.9 CSS must remain an audited compatibility source');
+  assert.ok(styles.includes('/raidops-v3713.css?v=3.8.5'),'v3.8.5 Progress CSS must remain the later audited source layer');
+  assert.ok(styles.indexOf('/raidops-v379.css?v=3.7.9')<styles.indexOf('/raidops-v3713.css?v=3.8.5'),'Progress CSS history must retain chronological cascade order');
+  assert.match(index,/raidops-active\.css\?v=3\.9\.2-css1/);
+  assert.doesNotMatch(index,/raidops-v379\.css\?v=3\.7\.9/);
+  assert.doesNotMatch(index,/raidops-v3713\.css\?v=3\.8\.5/);
   assert.match(index, /progress-runtime-v3713\.js\?v=3\.8\.5/);
   assert.match(index, /iris-runtime-v3713\.js\?v=3\.8\.9\.1/);
   assert.doesNotMatch(index, /progress-runtime-v379\.js\?v=3\.7\.9/);
