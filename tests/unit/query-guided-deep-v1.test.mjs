@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { buildQueryGuidedDeepPlan, QUERY_GUIDED_DEEP_POLICY_VERSION } from '../../server/corpus/query-guided-deep-v1.mjs';
+import { resolveTargetedDeepRequest } from '../../server/corpus/targeted-deep-v373.mjs';
 import { isCanonicalDeepComplete, CANONICAL_DEEP_REQUIRED_STREAMS } from '../../server/corpus/canonical-rebuild-v2.mjs';
 
 const fight=(id,fightPercentage=100,kill=false)=>({id,kill,fightPercentage});
@@ -28,6 +29,17 @@ test('query-guided Deep spends exact fightIDs across independent sources before 
   assert.ok(plan.selected.every(row=>row.fightIDs.length<=6));
   assert.equal(plan.selectedPulls,12);
   assert.equal(Object.values(plan.outcomeCounts).reduce((a,b)=>a+b,0),12);
+});
+
+test('explicit canonical Deep deficit is authoritative and is not inflated by the cold-start average',()=>{
+  const target=resolveTargetedDeepRequest({addDeepReports:50,addDeepPulls:300,currentPulls:0,currentReports:0});
+  assert.equal(target.requestedReports,50);
+  assert.equal(target.requestedPulls,300);
+  assert.equal(target.targetSource,'explicit-canonical-deficit');
+
+  const estimated=resolveTargetedDeepRequest({addDeepReports:50,currentPulls:0,currentReports:0});
+  assert.equal(estimated.requestedPulls,400);
+  assert.equal(estimated.targetSource,'estimated-from-existing-deep');
 });
 
 test('query-guided Deep keeps surgical ability expressions diagnostic-only',()=>{
