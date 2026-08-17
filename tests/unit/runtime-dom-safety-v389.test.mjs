@@ -11,6 +11,7 @@ const OBSERVER_CONSTRUCTION = /\bnew\s+(?:window\.)?MutationObserver\s*\(/;
 const ACTIVE_OVERLAYS = [
   'public/wcl-bootstrap-v389.js',
   'public/data-hub-v390.js',
+  'public/knowledge-reindex-v390.js',
   'public/wcl-runtime.js',
   'public/encounter-intelligence-v375.js',
   'public/corpus-ui-stability-v1.js',
@@ -72,12 +73,14 @@ test('CRITICAL IRIS RELEASE GUARD: Iris component metadata cannot overwrite the 
   assert.doesNotMatch(source, /\.observe\s*\(/);
 });
 
-test('CRITICAL RELEASE WIRING: bootstrap and cache/data layer load before shared WCL/component overlays', async () => {
+test('CRITICAL RELEASE WIRING: bootstrap and cache/data layers load before shared WCL/component overlays', async () => {
   const index = await read('index.html');
   const bootstrap = index.indexOf('/wcl-bootstrap-v389.js?v=3.8.9.1');
   const dataHub = index.indexOf('/data-hub-v390.js?v=3.9.0-refactor');
+  const reindex = index.indexOf('/knowledge-reindex-v390.js?v=3.9.0-refactor');
   assert.ok(bootstrap >= 0, 'hotfix bootstrap must be wired into index.html');
   assert.ok(dataHub > bootstrap, 'data hub must wrap the bootstrap fetch layer, not bypass it');
+  assert.ok(reindex > dataHub, 'knowledge reindex guard must listen after the data hub is initialized');
   for (const asset of [
     '/wcl-runtime.js?v=3.8.5',
     '/encounter-intelligence-v375.js?v=3.8.5',
@@ -87,6 +90,6 @@ test('CRITICAL RELEASE WIRING: bootstrap and cache/data layer load before shared
     '/player-intelligence-v386.js?v=3.8.9.1',
   ]) {
     const position = index.indexOf(asset);
-    assert.ok(position > dataHub, `${asset} must load after the bootstrap + data platform layer`);
+    assert.ok(position > reindex, `${asset} must load after the bootstrap + data platform layers`);
   }
 });
