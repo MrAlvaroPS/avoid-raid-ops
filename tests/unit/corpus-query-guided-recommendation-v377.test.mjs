@@ -40,11 +40,16 @@ test('zero/under-covered Deep routes to query-guided cached Wide and sizes from 
   assert.equal(out.engineVersion,'3.7.7');
   assert.equal(rec.mode,'targeted-deep');
   assert.equal(rec.strategy,'query-guided-existing-wide');
+  assert.equal(rec.policyVersion,'query-guided-recommendation-v2');
   assert.equal(rec.suggestedAdditionalWidePulls,0);
   assert.equal(rec.suggestedAdditionalWideReports,0);
   assert.equal(rec.suggestedAdditionalDeepReports,50);
   assert.equal(rec.suggestedAdditionalDeepPulls,300);
+  assert.equal(rec.queryGuidance.policyVersion,'query-guided-deep-v2');
   assert.equal(rec.queryGuidance.exactFightIDs,true);
+  assert.equal(rec.queryGuidance.goalSemantics,'minimum-both');
+  assert.equal(rec.queryGuidance.additionalReportsMayBeSelectedToMeetPullGoal,true);
+  assert.equal(rec.queryGuidance.denseReportFightCountIsNotAnAnomaly,true);
   assert.equal(rec.queryGuidance.surgicalProbesCountTowardDeepCoverage,false);
 });
 
