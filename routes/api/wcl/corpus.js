@@ -15,6 +15,7 @@ import { aggregateKey, jobKey, corpusId } from '../../../server/corpus/keys.mjs'
 import { aggregateSummary } from '../../../server/corpus/aggregate.mjs';
 import { applyBossSamplingPolicyV380, modelDiagnosticsV380 } from '../../../server/corpus/model-policy-v380.mjs';
 import { buildSurgicalProbePlanV1 } from '../../../server/corpus/surgical-probe-planner-v1.mjs';
+import { buildSemanticSurgicalProbePlanV1, SEMANTIC_SURGICAL_PROBE_PLAN_VERSION } from '../../../server/corpus/semantic-surgical-probe-planner-v1.mjs';
 import { startTargetedDeepV373 } from '../../../server/corpus/targeted-deep-v373.mjs';
 import { IRIS_KNOWLEDGE_CONTRACT_VERSION, homeGuildId } from '../../../server/knowledge/scopes.mjs';
 import { BOSS_SAMPLING_POLICY_VERSION } from '../../../server/corpus/sampling-v2.mjs';
@@ -74,13 +75,18 @@ async function policyModel(input) {
   return model;
 }
 
+async function persistedProfiles(args){
+  const keys=await corpusList(`profiles/${corpusId(args)}/`);
+  const profiles=[];
+  for(const key of keys){const profile=await corpusGet(key);if(profile)profiles.push(profile);}
+  return profiles;
+}
+
 async function probePlan(input) {
   const {raw,aggregate,args}=await policyContext(input);
   if(!raw||!aggregate||!args)throw new Error('No persisted canonical boss model is available for probe planning');
   const model=applyBossSamplingPolicyV380(raw,aggregate);
-  const keys=await corpusList(`profiles/${corpusId(args)}/`);
-  const profiles=[];
-  for(const key of keys){const profile=await corpusGet(key);if(profile)profiles.push(profile);}
+  const profiles=await persistedProfiles(args);
   return buildSurgicalProbePlanV1({
     model,
     aggregate,
@@ -91,6 +97,25 @@ async function probePlan(input) {
     maxSignals:Number(input.maxSignals)||7,
     maxSourcesPerSignal:Number(input.maxSourcesPerSignal)||5,
     maxFightsPerSource:Number(input.maxFightsPerSource)||2,
+  });
+}
+
+async function semanticProbePlan(input){
+  const {raw,aggregate,args}=await policyContext(input);
+  if(!raw||!aggregate||!args)throw new Error('No persisted canonical boss model is available for semantic probe planning');
+  const model=applyBossSamplingPolicyV380(raw,aggregate);
+  const profiles=await persistedProfiles(args);
+  return buildSemanticSurgicalProbePlanV1({
+    model,
+    aggregate,
+    profiles,
+    encounterId:args.encounterId,
+    difficulty:args.difficulty,
+    partition:args.partition,
+    maxSignals:Number(input.maxSignals)||3,
+    maxSourcesPerSignal:Number(input.maxSourcesPerSignal)||5,
+    maxFightsPerSource:Number(input.maxFightsPerSource)||6,
+    maxContextAbilityIds:Number(input.maxContextAbilityIds)||12,
   });
 }
 
@@ -115,7 +140,7 @@ async function improveModel(input) {
   const model = await policyModel(input);
   if (!model) throw new Error('No encounter model is available to improve');
   // `Improve` remains the explicit publication-evidence action. Learning guidance is
-  // exposed separately via model.learning.recommendations.learningNext, synthesis and probe-plan.
+  // exposed separately via model.learning.recommendations.learningNext, synthesis and probe plans.
   // This prevents a learning bottleneck from silently launching a broad crawl.
   const rec = model.learning?.publicationRecommendation || model.learning?.enrichmentRecommendation || {};
   if (rec.mode === 'targeted-deep') {
@@ -154,6 +179,8 @@ export default defineHandler(async (event) => {
           ...health,
           engineVersion: ENGINE_VERSION,
           policyVersion: 'signal-triage-v1+local-mechanic-synthesis-v1+semantic-contract-v1+decision-separation-v1',
+          semanticProbePlanVersion:SEMANTIC_SURGICAL_PROBE_PLAN_VERSION,
+          bossAgnosticLearningContract:'iris-boss-agnostic-learning-pipeline-v1',
           knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
           samplingPolicyVersion: BOSS_SAMPLING_POLICY_VERSION,
           homeGuildId: homeGuildId(),
@@ -172,6 +199,10 @@ export default defineHandler(async (event) => {
       }
       if (actionFromQuery === 'probe-plan') {
         const plan=await probePlan(input);
+        return json({ok:true,wclCallsExecuted:0,plan});
+      }
+      if(actionFromQuery==='semantic-probe-plan'){
+        const plan=await semanticProbePlan(input);
         return json({ok:true,wclCallsExecuted:0,plan});
       }
       if(actionFromQuery==='synthesis'){
@@ -198,6 +229,7 @@ export default defineHandler(async (event) => {
       return json({ ok:true, status:await decorateStatus(input, launched.status), workflowRunId:launched.workflowRunId, executionMode:launched.executionMode, reusedExistingJob:Boolean(launched.reusedExistingJob), plan:(await policyModel(input))?.learning?.publicationRecommendation || null }, 202);
     }
     if (action === 'probe-plan') return json({ok:true,wclCallsExecuted:0,plan:await probePlan(input)});
+    if (action === 'semantic-probe-plan') return json({ok:true,wclCallsExecuted:0,plan:await semanticProbePlan(input)});
     if (action === 'synthesis') return json({ok:true,wclCallsExecuted:0,synthesis:await synthesisResult(input)});
     if (action === 'targeted-deep') {
       await startTargetedDeepV373(input);
