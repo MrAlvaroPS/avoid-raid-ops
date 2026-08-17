@@ -17,10 +17,12 @@ All meaningful product changes are recorded here. Git history remains the detail
 - Detached Golden, Data Truth and unit/regression verification from `deploy-preview/`; active verification now targets the Vercel/runtime asset tree.
 - Promoted Golden, architecture, reconstruction and browser Data Truth checks into the normal CI gate and pinned the browser verifier dependency for reproducibility.
 - Fixed a Linux case-sensitive Golden reconstruction check by falling back to the immutable Golden bundle when a historical extracted symbol collides by case.
+- Reconciled the legacy WCL runtime ownership audit into the canonical refactor branch. Every legacy writer/helper now has an explicit domain, owner and retirement state; `applyProgressCurve` remains intentionally shared because Command Center still consumes it.
+- Established one active-asset manifest and one generated compatibility CSS transport while retaining the reviewed historical CSS source layers for visual-equivalence verification.
 
 ### Mainline integration — v3.9.0 to v3.9.2
 
-The 4.0.0 refactor baseline has been updated to preserve the developments merged to `main` after the Phase 3 branch was created. Their current stable release identity remains `3.9.2`; this integration does not claim 4.0.0.
+The 4.0.0 refactor baseline was updated to preserve the developments merged to `main` after the Phase 3 branch was created. Their stable release identity at that checkpoint was `3.9.2`; this integration did not claim 4.0.0.
 
 Preserved developments include:
 
@@ -34,6 +36,24 @@ Preserved developments include:
 - the new release-critical regression suite and associated documentation/contracts.
 
 Integration rules deliberately keep the Phase 3 architecture stronger than the pre-refactor layout: Netlify remains quarantined, tests continue to target active Vercel assets, browser Data Truth remains a CI gate, and the new critical test suite is additive rather than replacing existing verification.
+
+### Mainline integration — v3.9.3 to v3.9.4
+
+The refactor baseline was resynchronized after `main` advanced again. The functional baseline is now **v3.9.4** while 4.0.0 remains only the migration target.
+
+Preserved developments include:
+
+- `provider-aware-ability-knowledge-v1` with fingerprinted, bounded provider preview/resolve semantics;
+- read-only Lorrgs boss/spell enrichment, optional server-keyed Parse/Wowhead reference enrichment and opt-in WCL GameData/WorldData static metadata;
+- `/api/knowledge/ability` with explicit confirmation for provider execution, WCL budget and Parse credit use;
+- `semantic-specificity-verification-v2`, including null/control specificity, actor topology, temporal consistency and provider-aware provenance;
+- zero-WCL stored semantic re-verification using persisted diagnostic evidence and cached outer-flank controls;
+- Iris source registry v2 and v3.9.4 capability contract;
+- explicit invariants that provider metadata adds zero canonical Deep coverage, zero direct score delta and no automatic mechanic promotion.
+
+The integration keeps the v4 route/service boundary: the Nitro semantic-probe route remains transport-only and the v3.9.4 `reverify` policy lives in `server/services/semantic-probe-service.mjs`.
+
+Release-specific `V3.9.3-CHANGES.md` was intentionally not duplicated into the refactor root; its durable release information is consolidated here while the technical Iris contracts remain separately versioned.
 
 ### Verified checkpoint — Phase 3 / batch 1
 
