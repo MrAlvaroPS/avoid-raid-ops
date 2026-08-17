@@ -120,3 +120,11 @@ test('query-guided execution requires BOTH Deep pull and report targets before c
   assert.match(source,/const reportsMet =/);
   assert.match(source,/if \(pullsMet && reportsMet\)/);
 });
+
+test('WCL playbook preserves real raid-night density as context rather than a pull-count rejection rule',()=>{
+  const playbook=fs.readFileSync(new URL('../../WCL-QUERY-PLAYBOOK.md',import.meta.url),'utf8');
+  assert.match(playbook,/20–25 pulls/);
+  assert.match(playbook,/Do \*\*not\*\* reject, down-rank or mark a report suspicious merely because it contains 20\+ valid pulls/i);
+  assert.match(playbook,/simultaneous \*\*minimum\*\* evidence gates/i);
+  assert.match(playbook,/per-report Deep sampling cap exists to control statistical correlation and WCL cost/i);
+});
