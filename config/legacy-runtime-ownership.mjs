@@ -1,6 +1,6 @@
 const responsibility=(id,domain,status,canonicalOwner,retirement,functions)=>Object.freeze({id,domain,status,canonicalOwner,retirement,functions:Object.freeze(functions)});
 
-export const LEGACY_RUNTIME_OWNERSHIP_VERSION='legacy-runtime-ownership-v3';
+export const LEGACY_RUNTIME_OWNERSHIP_VERSION='legacy-runtime-ownership-v4';
 export const LEGACY_RUNTIME_PATH='public/wcl-runtime.js';
 
 export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
@@ -15,9 +15,6 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   ]),
   responsibility('shared-progression-curve','command-center-progress','shared-compatibility-helper','public/wcl-runtime.js','extract-shared-curve-before-removing-progress-wrapper',[
     'applyProgressCurve',
-  ]),
-  responsibility('progress-shadowed-writers','progress','execution-retired','public/progress-runtime-v3713.js','delete-from-legacy-runtime-after-green-browser-regression',[
-    'applyProgressPage','applyRealProgressMatrix',
   ]),
   responsibility('shared-history-writer','command-center-progress','shared-compatibility-writer','public/wcl-runtime.js','split-command-center-history-from-progress-before-retirement',[
     'applyHistoryData',
@@ -54,15 +51,15 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   ]),
 ]);
 
-export const LEGACY_RUNTIME_PROGRESS_INTERCEPTED=Object.freeze(['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
-export const LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED=Object.freeze(['applyProgressPage','applyRealProgressMatrix']);
-export const LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES=LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED;
+export const LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS=Object.freeze(['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
+export const LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS=Object.freeze(['applyProgressCurve','applyHistoryData']);
+export const LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED=Object.freeze(['applyProgressPage','applyRealProgressMatrix']);
 
 export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   version:LEGACY_RUNTIME_OWNERSHIP_VERSION,
   path:LEGACY_RUNTIME_PATH,
   responsibilities:LEGACY_RUNTIME_RESPONSIBILITIES,
-  progressIntercepted:LEGACY_RUNTIME_PROGRESS_INTERCEPTED,
-  progressExecutionRetired:LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED,
-  progressRetirementCandidates:LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES,
+  progressHistoricalIntercepts:LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,
+  progressActiveIntercepts:LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,
+  progressPhysicallyRetired:LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,
 });
