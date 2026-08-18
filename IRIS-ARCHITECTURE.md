@@ -4,7 +4,8 @@
 **Product:** AvoiD Raid Operations  
 **Intelligence system:** **Iris**  
 **Raid Leader / primary live operator:** **Onie**  
-**Introduced as explicit product contract:** v3.7.6
+**Introduced as explicit product contract:** v3.7.6  
+**Canonical evidence doctrine:** `docs/IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1.md`
 
 ## Purpose
 
@@ -113,6 +114,56 @@ Only compact validated encounter knowledge should ultimately need to be hot in p
 10. Corpus growth should follow the current evidence bottleneck, not arbitrary pull counts.
 11. Iris should prefer a small number of actionable next-pull decisions over a large analytics dump.
 12. The UI may simplify research diagnostics, but must never simplify the underlying evidence model into false certainty.
+
+## Canonical knowledge/evidence doctrine
+
+The permanent source-selection and reasoning contract is:
+
+```text
+docs/IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1.md
+```
+
+Every Iris subsystem must behave as if it asks these questions before acquiring more data:
+
+```text
+1. Is this a static official-semantic question or an empirical combat question?
+2. Can persisted evidence already answer it at 0 calls?
+3. If static: can Blizzard official knowledge answer it before WCL is spent?
+4. If empirical: what exact WCL fact is still missing?
+5. What is the smallest bounded fight/window/stream query that can answer it?
+6. What evidence class does the resulting conclusion belong to?
+```
+
+Canonical conceptual labels are:
+
+```text
+OFFICIAL    published by Blizzard / reviewed first-party structural source
+OBSERVED    directly present in WCL combat evidence
+INFERRED    derived from versioned statistical/structural evidence
+UNRESOLVED  insufficient, contradictory or unavailable evidence
+```
+
+The architecture must preserve those distinctions even when the UI presents a simpler explanation.
+
+The primary reasoning loop is therefore:
+
+```text
+Blizzard official semantic model
+          +
+WCL observed combat
+          +
+versioned Iris evaluation contracts
+          ↓
+AvoiD-specific diagnosis
+          ↓
+comparison / trend / assignment context
+          ↓
+1–3 evidence-traceable next-pull actions
+```
+
+AvoiD/HOME logs are application/evaluation evidence. They are not GLOBAL BOSS training or holdout evidence.
+
+When Blizzard publishes a changed build/namespace or the compiled official graph fingerprint changes, Iris creates a new immutable official revision and re-evaluates affected derived interpretation. Historical WCL evidence is never rewritten to match the new semantic model.
 
 ## Official encounter semantics + empirical raid analysis
 
