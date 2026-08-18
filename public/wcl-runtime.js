@@ -357,24 +357,6 @@ function applyDamageHealing() {
   }
 }
 
-function applyMechanicsAndDefensives() {
-  const mech = qsa(".page-banner h2").find(x => x.textContent.trim() === "Mechanics");
-  if (mech) {
-    qsa(".stats-row .stat").forEach(card => {
-      const label = card.querySelector("label")?.textContent.trim();
-      if (label) setPendingStat(label, "Encounter rule pack required");
-    });
-  }
-
-  const def = qsa(".page-banner h2").find(x => x.textContent.trim() === "Defensive Audit");
-  if (def) {
-    qsa(".stats-row .stat").forEach(card => {
-      const label = card.querySelector("label")?.textContent.trim();
-      if (label) setPendingStat(label, "Cooldown reconstruction required");
-    });
-  }
-}
-
 function applyComposition() {
   const heading = qsa(".page-banner h2").find(x => x.textContent.trim() === "Composition Intelligence");
   if (!heading) return;
@@ -1220,7 +1202,7 @@ function applyAll() {
   if (!payload?.ok || applying) return;
   applying = true;
   try {
-    removeRosterIntelligenceOutsideComposition();applyShell();applyCommandCenter();applyPullLab();applyDamageHealing();applyMechanicsAndDefensives();applyComposition();applyLive();applySupplemental();applyIntelligence();removeRosterIntelligenceOutsideComposition();applyDataTruthScrub();
+    removeRosterIntelligenceOutsideComposition();applyShell();applyCommandCenter();applyPullLab();applyDamageHealing();window.applyMechanicsAndDefensives?.();applyComposition();applyLive();applySupplemental();applyIntelligence();removeRosterIntelligenceOutsideComposition();applyDataTruthScrub();
   } finally { applying = false; }
 }
 

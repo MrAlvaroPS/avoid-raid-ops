@@ -45,7 +45,7 @@ test('CRITICAL MECHANICS/DEFENSIVES BRIDGE: screen-scoped writer shadow is passi
   assert.match(source,/window\.applyIntelligenceMechanics=screenWriter\('applyIntelligenceMechanics','Mechanics Library'\)/);
   assert.match(source,/window\.applyTelemetryDefensives=screenWriter\('applyTelemetryDefensives','Defensive Audit'\)/);
   assert.match(source,/window\.applyIntelligenceDefensives=screenWriter\('applyIntelligenceDefensives','Defensive Audit'\)/);
-  assert.match(source,/writerPolicy:'split-screen-writer-shadow'/);
+  assert.match(source,/writerPolicy:'split-fallback-owner-and-screen-writer-shadow'/);
   assert.doesNotMatch(source,OBSERVER_CONSTRUCTION);
   assert.doesNotMatch(source,/\.observe\s*\(/);
   assert.doesNotMatch(source,/setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
@@ -105,7 +105,7 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   const dataHub = index.indexOf('/data-hub-v390.js?v=3.9.0');
   const reindex = index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const legacy = index.indexOf('/wcl-runtime.js?v=3.8.5');
-  const fallbackBridge = index.indexOf('/mechanics-defensives-fallback-bridge-v4.js?v=4.0.0-migration2');
+  const fallbackBridge = index.indexOf('/mechanics-defensives-fallback-bridge-v4.js?v=4.0.0-migration3');
   const historyBridge = index.indexOf('/command-center-history-bridge-v4.js?v=4.0.0-migration1');
   const progress = index.indexOf('/progress-runtime-v3713.js?v=3.8.5');
   assert.ok(bootstrap >= 0, 'hotfix bootstrap must be wired into index.html');

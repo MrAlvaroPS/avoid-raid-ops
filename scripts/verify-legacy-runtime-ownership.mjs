@@ -35,7 +35,7 @@ const declaredSet=new Set(declared);
 const classified=new Map();
 
 expect(LEGACY_RUNTIME_OWNERSHIP_VERSION==='legacy-runtime-ownership-v4','legacy runtime ownership version must stay explicit');
-expect(declared.length===67,`wcl-runtime.js must contain exactly 67 active function declarations after Progress, Players and Corpus retirement; found ${declared.length}`);
+expect(declared.length===66,`wcl-runtime.js must contain exactly 67 active function declarations after Progress, Players and Corpus retirement; found ${declared.length}`);
 expect(declared.length===declaredSet.size,'wcl-runtime.js contains duplicate function declarations');
 
 for(const responsibility of LEGACY_RUNTIME_RESPONSIBILITIES){
@@ -55,6 +55,9 @@ expect(stale.length===0,`ownership manifest lists missing functions: ${stale.joi
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='progress-shadowed-writers'),'physically retired Progress functions must not remain active ownership responsibilities');
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='progress-compatibility-guard'),'physically retired missing-history policy must not remain an active legacy responsibility');
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='players-presentation-shadow'),'physically retired Players presentation functions must not remain active ownership responsibilities');
+expect(!declaredSet.has('applyMechanicsAndDefensives'),'shared Mechanics/Defensive fallback declaration must be physically retired');
+expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='mechanics-defensives-fallback'),'retired shared fallback cannot remain an active legacy responsibility');
+expect((legacy.match(/window\.applyMechanicsAndDefensives\?\.\(\)/g)||[]).length===1,'legacy orchestration must delegate to exactly one optional bridge-owned fallback binding');
 
 const legacyAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
 const commandBridgeAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
