@@ -75,7 +75,32 @@ A control is rejected by the planner when it:
 - overlaps a known target-anchor Episode exclusion area;
 - overlaps another selected control too closely.
 
-### Full guard contamination validation
+## Paired anchor denominator
+
+A matched null is not evaluated against the global discovery prevalence of every sampled anchor. Each selected control keeps the exact **paired anchor** from which it was planned.
+
+The paired anchor contributes its observed Episode `pattern_key` set from a complete semantic context whose radius is at least the Episode temporal radius. If that sufficiently wide anchor context is unavailable, that anchor cannot participate in the matched plan.
+
+After network validation, only valid complete controls participate. Anchor prevalence and null prevalence are then calculated over the **same valid pairs**:
+
+```text
+paired anchor hits / valid pairs
+matched null hits  / valid pairs
+```
+
+This matters because fight bounds, phase matching, contamination or source caps can remove some candidate controls. Reusing discovery prevalence from anchors that did not obtain a valid null would create mismatched denominators and selection bias.
+
+The earlier discovery prevalence is retained only as diagnostic context:
+
+```text
+discoveryAnchorPrevalence
+```
+
+It cannot substitute for paired anchor prevalence in the matched-null gate.
+
+Each control identity includes a fingerprint of the paired anchor pattern set, so changing the anchor-side evidence invalidates stale control cache rather than silently changing the comparison.
+
+## Full guard contamination validation
 
 The zero-WCL planner only knows target anchors that have already been persisted. That is not enough to prove a control is truly null because an unobserved occurrence of the target signal could sit just outside the inner control while still placing that control inside the same Episode neighborhood.
 
@@ -136,7 +161,17 @@ event type
 abilityId
 ```
 
-The record additionally persists the guard bounds and a boolean contamination result so pagination can resume without forgetting a target-signal occurrence seen on an earlier page.
+The record additionally persists:
+
+```text
+paired anchor timestamp
+paired anchor context radius
+paired anchor observed pattern keys + fingerprint
+full guard bounds
+target-signal contamination state
+```
+
+The contamination state survives pagination, so a target occurrence found on an earlier page cannot be forgotten when execution resumes.
 
 Actor IDs and actor names are deliberately not persisted by this module.
 
@@ -144,7 +179,7 @@ Pattern-level actor provenance remains a separate evidence product.
 
 ## Evaluation
 
-The evaluator compares every Episode supporting `pattern_key` against valid, complete, guard-validated controls.
+The evaluator compares every Episode supporting `pattern_key` across valid, complete, guard-validated anchor/control pairs.
 
 The pattern key remains:
 
@@ -155,9 +190,9 @@ relation | stream | abilityId | eventType
 Default exploratory thresholds remain aligned with Contract v3:
 
 ```text
-minimum anchor prevalence  0.60
-minimum lift               1.75
-minimum prevalence delta   0.25
+minimum paired anchor prevalence  0.60
+minimum lift                      1.75
+minimum prevalence delta          0.25
 ```
 
 Outputs:
@@ -204,6 +239,7 @@ Automatic promotion          = false
 Provider network calls       = 0
 Whole-report fallback        = false
 Guard-only events as pattern evidence = false
+Paired and null denominators differ    = false
 ```
 
 ## Expected Belo'ren validation
