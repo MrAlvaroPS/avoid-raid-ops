@@ -10,7 +10,7 @@ if source.count(legacy_root) != 1:
 
 adapted = source.replace(legacy_root, active_root)
 
-runtime_anchor = "runtime=(root/'wcl-runtime.js').read_text().replace('location.origin','\\\"https://test.local\\\"')"
+runtime_anchor = '''runtime=(root/'wcl-runtime.js').read_text().replace('location.origin','"https://test.local"')'''
 runtime_replacement = runtime_anchor + "\nbridge=(root/'mechanics-defensives-fallback-bridge-v4.js').read_text()\nmechanics_runtime=(root/'mechanics-runtime.js').read_text()"
 if adapted.count(runtime_anchor) != 1:
     raise SystemExit("DATA TRUTH ADAPTER: expected exactly one active WCL runtime anchor")
