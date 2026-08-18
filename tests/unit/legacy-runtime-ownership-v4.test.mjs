@@ -46,32 +46,31 @@ test('all historical Progress compatibility targets are physically absent from t
   assert.match(progress,/&quot;/,'historical HTML escaping contract remains intact');
 });
 
-test('Players presentation is shadowed by the canonical dossier owner without touching its shared data bridge',async()=>{
+test('Players presentation writers are physically retired while the shared data bridge remains',async()=>{
   const writers=['applyPlayers','applyTelemetryPlayers'];
   assert.deepEqual(LEGACY_RUNTIME_PLAYERS_HISTORICAL_WRITERS,writers);
-  assert.deepEqual(LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS,writers);
-  assert.deepEqual(LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS,writers);
-  assert.deepEqual(LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED,[]);
+  assert.deepEqual(LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS,[]);
+  assert.deepEqual(LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS,[]);
+  assert.deepEqual(LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED,writers);
+  assert.equal(LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='players-presentation-shadow'),undefined,'physically deleted Players writers cannot remain active ownership entries');
 
-  const presentation=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='players-presentation-shadow');
   const bridge=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='players-data-bridge');
-  assert.equal(presentation.status,'compatibility-shadowed-writer');
-  assert.equal(presentation.canonicalOwner,'public/player-intelligence-v392.js');
-  assert.deepEqual(presentation.functions,writers);
   assert.equal(bridge.status,'compatibility-support');
+  assert.equal(bridge.canonicalOwner,'public/player-intelligence-v392.js');
   assert.ok(bridge.functions.includes('playerOutput'));
   assert.ok(!bridge.functions.some(fn=>writers.includes(fn)));
 
   const [legacy,owner]=await Promise.all([read('public/wcl-runtime.js'),read('public/player-intelligence-v392.js')]);
   for(const writer of writers){
-    assert.match(legacy,new RegExp(`function\\s+${writer}\\s*\\(`),`${writer} remains present during shadow validation`);
-    assert.match(owner,new RegExp(`['\"]${writer}['\"]`),`${writer} is tracked by the canonical Players owner`);
+    assert.doesNotMatch(legacy,new RegExp(`function\\s+${writer}\\s*\\(`),`${writer} declaration must be physically absent`);
+    assert.match(owner,new RegExp(`['\"]${writer}['\"]`),`${writer} remains historical migration knowledge in canonical Players`);
   }
+  assert.doesNotMatch(legacy,/applyPlayers\s*\(\s*\)\s*;/,'applyAll must not invoke the retired applyPlayers writer');
+  assert.doesNotMatch(legacy,/applyTelemetryPlayers\s*\(\s*\)\s*;/,'supplemental orchestration must not invoke the retired applyTelemetryPlayers writer');
   assert.match(owner,/window\.__AVOID_PLAYER_INTELLIGENCE_OWNER__=PLAYER_OWNER/);
   assert.match(owner,/writerPolicy:'single-player-writer'/);
-  assert.match(owner,/function shadowLegacyPlayerWriter\(name\)/);
-  assert.match(owner,/if\(isPage\(\)\)return;return legacy\.apply\(this,args\)/);
-  assert.equal((owner.match(/setInterval\s*\(/g)||[]).length,1,'shadow adds no polling beyond the existing canonical repaint');
+  assert.match(owner,/function shadowLegacyPlayerWriter\(name\)/,'historical interception knowledge may remain passive during migration');
+  assert.equal((owner.match(/setInterval\s*\(/g)||[]).length,1,'retirement adds no polling beyond the existing canonical repaint');
   assert.match(owner,/setInterval\(\(\)=>render\(\),750\)/);
   assert.doesNotMatch(owner,/MutationObserver|fetch\s*\(/);
 });
