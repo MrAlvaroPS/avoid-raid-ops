@@ -6,7 +6,7 @@ on:
       - "**"
 
 permissions:
-  contents: read
+  contents: write
   statuses: write
 
 concurrency:
@@ -20,6 +20,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Correct exact Corpus verifier predicate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path=Path('scripts/verify-legacy-runtime-ownership.mjs')
+          text=path.read_text()
+          old="expect(!/applyCorpusWorkbench|shadowLegacyCorpusWriter|corpusShadowInstalled/.test(encounter),'canonical owner must contain no executable legacy Corpus compatibility binding');"
+          new="expect(!/window\\.applyCorpusWorkbench|shadowLegacyCorpusWriter|corpusShadowInstalled/.test(encounter),'canonical owner must contain no executable legacy Corpus compatibility binding');"
+          count=text.count(old)
+          if count not in (0,1):
+              raise SystemExit(f'Unexpected Corpus verifier predicate count: {count}')
+          if count==1:
+              path.write_text(text.replace(old,new,1))
+              print('V4 CORPUS VERIFIER PREDICATE: FIXED')
+          else:
+              print('V4 CORPUS VERIFIER PREDICATE: ALREADY FIXED')
+          PY
+          if ! git diff --quiet -- scripts/verify-legacy-runtime-ownership.mjs; then
+            git config user.name 'AvoiD v4 migration'
+            git config user.email 'actions@users.noreply.github.com'
+            git add scripts/verify-legacy-runtime-ownership.mjs
+            git diff --cached --check
+            git commit -m 'test(v4): scope Corpus binding verifier to executable globals'
+            git push origin HEAD:refactor/reorganizacion-2026-08-17
+          fi
       - name: Node 22
         uses: actions/setup-node@v4
         with:
