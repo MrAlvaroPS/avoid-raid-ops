@@ -5,6 +5,10 @@ on:
     branches:
       - "**"
 
+permissions:
+  contents: read
+  statuses: write
+
 concurrency:
   group: validate-${{ github.ref }}
   cancel-in-progress: true
@@ -56,3 +60,24 @@ jobs:
           retention-days: 7
       - name: Production build contract
         run: npm run build
+      - name: Publish AvoiD validation status
+        if: always()
+        env:
+          GH_STATUS_TOKEN: ${{ github.token }}
+          VALIDATION_JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ "$VALIDATION_JOB_STATUS" = "success" ]; then
+            STATE=success
+            DESCRIPTION="All AvoiD validation gates and production build passed"
+          else
+            STATE=failure
+            DESCRIPTION="One or more AvoiD validation gates failed"
+          fi
+          PAYLOAD=$(printf '{"state":"%s","context":"AvoiD Validation","description":"%s","target_url":"https://github.com/%s/actions/runs/%s"}' "$STATE" "$DESCRIPTION" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GH_STATUS_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --data "$PAYLOAD" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA"
