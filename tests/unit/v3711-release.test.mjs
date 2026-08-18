@@ -25,6 +25,6 @@ test('legacy WCL Progress writers remain identifiable and are intercepted by the
 test('v3.9.4 keeps browser component versions honest while allowing later package overlays',async()=>{
   const [pkg,iris,players,bootstrap,capabilities]=await Promise.all([read('package.json'),read('public/iris-runtime-v3713.js'),read('public/player-intelligence-v392.js'),read('public/wcl-bootstrap-v389.js'),read('server/iris/capability-contract-v390.mjs')]);
   assert.match(pkg,/"version": "0\.3\.9-(?:[4-9]|\d{2,})-vercel\.0"/);assert.match(pkg,/"iris": "node --env-file=\.env\.local scripts\/iris-local-worker\.mjs"/);
-  assert.match(iris,/const RELEASE='3\.8\.5'/);assert.match(iris,/const IRIS='Iris'/);assert.match(iris,/const RAID_LEADER='Onie'/);assert.match(players,/const VERSION='3\.9\.2'/);assert.match(capabilities,/release:'3\.9\.4'/);
+  assert.match(iris,/const RELEASE='3\.8\.5'/);assert.match(iris,/const IRIS='Iris'/);assert.match(iris,/const RAID_LEADER='Onie'/);assert.match(players,/const VERSION='3\.9\.2'/);assert.match(capabilities,/release:'3\.9\.(?:[4-9]|\d{2,})'/);
   assert.doesNotMatch(iris,/new MutationObserver/);assert.doesNotMatch(iris,/b\.textContent=wanted/);assert.doesNotMatch(players,/new MutationObserver/);assert.doesNotMatch(players,/\.division b/);assert.match(bootstrap,/const RELEASE='3\.8\.9'/);assert.match(bootstrap,/if\(label\.dataset\.release!==release\)label\.dataset\.release=release/);
 });
