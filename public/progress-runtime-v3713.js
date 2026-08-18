@@ -1,8 +1,6 @@
 (() => {
   const RELEASE='3.7.13';
   const REQUIRED_MODEL='progress-model-v2';
-  const EXECUTION_RETIRED=Object.freeze(['applyProgressPage','applyRealProgressMatrix']);
-  const ACTIVE_ONLY_INTERCEPTED=Object.freeze(['applyProgressCurve','applyHistoryData']);
   const state={range:'all',signature:null};
   const qsa=(sel,root=document)=>root?[...root.querySelectorAll(sel)]:[];
   const qs=(sel,root=document)=>root?.querySelector(sel)||null;
@@ -19,9 +17,6 @@
     extraWclRequests:0,
     interactionPolicy:'explicit-controls-only',
     writerPolicy:'single-progress-writer',
-    migrationPolicy:'execution-retire-shadowed-progress-writers-before-source-deletion',
-    legacyExecutionRetired:EXECUTION_RETIRED,
-    legacyActiveOnlyIntercepted:ACTIVE_ONLY_INTERCEPTED,
     presentationPolicy:'signal-first-quality-second',
     chartPolicy:'measured-depth-best-so-far'
   });
@@ -39,7 +34,7 @@
   function fmtNum(v,d=1){return finite(v)?Number(v).toFixed(d):'—';}
   function fmtDate(ms){if(!finite(ms))return'—';try{return new Date(Number(ms)).toLocaleDateString(undefined,{weekday:'short',day:'2-digit'}).toUpperCase();}catch{return'—';}}
   function fmtMinutes(v){if(!finite(v))return'—';const n=Math.max(0,Number(v));if(n<60)return`${Math.round(n)} min`;const h=Math.floor(n/60),m=Math.round(n%60);return`${h}h ${m}m`;}
-  function esc(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));}
+  function esc(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
   function signedInt(v){if(!finite(v))return'—';const n=Math.round(Number(v));return `${n>0?'+':''}${n}pp`;}
 
   function visibleRaw(pulls){
@@ -61,14 +56,13 @@
 
   function takeProgressOwnership(){
     if(window.__AVOID_PROGRESS_LEGACY_WRAPPED__===RELEASE)return;
-    const wrap=(name,executionRetired=false)=>{
+    const wrap=name=>{
       const legacy=window[name];
       if(typeof legacy!=='function'||legacy.__irisProgressOwner)return;
-      const wrapped=function(...args){if(executionRetired||active())return;return legacy.apply(this,args);};
-      wrapped.__irisProgressOwner=true;wrapped.__legacy=legacy;wrapped.__executionRetired=executionRetired;window[name]=wrapped;
+      const wrapped=function(...args){if(active())return;return legacy.apply(this,args);};
+      wrapped.__irisProgressOwner=true;wrapped.__legacy=legacy;window[name]=wrapped;
     };
-    for(const fn of EXECUTION_RETIRED)wrap(fn,true);
-    for(const fn of ACTIVE_ONLY_INTERCEPTED)wrap(fn,false);
+    for(const fn of ['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix'])wrap(fn);
     window.__AVOID_PROGRESS_LEGACY_WRAPPED__=RELEASE;
   }
 
