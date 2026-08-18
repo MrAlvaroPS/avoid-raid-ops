@@ -4,7 +4,7 @@ import { corpusId } from '../../../server/corpus/keys.mjs';
 import { corpusGet,corpusList,corpusSet,corpusStorageErrorInfo } from '../../../server/corpus/storage.mjs';
 import { buildSemanticActorProvenancePreview,executeSemanticActorProvenance } from '../../../server/corpus/semantic-actor-provenance-v1.mjs';
 
-const API_VERSION='semantic-actor-provenance-api-v1';
+const API_VERSION='semantic-actor-provenance-api-v2';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 const ids=value=>[...new Set((Array.isArray(value)?value:String(value||'').split(',')).map(Number).filter(Number.isInteger).filter(n=>n>0))];
 
