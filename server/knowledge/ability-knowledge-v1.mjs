@@ -148,10 +148,12 @@ export async function resolveAbilityKnowledgeV1(input={},options={}){
   const parseRows=new Map();
   const wclRows=new Map();
   const errors=[];
-  const usage={officialJournalReadsAttempted:request.encounterId?1:0,officialJournalCacheHit:false,lorrgsCallsAttempted:0,lorrgsCallsSucceeded:0,lorrgsBossCatalogResolved:false,parseCallsAttempted:0,parseCallsSucceeded:0,parseCreditUpperBound:0,wclCallsAttempted:0,wclCallsSucceeded:0,wclRateLimit:null};
+  const hasInjectedOfficialGraph=Object.prototype.hasOwnProperty.call(options,'officialGraph');
+  let officialGraph=hasInjectedOfficialGraph?options.officialGraph:null;
+  if(officialGraph?.encounter?.wclEncounterId&&request.encounterId&&Number(officialGraph.encounter.wclEncounterId)!==Number(request.encounterId))throw new Error('Injected official encounter graph does not match requested WCL encounterId');
+  const usage={officialJournalReadsAttempted:request.encounterId&&!hasInjectedOfficialGraph?1:0,officialJournalCacheHit:Boolean(officialGraph),officialJournalInjected:hasInjectedOfficialGraph,lorrgsCallsAttempted:0,lorrgsCallsSucceeded:0,lorrgsBossCatalogResolved:false,parseCallsAttempted:0,parseCallsSucceeded:0,parseCreditUpperBound:0,wclCallsAttempted:0,wclCallsSucceeded:0,wclRateLimit:null};
 
-  let officialGraph=null;
-  if(request.encounterId){
+  if(request.encounterId&&!hasInjectedOfficialGraph){
     try{officialGraph=await loadLatestOfficialEncounterGraphByWclIdV1(request.encounterId);usage.officialJournalCacheHit=Boolean(officialGraph);}
     catch(error){errors.push({provider:'blizzard-journal',scope:`stored-wcl-encounter:${request.encounterId}`,error:error instanceof Error?error.message:String(error),negativeEvidence:false});}
   }
