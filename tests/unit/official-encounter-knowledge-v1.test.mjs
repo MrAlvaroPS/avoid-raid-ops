@@ -76,7 +76,11 @@ test('resolver uses official search href/build and does not spend WCL',async()=>
   assert.equal(result.usage.blizzardGameDataCalls,2);
   assert.equal(result.usage.wclCalls,0);
   assert.equal(result.resolved.matchedBy,'encounter-name');
-  assert.ok(calls.some(row=>row.url===href));
+  const journalCall=calls.find(row=>row.url.startsWith(href));
+  assert.ok(journalCall,'resolver must follow the official search href even when locale is appended');
+  const journalUrl=new URL(journalCall.url);
+  assert.equal(journalUrl.searchParams.get('namespace'),'static-12.1.0_99999-eu');
+  assert.equal(journalUrl.searchParams.get('locale'),'en_US');
 });
 
 test('Blizzard spell 403 is provider-unavailable state, never negative spell evidence',async()=>{
