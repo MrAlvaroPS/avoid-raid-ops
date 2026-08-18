@@ -1,6 +1,10 @@
 (()=>{
 'use strict';
-const VERSION='3.9.2';let selected=null,last='',ownedList=null,ownedDetail=null,ownedMatrix=null;
+const VERSION='3.9.2';
+const LEGACY_PLAYER_WRITERS=Object.freeze(['applyPlayers','applyTelemetryPlayers']);
+const PLAYER_OWNER=Object.freeze({version:VERSION,domain:'players',writerPolicy:'single-player-writer',presentationOwner:'player-intelligence-v392',historicalLegacyWriters:LEGACY_PLAYER_WRITERS});
+window.__AVOID_PLAYER_INTELLIGENCE_OWNER__=PLAYER_OWNER;
+let selected=null,last='',ownedList=null,ownedDetail=null,ownedMatrix=null;
 const qa=(s,r=document)=>r?Array.from(r.querySelectorAll(s)):[];
 const make=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=String(x);return e};
 const n=v=>Number.isFinite(Number(v))?Number(v):null;
@@ -9,6 +13,8 @@ const compact=v=>{const x=n(v);if(x==null)return'—';if(Math.abs(x)>=1e6)return
 const norm=v=>String(v||'').trim().toLowerCase();
 const state=()=>({t:typeof telemetry!=='undefined'?telemetry:null,i:typeof intelligence!=='undefined'?intelligence:null,h:typeof historyData!=='undefined'?historyData:null});
 const isPage=()=>qa('.page-banner h2').some(x=>x.textContent.trim()==='Player Intelligence');
+function shadowLegacyPlayerWriter(name){const legacy=window[name];if(typeof legacy!=='function'||legacy.__avoidPlayerShadow)return;const wrapped=function(...args){if(isPage())return;return legacy.apply(this,args)};wrapped.__avoidPlayerShadow=true;wrapped.__avoidLegacyWriter=legacy;window[name]=wrapped}
+LEGACY_PLAYER_WRITERS.forEach(shadowLegacyPlayerWriter);
 const role=p=>String(p?.role||'DPS').toUpperCase()==='HEAL'?'HEAL':String(p?.role||'DPS').toUpperCase()==='TANK'?'TANK':'DPS';
 function outputNum(p){const e=p?.encounter||p||{};return n(role(p)==='HEAL'?(e.hps??p.hps):(e.dps??p.dps))||0}
 function output(p){try{if(typeof playerOutput==='function')return playerOutput(p)}catch{}return`${compact(outputNum(p))} ${role(p)==='HEAL'?'HPS':'DPS'}`}
