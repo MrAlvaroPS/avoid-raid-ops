@@ -26,13 +26,11 @@ All meaningful product changes are recorded here. Git history remains the detail
 - Began the Players/Reliability presentation shadow checkpoint. Canonical `player-intelligence-v392.js` now publishes explicit single-writer ownership and shadows the historical `applyPlayers` and `applyTelemetryPlayers` globals only while the active Player Intelligence screen is mounted, delegating legacy behavior elsewhere. The checkpoint adds zero direct requests, zero observers and zero polling beyond the existing 750 ms canonical repaint; shared data/helper bridges remain untouched pending validated physical retirement.
 - Completed the Players/Reliability presentation retirement after the shadow checkpoint passed repository `AvoiD Validation` at `ad749c3672a61b9c16898cf34b7f2211f3b1627f` and explicit continuation approval. The legacy `applyPlayers` and `applyTelemetryPlayers` declarations and their orchestration calls are physically absent from `wcl-runtime.js`; `player-intelligence-v392.js` is the sole Players presentation owner, while the shared player data/helper bridge remains active for later extraction.
 - Began the Corpus presentation shadow checkpoint. Canonical `encounter-intelligence-v375.js` can now create and place `.corpus-workbench` itself immediately before the mechanic catalogue, owns its visible presentation on Mechanics, hides it off-page, and shadows the historical `applyCorpusWorkbench` only on that screen while delegating elsewhere. The legacy renderer and workflow helpers remain physically present, `corpus-ui-stability-v1.js` remains active for this validation round, and the checkpoint adds no new request call sites, observers or polling beyond Encounter's existing 1500 ms loop.
-
 - Physically retired the eight legacy Corpus runtime functions (`corpusCountdown`, `corpusContext`, `corpusRequest`, `refreshCorpusStatus`, `pollCorpus`, `corpusCell`, `corpusButton`, `applyCorpusWorkbench`) and removed the `applyAll()` presentation call after the green shadow checkpoint and explicit approval. Encounter Intelligence remains the sole Corpus presentation/data-polling owner; its existing 1500 ms loop and two request call sites are unchanged. The Corpus stability guard remains for one additional post-retirement validation round.
 - Closed the Corpus migration after the additional post-retirement validation round passed at `1683baf037d50baeadb682d14e68a71eb6ecacb6`: removed the eight dead legacy Corpus state/formatting residues, physically deleted `corpus-ui-stability-v1.js`, and removed the temporary `window.applyCorpusWorkbench` shadow/binding from Encounter Intelligence. `encounter-intelligence-v375.js` now owns Corpus card creation, Mechanics-only visibility, navigation/popstate reconciliation and the single existing 1500 ms polling loop with no extra request sites, observers or animation loops.
 - Split Mechanics and Defensive Audit into independent ownership domains. After a green five-writer screen-scoped shadow checkpoint, physically retired only the shared `applyMechanicsAndDefensives` fallback from `wcl-runtime.js`; the passive migration bridge now owns that fallback and continues to shadow the four screen-specific writers without adding requests, timers, observers or animation loops. The final source owners remain `Mechanics.js` and `DefensiveAudit.js`.
-
-
 - Validated the feature-owned Mechanics parity shadow at `330526c31a5fd979012f587fe2dca18d5f4da3db`, then physically retired `applyTelemetryMechanics` and `applyIntelligenceMechanics` from `wcl-runtime.js`. The stable `public/mechanics-runtime.js` transport is byte-identical to `apps/web/src/features/mechanics/runtime.js`, owns both Mechanics presentation bindings, adds zero requests/timers/observers, and leaves Defensive Audit on its independent legacy-shadow path.
+- Restored the canonical read-only validator after the Mechanics source-owner migration. The follow-up documentation push exists solely to execute the full CI gate against the final tree without any one-shot migration step.
 
 ### Mainline integration — v3.9.0 to v3.9.2
 
@@ -78,20 +76,4 @@ At commit `21963c9b5c92f5745b4943f9aa190e99911dfbb6` the refactor branch passes:
 - source reconstruction verification;
 - browser Data Truth validation across all nine protected screens;
 - all 244 unit/regression tests;
-- the production Vercel build contract.
-
-This checkpoint does **not** mean the refactor is complete or that the application is 4.0.0. It establishes the green baseline required before ownership/CSS/runtime consolidation begins.
-
-### Stability gates before 4.0.0
-
-The refactor may be called `4.0.0` only when all of the following are true:
-
-- unit, architecture, data-truth and reconstruction verification pass;
-- Golden Master / visual regression checks pass for all protected screens;
-- Vercel production build succeeds from the final `main` candidate;
-- WCL report ingestion and normalization retain existing data-truth semantics;
-- Progress and Reliability retain their canonical contracts and denominators;
-- Iris retains evidence, confidence and provenance guarantees;
-- no application code imports from `old/` or quarantine paths;
-- no active runtime depends on Netlify-only deployment files;
-- the source frontend has a single owner for each migrated UI/data responsibility, with legacy double-writers removed or explicitly isolated.
+- the production Vercel/Nitro build contract.
