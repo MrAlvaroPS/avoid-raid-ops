@@ -115,12 +115,21 @@ export async function searchBlizzardJournalEncounterV1(encounterName,{fetcher=fe
 export async function fetchBlizzardJournalEncounterV1(journalEncounterId,{fetcher=fetch,accessToken,region,locale,href=null}={}){
   const id=positiveInt(journalEncounterId,'journalEncounterId');
   const r=cleanRegion(region),l=cleanLocale(locale);
-  const url=href?new URL(String(href)):new URL(`https://${r}.api.blizzard.com/data/wow/journal-encounter/${id}`);
-  if(!href)url.searchParams.set('namespace',`static-${r}`);
-  if(!url.searchParams.has('locale'))url.searchParams.set('locale',l);
-  const journal=await getJson(url.toString(),{fetcher,accessToken});
-  const namespace=url.searchParams.get('namespace')||null;
-  return {provider:'blizzard-game-data',endpoint:url.toString(),region:r,locale:l,namespace,journal};
+  const requestedUrl=href?new URL(String(href)):new URL(`https://${r}.api.blizzard.com/data/wow/journal-encounter/${id}`);
+  if(!href)requestedUrl.searchParams.set('namespace',`static-${r}`);
+  if(!requestedUrl.searchParams.has('locale'))requestedUrl.searchParams.set('locale',l);
+  const journal=await getJson(requestedUrl.toString(),{fetcher,accessToken});
+  const selfHref=String(journal?._links?.self?.href||'').trim()||null;
+  let endpoint=requestedUrl.toString();
+  let namespace=requestedUrl.searchParams.get('namespace')||null;
+  if(selfHref){
+    try{
+      const selfUrl=new URL(selfHref);
+      endpoint=selfUrl.toString();
+      namespace=selfUrl.searchParams.get('namespace')||namespace;
+    }catch{}
+  }
+  return {provider:'blizzard-game-data',endpoint,requestedEndpoint:requestedUrl.toString(),region:r,locale:l,namespace,journal};
 }
 
 export async function fetchBlizzardSpellV1(spellId,{fetcher=fetch,accessToken,region,locale,namespace=null}={}){
