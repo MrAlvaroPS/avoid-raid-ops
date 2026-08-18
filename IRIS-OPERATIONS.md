@@ -1,6 +1,6 @@
 # Iris — Data & Operations Management Contract
 
-**Status:** v3.9.1 production contract  
+**Status:** v3.9.9 production/research contract  
 **Machine-readable contract:** `server/iris/capability-contract-v390.mjs`  
 **Runtime API:** `GET /api/iris/capabilities`
 
@@ -8,16 +8,26 @@ This document tells Iris, maintainers and future agents what Iris is allowed to 
 
 ## 1. Core rule
 
-Iris may manage data-flow state, log selection, live polling, versioned game knowledge and bounded corpus research, but must never blur the difference between:
+Iris may manage data-flow state, log selection, live polling, versioned game knowledge, official Blizzard encounter knowledge and bounded corpus research, but must never blur the difference between:
 
 - observed WCL evidence;
+- official published Blizzard metadata;
 - stored/cached evidence;
 - derived interpretations;
 - diagnostic research evidence;
 - versioned game knowledge;
 - pending/planned capability.
 
-Raw Warcraft Logs evidence is immutable. A new knowledge revision may change how Iris interprets old evidence, but never rewrites what WCL originally reported.
+Raw Warcraft Logs evidence is immutable. A new Blizzard/knowledge revision may change how Iris interprets old evidence, but never rewrites what WCL originally reported.
+
+The core evidence split is:
+
+```text
+Blizzard Encounter Journal -> what Blizzard officially publishes the encounter/mechanic to be
+Warcraft Logs ReportData    -> what actually happened in a specific pull
+```
+
+Neither layer is allowed to impersonate the other.
 
 ## 2. Machine access
 
@@ -45,7 +55,7 @@ Read-only or safe housekeeping. Iris may perform it when needed.
 
 ### `bounded`
 
-Iris may perform the action when it directly serves the active raid workflow and request/storage budgets permit it. It must reuse stored/compact evidence first and avoid unbounded WCL acquisition.
+Iris may perform the action when it directly serves the active raid workflow and request/storage budgets permit it. It must reuse stored/compact evidence first and avoid unbounded WCL/provider acquisition.
 
 ### `operatorRequested`
 
@@ -84,6 +94,8 @@ Supported GETs resolve from stored snapshots without contacting their underlying
 ```
 
 POST/write actions never become fake offline actions. If a write requires a service, stored mode cannot pretend it succeeded. Iris must clearly identify stored evidence as stored rather than fresh.
+
+Official encounter graph revisions are persisted server-side and may be reused by research/knowledge code without re-fetching WCL. Browser stored-mode wiring for `/api/knowledge/encounter` is not implied merely because the server persists the graph.
 
 ## 5. AvoiD log catalogue
 
@@ -152,33 +164,124 @@ derivedDataPolicy = invalidate-and-rederive
 reindexStatus     = required
 ```
 
-## 9. Knowledge provider truth hierarchy
+## 9. Official Encounter Knowledge
 
-### Warcraft Logs
+v3.9.9 adds a dedicated official provider path:
 
-Canonical observed combat IDs/evidence.
+```text
+GET/POST /api/knowledge/encounter
+```
+
+Canonical model:
+
+```text
+official-encounter-knowledge-v1
+official-encounter-semantic-graph-v1
+```
+
+### Preview
+
+```text
+knowledge.encounter.preview
+```
+
+Preview performs **0 provider calls**, **0 WCL calls** and **0 third-party calls**. It fingerprints the exact encounter-name/Journal-ID/WCL-ID/region/locale request and exposes a conservative Blizzard/OAuth call upper bound.
+
+### Resolve
+
+```text
+knowledge.encounter.resolve
+```
+
+Resolution is a bounded, read-only Blizzard provider operation and requires:
+
+```json
+{
+  "action": "resolve",
+  "confirmExecution": true,
+  "previewFingerprint": "<exact fingerprint>",
+  "encounterName": "...",
+  "wclEncounterId": 1234
+}
+```
+
+Iris searches the official Journal when necessary, follows Blizzard's exact returned `key.href`, retains the build-specific namespace, compiles the nested sections into a generic graph and persists the compiled revision.
+
+Persistence layout:
+
+```text
+knowledge/official-encounters/blizzard/{journalEncounterId}/latest.json
+knowledge/official-encounters/blizzard/{journalEncounterId}/revisions/{fingerprint}.json
+```
+
+The latest record keeps the previous fingerprint and whether the official graph changed. A provider refresh therefore changes a versioned interpretation input; it never mutates raw WCL evidence.
+
+### Official graph semantics
+
+The graph may establish that Blizzard publishes:
+
+- encounter/instance identity;
+- available modes;
+- encounter creatures;
+- stage/root hierarchy;
+- mechanics/submechanics;
+- spell IDs/names attached to Journal sections;
+- overview, role and mechanic descriptions.
+
+A spell may have multiple official membership paths. Iris must preserve all of them rather than force `one spell = one parent`.
+
+The graph may **not** establish:
+
+- occurrence in a selected pull;
+- exact combat timing;
+- observed source/target actors;
+- event-to-event causality;
+- player failure;
+- promotion eligibility.
+
+Those remain empirical/evaluation claims.
+
+## 10. Knowledge provider truth hierarchy
+
+### Warcraft Logs ReportData
+
+Canonical observed combat evidence: events, actors, targets, timestamps and pull outcomes.
+
+### Blizzard Encounter Journal
+
+Official published encounter semantics for the build it exposes: hierarchy, mechanic/spell membership and explanatory text. This is the preferred source for official encounter structure.
+
+### Blizzard spell detail
+
+Official identity/description when the endpoint publishes the spell. Coverage is not assumed complete for encounter spells. `401`, `403`, `404` and `5xx` states are not silently turned into negative encounter evidence.
+
+### Warcraft Logs GameData / WorldData
+
+Official WCL identity/scope metadata.
 
 ### AvoiD rule packs / internal semantic packs
 
-Curated semantic seed. Meaning and expected execution remain versioned and auditable.
+Curated product semantics and application/evaluation rules. Meaning and expected execution remain versioned and auditable.
 
-### Wowhead
+### Lorrgs
 
-Reference/enrichment only around known IDs. Opaque scraped HTML is not canonical combat truth.
+Secondary derived boss/timeline context and discovery.
 
-### Blizzard Game Data
+### Wowhead / Parse Wowhead
 
-Planned authoritative versioned metadata provider where supported.
+Reference/enrichment around known IDs and secondary corroboration. Opaque scraped HTML is not canonical combat truth.
 
-Iris must state when the knowledge database is only partially populated. The existence of the schema and refresh endpoint does not mean the complete current Retail spell/talent/encounter universe has already been ingested.
+Iris must state when provider coverage is partial. The existence of the schema and endpoint does not mean the complete Retail spell/talent/aura/NPC universe has been ingested.
 
-## 10. Reindex behavior
+## 11. Reindex behavior
 
-Browser-derived caches for report/status/telemetry/history/intelligence can be invalidated after knowledge activation and the current screen refreshed against the new active revision.
+Browser-derived caches for report/status/telemetry/history/intelligence can be invalidated after knowledge activation and the current screen refreshed against the active revision.
 
-A future durable local reindex worker must traverse persisted derived report/history/intelligence products and regenerate them against the active revision. Until that worker exists, Iris must not claim activation has recomputed every historical derived artifact.
+A future durable local reindex worker must traverse persisted derived report/history/intelligence products and regenerate them against the active knowledge revision. Until that worker exists, Iris must not claim activation has recomputed every historical derived artifact.
 
-## 11. Corpus management
+Official Blizzard encounter revisions are already durable inputs, but automatic tier-wide refresh scheduling and automatic durable rederivation of all affected historical products remain future work.
+
+## 12. Corpus management
 
 Iris may inspect stored corpus state and participate in corpus management under existing corpus contracts.
 
@@ -189,13 +292,13 @@ GLOBAL BOSS scope = encounter + difficulty + partition
 HOME RAID data     = evaluation/application data, never global boss training data
 ```
 
-Normal inspection/recompile should prefer compact persisted aggregates/models and cost 0 WCL where possible. Expensive acquisition, enrichment or full rebuild is resource-gated. A full raw corpus rebuild/replay is special maintenance, not the normal meaning of `RECOMPILE`.
+Normal inspection/recompile should prefer compact persisted aggregates/models and cost 0 WCL where possible. Official Journal knowledge should be consulted before spending WCL to rediscover published encounter hierarchy. Expensive acquisition, enrichment or full rebuild remains resource-gated.
 
 Canonical Deep is governed by the canonical Wide sample after rebuild. Targeted acquisition success does not itself prove canonical Deep coverage, and incomplete event streams do not count as Deep.
 
 ### Semantic surgical research
 
-When local mechanic synthesis leaves a boss signal in `external-evidence-needed`, Iris may build a boss-agnostic semantic probe plan from persisted canonical evidence.
+When local mechanic synthesis plus official encounter knowledge still leaves a combat/causal question unresolved, Iris may build a boss-agnostic semantic probe plan from persisted canonical evidence.
 
 Preview capability:
 
@@ -229,23 +332,23 @@ direct Boss Learned score change    = 0
 automatic mechanic promotion        = false
 ```
 
-The verifier may return `reproduced`, `partially-reproduced`, `contradicted` or `insufficient`. Iris must not force a positive semantic conclusion. Promotion from verified diagnostic evidence into accepted/versioned mechanic knowledge remains a separate contract.
+The verifier may return supported/partial/noise/insufficient states under its current versioned contract. Iris must not force a positive semantic conclusion. Official Journal membership can resolve published identity/hierarchy but cannot bypass specificity, provenance, matched-null, holdout or later promotion requirements for empirical claims.
 
 The production learning pipeline is state/evidence-driven and boss-agnostic. Encounter IDs, ability IDs and spell-name meanings must never be hard-coded into generic learning logic.
 
 If storage is blocked, Iris must not claim the corpus was deleted. It must surface the storage condition and stop pointless retries.
 
-## 12. UI/page ownership
+## 13. UI/page ownership
 
 Iris must respect view ownership. `Encounter Corpus` belongs to **Mechanics**. A DOM node surviving a tab switch does not grant it permission to appear elsewhere. Runtime-created top-level cards use the shared card spacing contract.
 
-## 13. Tests and release gate
+## 14. Tests and release gate
 
-The v3.9 critical suite is release-blocking. It covers Mechanics-only Encounter Corpus ownership, shared card spacing, stored-mode boundaries, live polling budgets, current-raid report scope, versioned knowledge/raw-evidence immutability, reindex behavior, machine-readable Iris capabilities, semantic-probe approval/evidence boundaries and runtime wiring.
+The v3.9 critical suite is release-blocking. It covers Mechanics-only Encounter Corpus ownership, shared card spacing, stored-mode boundaries, live polling budgets, current-raid report scope, versioned knowledge/raw-evidence immutability, external-source trust, official Blizzard encounter semantics, provider failure boundaries, semantic-probe approval/evidence boundaries and runtime wiring.
 
 Critical tests run on branch pushes, normal build/version flow and release tags. Iris should treat a failing critical gate as a product-safety signal, not something to bypass casually.
 
-## 14. Current implementation status
+## 15. Current implementation status
 
 Available now:
 
@@ -256,20 +359,28 @@ Available now:
 - live start/pause/stop;
 - knowledge active/candidate inspection, staging foundation and activation;
 - browser-derived knowledge reindex/invalidation;
+- official Blizzard Encounter Journal search/fetch with server-side OAuth token reuse;
+- generic official encounter semantic graph compilation;
+- persisted build/fingerprint-specific official encounter revisions + latest pointer;
+- spell-ID to official Journal membership-path lookup in the compiled graph;
+- explicit non-negative handling of Blizzard spell-detail 401/403/404/provider failures;
 - stored corpus inspection;
 - canonical Deep top-up and boss-agnostic signal/local-mechanic synthesis;
 - semantic-probe planning/preview at 0 WCL;
-- explicitly approved, budgeted/resumable semantic-probe execution.
+- explicitly approved, budgeted/resumable semantic-probe execution;
+- Episode Graph and Matched Null evidence layers from later v3.9 contracts.
 
 Partial/foundation:
 
-- full current-Retail knowledge population across every spell/talent/aura/NPC/encounter;
-- automated provider ingestion/update detection.
+- full current-Retail population across every spell/talent/aura/NPC/encounter;
+- structural DB2 spell-to-spell relation ingestion;
+- automatic provider update detection/tier-wide refresh;
+- automatic reconciliation of every official Journal node into all existing derived UI/model products.
 
 Planned/not yet executable:
 
-- promotion contract from verified diagnostic semantic evidence into accepted/versioned mechanic knowledge;
+- remaining Promotion-v3 gates after Matched Null, including independent Evidence Groups, statistical stability and untouched holdout where required;
 - durable historical reindex worker across all persisted derived products;
-- authoritative Blizzard provider ingestion where applicable.
+- automated provider refresh scheduling and affected-product rederivation.
 
 Iris must use the machine-readable status field and never describe a `planned` capability as already available.
