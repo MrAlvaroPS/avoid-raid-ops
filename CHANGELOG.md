@@ -20,6 +20,7 @@ All meaningful product changes are recorded here. Git history remains the detail
 - Reconciled the legacy WCL runtime ownership audit into the canonical refactor branch. Every legacy writer/helper now has an explicit domain, owner and retirement state.
 - Established one active-asset manifest and one generated compatibility CSS transport while retaining the reviewed historical CSS source layers for visual-equivalence verification.
 - Began physical legacy-runtime decomposition with one passive Command Center bridge. It consumes the already-loaded report and History payloads, owns only Command Center `What changed?` plus the Command Center progression curve, and adds no network request/timer/observer/animation loop. After two green shadow checkpoints and explicit approval, the legacy `applyProgressCurve` and mixed `applyHistoryData` declarations were physically retired; `wcl-runtime.js` now delegates those two responsibilities through optional bridge bindings. `neutralizeMissingHistory` remains the only Progress-specific compatibility function pending transfer to the canonical Progress owner.
+- The physical-retirement implementation is anchored at commit `daadb4b700001845b44082157dab9e0eb8547579`; the following documentation-only push exists to exercise the normal full CI gate on that same functional tree.
 
 ### Mainline integration — v3.9.0 to v3.9.2
 
