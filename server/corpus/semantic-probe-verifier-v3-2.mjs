@@ -1,7 +1,7 @@
 import { eventAbilityId,eventSourceId,eventTargetId } from '../wcl/normalization/events.mjs';
 import { verifySemanticProbeEvidenceV1 } from './semantic-probe-verifier-v1.mjs';
 
-export const SEMANTIC_PROBE_VERIFIER_V32_VERSION='semantic-candidate-specificity-verification-v3.2';
+export const SEMANTIC_PROBE_VERIFIER_V32_VERSION='semantic-candidate-specificity-verification-v3.2.1';
 
 export const SEMANTIC_SPECIFICITY_V32_DEFAULTS=Object.freeze({
   minimumBackgroundWindows:6,
@@ -125,10 +125,13 @@ function actorProvenanceAssessment(row,config,granularity='none'){
   const sourceRole=String(row?.dominantSource?.role||'unknown'),sourceShare=Number(row?.dominantSource?.share||0);
   const targetRole=String(row?.dominantTarget?.role||'unknown'),targetShare=Number(row?.dominantTarget?.share||0);
   const strong=sourceShare>=config.minimumActorRoleShare;
-  const encounterOrigin=strong&&['encounter-boss','encounter-npc'].includes(sourceRole);
+  const exactPattern=granularity==='pattern';
+  const encounterLike=strong&&['encounter-boss','encounter-npc','encounter-environment'].includes(sourceRole);
+  const encounterOrigin=exactPattern&&encounterLike;
   const playerOrigin=strong&&['friendly-player','friendly-pet','owned-actor'].includes(sourceRole);
-  if(encounterOrigin)return{status:'encounter-origin',granularity,sourceRole,sourceShare,targetRole,targetShare,encounterOrigin:true,playerOrigin:false,reason:'WCL actor metadata strongly attributes this event pattern to the encounter side.'};
-  if(playerOrigin)return{status:'player-origin',granularity,sourceRole,sourceShare,targetRole,targetShare,encounterOrigin:false,playerOrigin:true,reason:'WCL actor metadata strongly attributes this event pattern to a friendly player-owned actor.'};
+  if(encounterOrigin)return{status:'encounter-origin',granularity,sourceRole,sourceShare,targetRole,targetShare,encounterOrigin:true,playerOrigin:false,reason:'Exact pattern-level actor provenance strongly attributes this event source to the encounter side.'};
+  if(playerOrigin)return{status:'player-origin',granularity,sourceRole,sourceShare,targetRole,targetShare,encounterOrigin:false,playerOrigin:true,reason:'Actor metadata strongly attributes this event pattern to a friendly player-owned actor.'};
+  if(encounterLike&&!exactPattern)return{status:'mixed-or-unknown',granularity,sourceRole,sourceShare,targetRole,targetShare,encounterOrigin:false,playerOrigin:false,reason:'Ability-level encounter provenance is diagnostic only; exact pattern-level provenance is required before encounter origin can be established.'};
   return{status:'mixed-or-unknown',granularity,sourceRole,sourceShare,targetRole,targetShare,encounterOrigin:false,playerOrigin:false,reason:'Actor provenance is mixed, weak or unresolved and cannot establish event origin.'};
 }
 
@@ -166,14 +169,14 @@ function assessCandidate(pattern,{backgroundMap,anchorWindows,backgroundWindows,
     }else if(actor.encounterOrigin){
       if(provider.encounterSupported||topologyConsistent){
         status='mechanically-supported';
-        reason=provider.encounterSupported&&topologyConsistent?'Specificity, encounter-side source provenance, encounter relevance and topology agree.':provider.encounterSupported?'Specificity, encounter-side source provenance and reviewed encounter relevance support a mechanical relationship candidate.':'Specificity, encounter-side source provenance and consistent topology support a mechanical relationship candidate.';
+        reason=provider.encounterSupported&&topologyConsistent?'Specificity, exact encounter-side pattern provenance, encounter relevance and topology agree.':provider.encounterSupported?'Specificity, exact encounter-side pattern provenance and reviewed encounter relevance support a mechanical relationship candidate.':'Specificity, exact encounter-side pattern provenance and consistent topology support a mechanical relationship candidate.';
       }else{
         status='specificity-supported';
-        reason='The relation is specific and encounter-origin, but lacks independent topology/provider corroboration required for mechanical support.';
+        reason='The relation is specific and exact-pattern encounter-origin, but lacks independent topology/provider corroboration required for mechanical support.';
       }
     }else{
       status='provenance-required';
-      reason='The relation is specific, but actor origin is unresolved or mixed. Provider identity and topology may strengthen context but cannot substitute for encounter-side source provenance.';
+      reason=actor.granularity==='ability-fallback'?'The relation is specific, but only ability-level actor provenance is available. Exact pattern-level provenance is required; provider identity and topology cannot substitute for it.':'The relation is specific, but actor origin is unresolved or mixed. Provider identity and topology may strengthen context but cannot substitute for encounter-side source provenance.';
     }
   }else if(specificity.status==='specificity-partial'){status='specificity-partial';reason='Some enrichment exists, but the specificity contract is not yet satisfied.';}
   else if(specificity.status==='background-required'){status='background-required';reason='Stored anchor evidence lacks enough null/control windows.';}
@@ -208,7 +211,7 @@ export function verifySemanticProbeEvidenceV32({signalId,sourceEvidence=[],backg
   const fallbackSpecificity={status:'not-eligible',reason:'No structural candidate is available.',anchorWindows:anchors.completeWindows,backgroundWindows:background.completeWindows};
   const fallbackProvider=providerAssessment(null),fallbackActor=actorProvenanceAssessment(null,config,'none'),fallbackTemporal={status:'unknown',spreadMs:null},fallbackTopology={dominant:'unknown',share:0,consistent:false,minimumShare:config.minimumTopologyShare},fallbackMechanical={status:'unverified',reason:'No candidate could be evaluated.'};
   return{
-    version:SEMANTIC_PROBE_VERIFIER_V32_VERSION,signalId:Number(signalId),selectionPolicy:'candidate-wise-specificity-actor-provenance-gated-v3',
+    version:SEMANTIC_PROBE_VERIFIER_V32_VERSION,signalId:Number(signalId),selectionPolicy:'candidate-wise-specificity-exact-pattern-provenance-gated-v3.1',
     structural:{status:structural.status,reason:structural.reason,evidence:structural.evidence,topPattern:structuralTop},
     specificity:selected?.specificity||fallbackSpecificity,provider:selected?.provider||fallbackProvider,actorProvenance:selected?.actorProvenance||fallbackActor,temporal:selected?.temporal||fallbackTemporal,topology:selected?.topology||fallbackTopology,mechanical:selected?.mechanical||fallbackMechanical,
     bestPattern:selected?.pattern||null,structuralBestPattern:structuralTop,
@@ -223,12 +226,13 @@ export function verifySemanticProbeEvidenceV32({signalId,sourceEvidence=[],backg
       provenanceRequiredCandidates:assessed.filter(row=>row.mechanical.status==='provenance-required').length,
       playerOriginCandidates:assessed.filter(row=>row.actorProvenance?.playerOrigin).length,
       encounterOriginCandidates:assessed.filter(row=>row.actorProvenance?.encounterOrigin).length,
+      exactPatternEncounterOriginCandidates:assessed.filter(row=>row.actorProvenance?.encounterOrigin&&row.actorProvenance?.granularity==='pattern').length,
       patternProvenanceCandidates:assessed.filter(row=>row.actorProvenance?.granularity==='pattern').length,
       abilityFallbackProvenanceCandidates:assessed.filter(row=>row.actorProvenance?.granularity==='ability-fallback').length,
       structuralTopRejectedAsNoise:Boolean(structuralTop&&selected&&structuralTop.key!==selected.pattern.key&&assessed.find(row=>row.pattern.key===structuralTop.key)?.mechanical.status==='background-noise'),
     },
     thresholds:{minimumBackgroundWindows:config.minimumBackgroundWindows,minimumAnchorPrevalence:config.minimumAnchorPrevalence,minimumSpecificityLift:config.minimumSpecificityLift,minimumPrevalenceDelta:config.minimumPrevalenceDelta,backgroundNoiseRatio:config.backgroundNoiseRatio,backgroundNoiseMaxDelta:config.backgroundNoiseMaxDelta,minimumTopologyShare:config.minimumTopologyShare,minimumActorRoleShare:config.minimumActorRoleShare,strongTemporalSpreadMs:config.strongTemporalSpreadMs,moderateTemporalSpreadMs:config.moderateTemporalSpreadMs,minimumIndependentSources:minSources,minimumAnchorOccurrences:minOccurrences},
-    promotion:{eligible:false,automatic:false,reason:'v3.2 remains diagnostic. Mechanical support requires specific evidence plus encounter-side actor provenance and independent topology/provider corroboration.'},
+    promotion:{eligible:false,automatic:false,reason:'Diagnostic only. Mechanical support requires exact pattern-level encounter-origin provenance plus specificity and independent topology/provider corroboration; Promotion is handled by a separate contract.'},
     canonicalCoverageContribution:{deepReports:0,deepPulls:0},scoreChange:{allowed:false,directDelta:0},
   };
 }
