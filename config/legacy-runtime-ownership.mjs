@@ -1,6 +1,6 @@
 const responsibility=(id,domain,status,canonicalOwner,retirement,functions)=>Object.freeze({id,domain,status,canonicalOwner,retirement,functions:Object.freeze(functions)});
 
-export const LEGACY_RUNTIME_OWNERSHIP_VERSION='legacy-runtime-ownership-v1';
+export const LEGACY_RUNTIME_OWNERSHIP_VERSION='legacy-runtime-ownership-v2';
 export const LEGACY_RUNTIME_PATH='public/wcl-runtime.js';
 
 export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
@@ -17,7 +17,10 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
     'applyProgressCurve',
   ]),
   responsibility('progress-shadowed-writers','progress','shadowed-by-primary-owner','public/progress-runtime-v3713.js','remove-after-wrapper-free-regression-proof',[
-    'applyProgressPage','applyHistoryData','applyRealProgressMatrix',
+    'applyProgressPage','applyRealProgressMatrix',
+  ]),
+  responsibility('shared-history-writer','command-center-progress','shared-compatibility-writer','public/wcl-runtime.js','split-command-center-history-from-progress-before-retirement',[
+    'applyHistoryData',
   ]),
   responsibility('progress-compatibility-guard','progress','compatibility-guard','public/wcl-runtime.js','move-missing-history-policy-to-progress-owner',[
     'neutralizeMissingHistory',
@@ -52,7 +55,7 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
 ]);
 
 export const LEGACY_RUNTIME_PROGRESS_INTERCEPTED=Object.freeze(['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
-export const LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES=Object.freeze(['applyProgressPage','applyHistoryData','applyRealProgressMatrix']);
+export const LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES=Object.freeze(['applyProgressPage','applyRealProgressMatrix']);
 
 export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   version:LEGACY_RUNTIME_OWNERSHIP_VERSION,
