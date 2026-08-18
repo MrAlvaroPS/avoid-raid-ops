@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { buildBundledKnowledge } from './game-knowledge-v1.mjs';
+import { officialEncounterMembershipForAbilityV1 } from './official-encounter-knowledge-v1.mjs';
+import { loadLatestOfficialEncounterGraphByWclIdV1 } from './official-encounter-store-v1.mjs';
 import { fetchLorrgsBossSpells,fetchLorrgsSpell } from './providers/lorrgs-client-v1.mjs';
 import { fetchParseWowheadSpell,parseWowheadConfigured } from './providers/parse-wowhead-client-v1.mjs';
 import { fetchWclStaticAbilityKnowledge } from './providers/wcl-static-metadata-v1.mjs';
@@ -41,10 +43,12 @@ export function buildAbilityKnowledgePreviewV1(input={}){
       wclCalls:request.providers.wcl?1:0,
       wclPointEstimate:null,
     },
+    storedKnowledge:{officialBlizzardJournalLookup:request.encounterId?'attempted-at-resolve-with-0-provider-calls':'not-addressable-without-encounterId'},
     safety:{
       wclRequiresExplicitApproval:request.providers.wcl,
       parseCreditsRequireExplicitApproval:request.providers.parseWowhead,
       lorrgsReadOnly:true,
+      officialJournalStoredLookupNetworkCalls:0,
       promotionAutomatic:false,
       combatTruth:'Warcraft Logs observed combat remains canonical; provider metadata is enrichment only.',
     },
@@ -73,30 +77,47 @@ function internalKnowledgeFor(ids,encounterId){
 const providerName=row=>String(row?.name||'').trim()||null;
 const lorrgsName=row=>String(row?.name||'').trim()||null;
 
-function aggregateAbility(id,{internal,lorrgs,lorrgsBossMember,lorrgsBossCatalogResolved,parse,wcl,encounterId,bossSlug}){
+function aggregateAbility(id,{internal,officialGraph,officialMembership,lorrgs,lorrgsBossMember,lorrgsBossCatalogResolved,parse,wcl,encounterId,bossSlug}){
   const names=[
-    ['wcl',providerName(wcl)],['lorrgs',lorrgsName(lorrgs)],['parse-wowhead',providerName(parse)],
+    ['wcl',providerName(wcl)],
+    ['blizzard-journal',officialMembership?.name||null],
+    ['lorrgs',lorrgsName(lorrgs)],
+    ['parse-wowhead',providerName(parse)],
     ['raidops-rule-pack',internal?.names?.[0]||null],
   ].filter(([,name])=>name);
   const uniqueNames=[...new Set(names.map(([,name])=>name.toLowerCase()))];
   const encounterSupport=[];
+  if(officialMembership?.officialEncounterAssociation)encounterSupport.push({provider:'blizzard-journal',reason:'ability is published by Blizzard under the official Encounter Journal hierarchy for this encounter/build',memberships:officialMembership.memberships});
   if(internal?.encounterMatch)encounterSupport.push({provider:'raidops-rule-pack',reason:'ability is already associated with this encounter by an active internal rule pack'});
   if(lorrgsBossMember)encounterSupport.push({provider:'lorrgs',reason:`ability is explicitly tracked by Lorrgs for boss ${bossSlug} as a curated timeline/analysis marker`});
   const association=encounterSupport.length?'supported':(bossSlug&&lorrgsBossCatalogResolved?'not-listed-by-lorrgs':'unknown');
-  const semanticClass=association==='supported'?'boss-ability-candidate':'unclassified';
-  const confidence=encounterSupport.length>=2?'high':encounterSupport.length===1?'medium':'low';
+  const semanticClass=officialMembership?.officialEncounterAssociation?'official-encounter-ability':association==='supported'?'boss-ability-candidate':'unclassified';
+  const confidence=officialMembership?.officialEncounterAssociation?'high':encounterSupport.length>=2?'high':encounterSupport.length===1?'medium':'low';
   const catalogSemantics='curated-boss-timeline-markers-not-exhaustive';
   const lorrgsSignal=lorrgs
     ?{status:'resolved',name:lorrgs.name||null,icon:lorrgs.icon||null,spellType:lorrgs.spell_type||null,tags:lorrgs.tags||[],bossMember:Boolean(lorrgsBossMember),bossCatalogResolved:Boolean(lorrgsBossCatalogResolved),catalogSemantics,role:'secondary-boss-timeline-marker-discovery'}
     :lorrgsBossCatalogResolved
       ?{status:'not-listed-by-boss-catalog',bossMember:false,bossCatalogResolved:true,catalogSemantics,role:'secondary-boss-timeline-marker-discovery'}
       :{status:'not-requested-or-unresolved',bossCatalogResolved:false,catalogSemantics};
+  const officialSignal=officialGraph
+    ?officialMembership
+      ?{status:'resolved',journalEncounterId:officialGraph.encounter?.journalEncounterId||null,namespace:officialGraph.source?.namespace||null,graphFingerprint:officialGraph.fingerprint||null,name:officialMembership.name||null,memberships:officialMembership.memberships,role:'official-published-encounter-membership',negativeEvidence:false}
+      :{status:'not-listed-in-journal',journalEncounterId:officialGraph.encounter?.journalEncounterId||null,namespace:officialGraph.source?.namespace||null,graphFingerprint:officialGraph.fingerprint||null,role:'official-published-encounter-membership',negativeEvidence:false}
+    :{status:'not-cached-or-unavailable',role:'official-published-encounter-membership',negativeEvidence:false};
+  const structuralUse=officialMembership?.officialEncounterAssociation
+    ?'Blizzard publishes this ID under the official Encounter Journal hierarchy for the selected encounter/build; this establishes official semantic membership but not occurrence or causality in a pull.'
+    :association==='supported'
+      ?'Secondary/internal metadata supports encounter relevance; observed combat meaning still requires WCL evidence.'
+      :association==='not-listed-by-lorrgs'
+        ?'Lorrgs resolved the boss tracking catalogue but does not track this ID there; this is weak negative evidence only because the catalogue is curated and non-exhaustive.'
+        :'provider metadata does not yet establish encounter relevance';
   return {
     abilityId:id,
     identity:{name:names[0]?.[1]||null,icon:wcl?.icon||lorrgs?.icon||null,wowheadUrl:parse?.url||`https://www.wowhead.com/spell=${id}`},
     semanticClass,
     encounterAssociation:{status:association,encounterId:encounterId||null,bossSlug:bossSlug||null,support:encounterSupport},
     providerSignals:{
+      blizzardJournal:officialSignal,
       wcl:wcl?{status:'resolved',id:wcl.id,name:wcl.name||null,icon:wcl.icon||null,role:'official-static-identity'}:{status:'not-requested-or-unresolved'},
       lorrgs:lorrgsSignal,
       parseWowhead:parse?{status:'resolved',name:parse.name||null,url:parse.url||null,role:'reference-identity-fallback'}:{status:'not-requested-or-unresolved'},
@@ -105,8 +126,9 @@ function aggregateAbility(id,{internal,lorrgs,lorrgsBossMember,lorrgsBossCatalog
     disagreements:uniqueNames.length>1?[{kind:'name-mismatch',providers:names.map(([provider,name])=>({provider,name}))}]:[],
     confidence,
     interpretation:{
-      structuralUse:association==='supported'?'Lorrgs explicitly tracks this ID as a boss timeline/analysis marker, supporting encounter relevance':association==='not-listed-by-lorrgs'?'Lorrgs resolved the boss tracking catalogue but does not track this ID there; this is weak negative evidence only because the catalogue is curated and non-exhaustive':'provider metadata does not yet establish encounter relevance',
+      structuralUse,
       canonicalCombatEvidence:false,
+      officialEncounterMembership:Boolean(officialMembership?.officialEncounterAssociation),
       promotionEligible:false,
       automaticPromotion:false,
     },
@@ -124,7 +146,13 @@ export async function resolveAbilityKnowledgeV1(input={},options={}){
   const parseRows=new Map();
   const wclRows=new Map();
   const errors=[];
-  const usage={lorrgsCallsAttempted:0,lorrgsCallsSucceeded:0,lorrgsBossCatalogResolved:false,parseCallsAttempted:0,parseCallsSucceeded:0,parseCreditUpperBound:0,wclCallsAttempted:0,wclCallsSucceeded:0,wclRateLimit:null};
+  const usage={officialJournalReadsAttempted:request.encounterId?1:0,officialJournalCacheHit:false,lorrgsCallsAttempted:0,lorrgsCallsSucceeded:0,lorrgsBossCatalogResolved:false,parseCallsAttempted:0,parseCallsSucceeded:0,parseCreditUpperBound:0,wclCallsAttempted:0,wclCallsSucceeded:0,wclRateLimit:null};
+
+  let officialGraph=null;
+  if(request.encounterId){
+    try{officialGraph=await loadLatestOfficialEncounterGraphByWclIdV1(request.encounterId);usage.officialJournalCacheHit=Boolean(officialGraph);}
+    catch(error){errors.push({provider:'blizzard-journal',scope:`stored-wcl-encounter:${request.encounterId}`,error:error instanceof Error?error.message:String(error),negativeEvidence:false});}
+  }
 
   if(request.providers.lorrgs){
     let boss=null;
@@ -164,16 +192,26 @@ export async function resolveAbilityKnowledgeV1(input={},options={}){
   }
 
   const abilities=request.abilityIds.map(id=>aggregateAbility(id,{
-    internal:internal.get(id)||null,lorrgs:lorrgsRows.get(id)||null,lorrgsBossMember:lorrgsBossMembers.has(id),lorrgsBossCatalogResolved,parse:parseRows.get(id)||null,wcl:wclRows.get(id)||null,encounterId:request.encounterId,bossSlug:request.bossSlug,
+    internal:internal.get(id)||null,
+    officialGraph,
+    officialMembership:officialGraph?officialEncounterMembershipForAbilityV1(officialGraph,id):null,
+    lorrgs:lorrgsRows.get(id)||null,
+    lorrgsBossMember:lorrgsBossMembers.has(id),
+    lorrgsBossCatalogResolved,
+    parse:parseRows.get(id)||null,
+    wcl:wclRows.get(id)||null,
+    encounterId:request.encounterId,
+    bossSlug:request.bossSlug,
   }));
   return {
     version:ABILITY_KNOWLEDGE_VERSION,previewFingerprint:preview.fingerprint,request,
     providers:{
+      blizzardJournal:{networkRequested:false,storedGraphAvailable:Boolean(officialGraph),journalEncounterId:officialGraph?.encounter?.journalEncounterId||null,namespace:officialGraph?.source?.namespace||null,graphFingerprint:officialGraph?.fingerprint||null,role:'official published encounter hierarchy/membership; stored lookup only in ability resolver'},
       lorrgs:{requested:request.providers.lorrgs,bossCatalogResolved:lorrgsBossCatalogResolved,catalogSemantics:'curated-boss-timeline-markers-not-exhaustive',role:'secondary curated boss timeline/analysis markers'},
       parseWowhead:{requested:request.providers.parseWowhead,configured:parseWowheadConfigured({PARSE_API_KEY:options.parseApiKey??process.env.PARSE_API_KEY}),role:'independent maintained Wowhead wrapper; identity/reference only'},
       wcl:{requested:request.providers.wcl,role:'official static identity/scope metadata'},
     },
-    encounter:wclEncounter||{id:request.encounterId,name:null,journalID:null},abilities,usage,errors,
-    evidenceContract:{combatTruth:'WCL observed combat events remain canonical',providerMetadata:'enrichment/hypothesis support only',lorrgs:'secondary derived data; boss catalogue is a curated timeline/analysis marker set, so successful absence is weak negative evidence only',parseWowhead:'non-official wrapper over public Wowhead data',promotionAutomatic:false,deepContribution:{reports:0,pulls:0},directScoreDelta:0},
+    encounter:wclEncounter||{id:request.encounterId,name:officialGraph?.encounter?.name||null,journalID:officialGraph?.encounter?.journalEncounterId||null},abilities,usage,errors,
+    evidenceContract:{combatTruth:'WCL observed combat events remain canonical',blizzardJournal:'official published encounter hierarchy/membership from persisted build-specific graph; does not prove pull occurrence or causality',providerMetadata:'enrichment/hypothesis support only',lorrgs:'secondary derived data; boss catalogue is a curated timeline/analysis marker set, so successful absence is weak negative evidence only',parseWowhead:'non-official wrapper over public Wowhead data',promotionAutomatic:false,deepContribution:{reports:0,pulls:0},directScoreDelta:0},
   };
 }
