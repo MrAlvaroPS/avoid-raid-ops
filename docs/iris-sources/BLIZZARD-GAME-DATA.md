@@ -4,9 +4,12 @@
 **Auth:** OAuth 2.0 client credentials  
 **Status for Iris:** official supported provider  
 **Runtime integration:** available in v3.9.9  
-**Reviewed:** 2026-08-18
+**Reviewed:** 2026-08-18  
+**Parent doctrine:** [`../IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1.md`](../IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1.md)
 
 Blizzard Game Data is Iris's highest-trust provider for published World of Warcraft encounter metadata. It is not combat telemetry: Warcraft Logs remains the canonical empirical source for what actually happened in a pull.
+
+Operationally, Iris should reuse/refresh Blizzard official encounter knowledge **before** spending WCL combat-event budget on a static hierarchy, membership or official-description question. That ordering never upgrades Blizzard metadata into observed combat evidence.
 
 ## Current Iris surfaces
 
@@ -67,7 +70,7 @@ Therefore failure semantics are deliberately non-negative:
 5xx -> provider-unavailable
 ```
 
-None of those failure states is evidence that a spell is absent from an encounter. Official encounter membership comes from the Journal graph when present.
+None of those failure states is **negative evidence** that a spell is absent from an encounter. Official encounter membership comes from the Journal graph when present.
 
 ## Trust position
 
@@ -80,6 +83,8 @@ WoW client DB2                  structural implementation data when integrated
 Lorrgs                           secondary encounter/timeline context
 Wowhead / Parse Wowhead         secondary reference/corroboration
 ```
+
+This is not a single provider priority list. Blizzard is primary for official published encounter semantics; WCL ReportData is primary for observed combat.
 
 ## What Blizzard Journal can prove
 
@@ -104,7 +109,7 @@ Those claims remain grounded in WCL empirical evidence and the appropriate Iris 
 
 Blizzard is preferred for published encounter structure precisely because encounter mechanics, IDs and descriptions can change with builds/patches. The resolver records the provider namespace/build exposed by the current API response rather than silently treating old metadata as timeless.
 
-A later durable knowledge refresh may compare graph fingerprints/build namespaces and invalidate/rederive affected derived interpretations. Raw WCL evidence remains immutable.
+When the exposed namespace/build or compiled graph fingerprint changes, Iris should persist a new immutable official revision, retain the previous revision and mark dependent derived interpretations for re-evaluation. Raw WCL evidence remains immutable.
 
 ## Runtime API
 
