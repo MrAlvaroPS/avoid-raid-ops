@@ -15,7 +15,6 @@ const ACTIVE_OVERLAYS = [
   'public/wcl-runtime.js',
   'public/command-center-history-bridge-v4.js',
   'public/encounter-intelligence-v375.js',
-  'public/corpus-ui-stability-v1.js',
   'public/progress-runtime-v3713.js',
   'public/iris-runtime-v3713.js',
   'public/player-intelligence-v392.js',
@@ -102,11 +101,11 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   assert.ok(progress > historyBridge, 'Progress must install its active-screen wrapper after the Command Center bridge');
   for (const asset of [
     '/encounter-intelligence-v375.js?v=3.8.5',
-    '/corpus-ui-stability-v1.js?v=1.1.0',
     '/iris-runtime-v3713.js?v=3.8.9.1',
     '/player-intelligence-v392.js?v=3.9.2',
   ]) {
     const position = index.indexOf(asset);
     assert.ok(position > reindex, `${asset} must load after the bootstrap + data platform layers`);
   }
+  assert.ok(!index.includes('/corpus-ui-stability-v1.js'), 'physically retired Corpus migration guard must not return to release wiring');
 });
