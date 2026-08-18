@@ -65,10 +65,38 @@ test('v3.2 keeps strong player-origin evidence as a context marker even when pro
   assert.equal(result.selectionDiagnostics.encounterOriginCandidates,0);
 });
 
-test('v3.2 requires encounter-side provenance plus provider or topology corroboration for mechanical support',()=>{
+test('v3.2 never promotes ability-level encounter fallback; exact pattern provenance is mandatory',()=>{
+  const actorProvenance={abilities:[{
+    abilityId:SPECIFIC,
+    dominantSource:{role:'encounter-boss',share:1},
+    dominantTarget:{role:'friendly-player',share:1},
+  }]};
+  const result=verifySemanticProbeEvidenceV32({signalId:TARGET,sourceEvidence:anchors(),backgroundEvidence:controls(),abilityKnowledge:knowledge,actorProvenance});
+  assert.equal(result.actorProvenance.granularity,'ability-fallback');
+  assert.equal(result.actorProvenance.status,'mixed-or-unknown');
+  assert.equal(result.actorProvenance.encounterOrigin,false);
+  assert.equal(result.mechanical.status,'provenance-required');
+  assert.equal(result.selectionDiagnostics.mechanicallySupportedCandidates,0);
+  assert.ok(result.selectionDiagnostics.abilityFallbackProvenanceCandidates>=1);
+});
+
+test('v3.2 requires exact encounter-side provenance plus provider or topology corroboration for mechanical support',()=>{
   const actorProvenance={patterns:[{
     key:specificPatternKey,abilityId:SPECIFIC,relation:'before-1s',stream:'buffs',eventType:'refreshbuff',
     dominantSource:{role:'encounter-boss',share:1},
+    dominantTarget:{role:'friendly-player',share:1},
+  }]};
+  const result=verifySemanticProbeEvidenceV32({signalId:TARGET,sourceEvidence:anchors(),backgroundEvidence:controls(),abilityKnowledge:knowledge,actorProvenance});
+  assert.equal(result.actorProvenance.status,'encounter-origin');
+  assert.equal(result.actorProvenance.granularity,'pattern');
+  assert.equal(result.mechanical.status,'mechanically-supported');
+  assert.ok(result.selectionDiagnostics.exactPatternEncounterOriginCandidates>=1);
+});
+
+test('v3.2 accepts explicitly classified encounter-environment only at exact pattern granularity',()=>{
+  const actorProvenance={patterns:[{
+    key:specificPatternKey,abilityId:SPECIFIC,relation:'before-1s',stream:'buffs',eventType:'refreshbuff',
+    dominantSource:{role:'encounter-environment',share:1},
     dominantTarget:{role:'friendly-player',share:1},
   }]};
   const result=verifySemanticProbeEvidenceV32({signalId:TARGET,sourceEvidence:anchors(),backgroundEvidence:controls(),abilityKnowledge:knowledge,actorProvenance});
