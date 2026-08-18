@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { compileOfficialEncounterGraphV1,buildOfficialEncounterKnowledgePreviewV1 } from '../../server/knowledge/official-encounter-knowledge-v1.mjs';
+import { buildSpellRelationGraphV1 } from '../../server/knowledge/spell-relation-graph-v1.mjs';
 import { classifyBlizzardFailure } from '../../server/knowledge/providers/blizzard-game-data-v1.mjs';
 import { officialEncounterWclAliasKeyV1 } from '../../server/knowledge/official-encounter-store-v1.mjs';
 import { findIrisCapability } from '../../server/iris/capability-contract-v390.mjs';
@@ -43,6 +44,33 @@ test('CRITICAL v3.9.9 GRAPH: Blizzard Journal compiles generically without conve
   assert.equal(graph.evidenceContract.observedOccurrence,false);
   assert.equal(graph.evidenceContract.causalCombatEvidence,false);
   assert.equal(graph.evidenceContract.directScoreDelta,0);
+  assert.equal(graph.evidenceContract.automaticPromotion,false);
+});
+
+test('CRITICAL v3.9.9 SPELL GRAPH: structural provider relation can explain player ownership without satisfying provenance or promotion',()=>{
+  const graph=buildSpellRelationGraphV1({
+    scope:{encounterId:9901,difficulty:5,partition:4},
+    seedAbilityIds:[740010,740002],
+    actorProvenance:[
+      {abilityId:740010,status:'encounter-origin',granularity:'signal'},
+      {abilityId:740002,status:'player-origin',granularity:'pattern',sourceRole:'friendly-player'},
+    ],
+    observations:[{
+      provider:'wow-client-db2',retrievalMode:'versioned-structural-metadata',sourceUrl:'https://example.test/db2/build-12345',
+      sourceAbilityId:740010,sourceName:'Encounter Trigger',targetAbilityId:740002,targetName:'Player State',
+      relationKind:'trigger-spell',relationLabel:'EffectTriggerSpell',
+      sourceEncounterAssociation:{status:'provider-supported',encounterId:9901,basis:'official encounter membership'},
+    }],
+  });
+  const target=graph.nodes.find(row=>row.abilityId===740002);
+  assert.equal(target.actorProvenance.status,'player-origin');
+  assert.equal(target.semanticOrigin.status,'encounter-applied-player-state-candidate');
+  assert.equal(target.semanticOrigin.providerDerived,true);
+  assert.equal(target.semanticOrigin.promotionEligible,false);
+  assert.equal(graph.edges[0].empiricalCombatEvidence,false);
+  assert.equal(graph.edges[0].exactPatternProvenance,false);
+  assert.equal(graph.evidenceContract.providerRelationsCannotSatisfyExactPatternProvenance,true);
+  assert.equal(graph.evidenceContract.providerRelationsCannotPromoteMechanic,true);
   assert.equal(graph.evidenceContract.automaticPromotion,false);
 });
 
