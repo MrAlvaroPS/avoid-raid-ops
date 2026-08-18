@@ -14,12 +14,16 @@ test('active compatibility asset manifest makes the current production stack exp
   assert.equal(ACTIVE_ASSET_MANIFEST.version,'active-assets-v1');
   assert.equal(ACTIVE_STYLES.length,2);
   assert.equal(CSS_BUNDLE_SOURCES.length,17);
-  assert.equal(ACTIVE_LOCAL_SCRIPTS.length,10);
+  assert.equal(ACTIVE_LOCAL_SCRIPTS.length,11);
   assert.equal(ACTIVE_EXTERNAL_SCRIPTS.length,1);
   assert.equal(ACTIVE_STYLES[0].src,'/main.css');
   assert.equal(ACTIVE_STYLES[1].src,'/raidops-active.css?v=3.9.2-css1');
   assert.equal(ACTIVE_LOCAL_SCRIPTS[0].src,'/main.js');
   assert.equal(ACTIVE_LOCAL_SCRIPTS.at(-1).src,'/player-intelligence-v392.js?v=3.9.2');
+  const fallbackBridge=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='mechanics-defensives-fallback-bridge');
+  assert.equal(fallbackBridge?.src,'/mechanics-defensives-fallback-bridge-v4.js?v=4.0.0-migration1');
+  assert.equal(fallbackBridge?.owner,'split-source-owners');
+  assert.equal(fallbackBridge?.authority,'migration-bridge');
   const historyBridge=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
   assert.equal(historyBridge?.src,'/command-center-history-bridge-v4.js?v=4.0.0-migration1');
   assert.equal(historyBridge?.owner,'command-center');
@@ -36,10 +40,12 @@ test('runtime domains have one primary owner while the monolithic WCL runtime is
   const legacy=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
   assert.equal(legacy.authority,'compatibility');
   assert.equal(legacy.retirement,'decompose-per-domain-before-retirement');
-  const bridge=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
+  const fallbackBridge=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='mechanics-defensives-fallback-bridge');
+  const historyBridge=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
   const progress=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='progress-runtime');
-  assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(legacy)<ACTIVE_LOCAL_SCRIPTS.indexOf(bridge));
-  assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(bridge)<ACTIVE_LOCAL_SCRIPTS.indexOf(progress));
+  assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(legacy)<ACTIVE_LOCAL_SCRIPTS.indexOf(fallbackBridge));
+  assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(fallbackBridge)<ACTIVE_LOCAL_SCRIPTS.indexOf(historyBridge));
+  assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(historyBridge)<ACTIVE_LOCAL_SCRIPTS.indexOf(progress));
 });
 
 test('versioned runtime families identify exactly one active generation in the manifest',()=>{
