@@ -1,6 +1,6 @@
 import { loadLatestOfficialEncounterGraphByWclIdV1 } from '../server/knowledge/official-encounter-store-v1.mjs';
 import { buildSpellStructuralKnowledgePreviewV1,resolveSpellStructuralKnowledgeV1 } from '../server/knowledge/spell-structural-knowledge-v1.mjs';
-import { loadLatestSpellStructuralKnowledgeV1 } from '../server/knowledge/spell-structural-store-v1.mjs';
+import { loadLatestSpellStructuralKnowledgeV1,loadSpellStructuralKnowledgeRevisionV1 } from '../server/knowledge/spell-structural-store-v1.mjs';
 
 function parseArgs(argv){
   const out={abilities:[],directions:'both'};
@@ -42,22 +42,33 @@ console.log(JSON.stringify({fingerprint:preview.fingerprint,build:preview.offici
 
 console.log('\n[3/4] Resolve + persist build-pinned SpellEffect relations');
 const resolved=await resolveSpellStructuralKnowledgeV1(input,{officialGraph});
+const exactRequest=await loadSpellStructuralKnowledgeRevisionV1(args.wclEncounterId,resolved.provider.build,resolved.requestFingerprint);
 console.log(JSON.stringify({
-  fingerprint:resolved.fingerprint,
+  aggregateFingerprint:resolved.fingerprint,
+  requestFingerprint:resolved.requestFingerprint,
   provider:resolved.provider,
-  usage:resolved.usage,
-  summary:resolved.summary,
+  currentRequest:{
+    seedAbilityIds:exactRequest?.seedAbilityIds||[],
+    usage:exactRequest?.usage||null,
+    coverage:exactRequest?.coverage||null,
+    relations:exactRequest?.relations?.map(row=>({
+      sourceAbilityId:row.sourceAbilityId,
+      sourceName:row.sourceName,
+      relationKind:row.relationKind,
+      targetAbilityId:row.targetAbilityId,
+      targetName:row.targetName,
+      providerRowId:row.providerRowId,
+      officialContext:row.officialContext?.status,
+      structuralEvidence:row.structuralEvidence,
+    }))||[],
+  },
+  accumulated:{
+    aggregation:resolved.aggregation,
+    coverage:resolved.coverage,
+    summary:resolved.summary,
+    relationCount:resolved.relations?.length||0,
+  },
   storage:resolved.storage,
-  relations:resolved.relations.map(row=>({
-    sourceAbilityId:row.sourceAbilityId,
-    sourceName:row.sourceName,
-    relationKind:row.relationKind,
-    targetAbilityId:row.targetAbilityId,
-    targetName:row.targetName,
-    providerRowId:row.providerRowId,
-    officialContext:row.officialContext?.status,
-    structuralEvidence:row.structuralEvidence,
-  })),
 },null,2));
 
 console.log('\n[4/4] Reload persisted structural knowledge (0 network)');
@@ -67,16 +78,34 @@ console.log(JSON.stringify({
   fingerprint:stored.fingerprint,
   fingerprintMatchesResolved:stored.fingerprint===resolved.fingerprint,
   build:stored.provider?.build,
+  seedAbilityIds:stored.seedAbilityIds,
   relations:stored.relations?.length||0,
+  coverage:stored.coverage,
+  aggregation:{
+    requestCount:stored.aggregation?.requestCount,
+    relationCount:stored.aggregation?.relationCount,
+    seedAbilityCount:stored.aggregation?.seedAbilityCount,
+  },
   providerCalls:0,
   blizzardCalls:0,
   wclCalls:0,
 },null,2));
 
-const expected=resolved.relations.find(row=>row.sourceAbilityId===1243560&&row.targetAbilityId===1241163);
+const expectedCurrent=exactRequest?.relations?.find(row=>row.sourceAbilityId===1243560&&row.targetAbilityId===1241163);
+const expectedAccumulated=stored.relations?.find(row=>row.sourceAbilityId===1243560&&row.targetAbilityId===1241163);
 if(args.abilities.includes(1243560)&&args.abilities.includes(1241163)){
   console.log('\nBelo-ren fixture check (diagnostic, not a hard generic requirement):');
-  console.log(JSON.stringify({relation1243560To1241163:Boolean(expected),relation:expected?{sourceAbilityId:expected.sourceAbilityId,targetAbilityId:expected.targetAbilityId,relationKind:expected.relationKind,providerRowId:expected.providerRowId,officialContext:expected.officialContext?.status}:null},null,2));
+  console.log(JSON.stringify({
+    relation1243560To1241163InCurrentRequest:Boolean(expectedCurrent),
+    relation1243560To1241163InAccumulatedBuild:Boolean(expectedAccumulated),
+    relation:(expectedCurrent||expectedAccumulated)?{
+      sourceAbilityId:(expectedCurrent||expectedAccumulated).sourceAbilityId,
+      targetAbilityId:(expectedCurrent||expectedAccumulated).targetAbilityId,
+      relationKind:(expectedCurrent||expectedAccumulated).relationKind,
+      providerRowId:(expectedCurrent||expectedAccumulated).providerRowId,
+      officialContext:(expectedCurrent||expectedAccumulated).officialContext?.status,
+    }:null,
+  },null,2));
 }
 
 console.log('\nOK: build-pinned spell structural smoke validation completed. No WCL combat-event or Blizzard network request was made by this command.');
