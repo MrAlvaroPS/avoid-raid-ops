@@ -113,7 +113,7 @@ expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS)===JSON.stringify(his
 expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS)===JSON.stringify(historicalCorpus),'legacy Corpus writer must be explicitly shadowed on Mechanics');
 expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED)===JSON.stringify([]),'Corpus presentation may not be marked physically retired before the green shadow checkpoint');
 expect(/function\s+applyCorpusWorkbench\s*\(/.test(legacy),'legacy applyCorpusWorkbench must remain physically present during validation');
-expect((legacy.match(/applyCorpusWorkbench\s*\(\s*\)\s*;/g)||[]).length===1,'legacy orchestration must retain exactly one intercepted applyCorpusWorkbench call during shadow validation');
+expect(/applyIntelligence\(\);applyCorpusWorkbench\(\);removeRosterIntelligenceOutsideComposition\(\)/.test(legacy),'legacy applyAll must retain the intercepted applyCorpusWorkbench call during shadow validation');
 const corpusPresentation=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-presentation-shadow');
 const corpusBridge=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-workflow-bridge');
 expect(corpusPresentation?.status==='compatibility-shadowed-writer'&&corpusPresentation?.canonicalOwner==='public/encounter-intelligence-v375.js','Corpus presentation must be classified as shadowed by Encounter Intelligence');
