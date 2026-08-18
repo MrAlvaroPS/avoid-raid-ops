@@ -2,7 +2,8 @@
 
 **Status:** v3.9.9 production/research contract  
 **Machine-readable contract:** `server/iris/capability-contract-v390.mjs`  
-**Runtime API:** `GET /api/iris/capabilities`
+**Runtime API:** `GET /api/iris/capabilities`  
+**Canonical evidence doctrine:** `docs/IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1.md`
 
 This document tells Iris, maintainers and future agents what Iris is allowed to inspect, control and manage in the AvoiD Raid Operations data platform. These are platform capabilities, not merely UI buttons, and every operation remains bounded by its evidence, autonomy and resource contract.
 
@@ -28,6 +29,38 @@ Warcraft Logs ReportData    -> what actually happened in a specific pull
 ```
 
 Neither layer is allowed to impersonate the other.
+
+### Mandatory provider/evidence procedure
+
+Before any new provider request or WCL event acquisition, Iris must classify the question and use the source/evidence doctrine:
+
+```text
+STATIC OFFICIAL QUESTION?
+  -> reuse persisted Blizzard graph
+  -> bounded Blizzard refresh only if missing/stale/build-changed
+  -> 0 WCL for facts the official graph already answers
+
+EMPIRICAL COMBAT QUESTION?
+  -> reuse persisted WCL evidence first
+  -> state the exact missing empirical claim
+  -> acquire only the smallest exact-fight/window/stream evidence needed
+
+AvoiD PERFORMANCE QUESTION?
+  -> official/accepted mechanic knowledge
+     + AvoiD WCL observed execution
+     + versioned evaluation contract
+  -> raid-specific diagnosis and next-pull action
+```
+
+Conceptually every important conclusion must preserve whether it is:
+
+```text
+OFFICIAL / OBSERVED / INFERRED / UNRESOLVED
+```
+
+A provider failure must remain provider failure/unknown rather than being converted into negative evidence. A candidate that fails a hard specificity/provenance/null gate should not receive repeated WCL spend unless a materially new hypothesis exists.
+
+Full contract: `docs/IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1.md`.
 
 ## 2. Machine access
 
@@ -241,7 +274,13 @@ The graph may **not** establish:
 
 Those remain empirical/evaluation claims.
 
+### Refresh behavior
+
+For a new patch/build or suspected encounter change, Iris should compare the current persisted graph with a bounded official refresh. A changed Blizzard namespace/build or graph fingerprint creates a new immutable official revision and marks affected derived interpretations for re-evaluation. It never rewrites historical WCL evidence.
+
 ## 10. Knowledge provider truth hierarchy
+
+This section is a **question-specific authority map**, not a single linear provider ranking.
 
 ### Warcraft Logs ReportData
 
@@ -249,7 +288,7 @@ Canonical observed combat evidence: events, actors, targets, timestamps and pull
 
 ### Blizzard Encounter Journal
 
-Official published encounter semantics for the build it exposes: hierarchy, mechanic/spell membership and explanatory text. This is the preferred source for official encounter structure.
+Official published encounter semantics for the build it exposes: hierarchy, mechanic/spell membership and explanatory text. This is the preferred source for official encounter structure and should be consulted/reused before spending WCL to rediscover a static fact.
 
 ### Blizzard spell detail
 
@@ -345,6 +384,8 @@ Iris must respect view ownership. `Encounter Corpus` belongs to **Mechanics**. A
 ## 14. Tests and release gate
 
 The v3.9 critical suite is release-blocking. It covers Mechanics-only Encounter Corpus ownership, shared card spacing, stored-mode boundaries, live polling budgets, current-raid report scope, versioned knowledge/raw-evidence immutability, external-source trust, official Blizzard encounter semantics, provider failure boundaries, semantic-probe approval/evidence boundaries and runtime wiring.
+
+The v3.9.9 doctrine gate additionally protects the permanent source-selection rules: Blizzard for official semantics, WCL for observed combat, official/observed/inferred/unresolved separation, no provider bypass of promotion, and mandatory doctrine discoverability from `AGENTS.md`.
 
 Critical tests run on branch pushes, normal build/version flow and release tags. Iris should treat a failing critical gate as a product-safety signal, not something to bypass casually.
 
