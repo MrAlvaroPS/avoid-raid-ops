@@ -33,7 +33,7 @@ test('Progress-only legacy writers are physically absent while historical interc
     assert.doesNotMatch(legacy,new RegExp(`function\\s+${retired}\\s*\\(`),`${retired} declaration must be physically absent`);
     assert.doesNotMatch(legacy,new RegExp(`${retired}\\s*\\(\\s*\\)`),`${retired} orchestration call must be physically absent`);
   }
-  for(const active of LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS)assert.match(legacy,new RegExp(`function\\s+${active}\\s*\\(`),`${active} shared compatibility behavior must remain`);
+  for(const active of LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS)assert.match(legacy,new RegExp(`function\\s+${active}\\s*\\(`),`${active} shared compatibility behavior must remain until its checkpoint retires it`);
   assert.match(progress,/for\(const fn of \['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix'\]\)wrap\(fn\)/,'historical canonical owner remains byte-stable and may still name absent legacy functions');
   assert.match(progress,/setInterval\(\(\)=>renderFull\(false\),750\)/,'canonical Progress owner must repaint independently of legacy writers');
   assert.match(progress,/&quot;/,'historical HTML escaping contract remains intact');
@@ -47,21 +47,25 @@ test('applyProgressCurve stays shared until Command Center is extracted from the
   assert.match(curve.retirement,/extract-shared-curve/);
 });
 
-test('applyHistoryData is shared with Command Center and cannot be retired as Progress-only code',async()=>{
+test('applyHistoryData is shadowed by the Command Center bridge before physical retirement',async()=>{
   const history=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='shared-history-writer');
   assert.equal(history.domain,'command-center-progress');
-  assert.equal(history.status,'shared-compatibility-writer');
-  assert.equal(history.canonicalOwner,'public/wcl-runtime.js');
-  assert.match(history.retirement,/split-command-center-history-from-progress-before-retirement/);
+  assert.equal(history.status,'shadowed-compatibility-writer');
+  assert.equal(history.canonicalOwner,'public/command-center-history-bridge-v4.js');
+  assert.match(history.retirement,/physically-delete-mixed-legacy-body-after-browser-validation/);
   assert.ok(!LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED.includes('applyHistoryData'));
 
-  const legacy=await read('public/wcl-runtime.js');
+  const [legacy,bridge]=await Promise.all([read('public/wcl-runtime.js'),read('public/command-center-history-bridge-v4.js')]);
   const start=legacy.indexOf('function applyHistoryData()');
   const end=legacy.indexOf('\nfunction applyLiveStatus',start);
-  assert.ok(start>=0&&end>start,'applyHistoryData must remain auditable until split');
+  assert.ok(start>=0&&end>start,'legacy applyHistoryData remains auditable until physical deletion');
   const body=legacy.slice(start,end);
-  assert.match(body,/Are we actually getting better\?/,'known Progress branch must remain visible until split');
-  assert.match(body,/findOwnText\("Command Center"\)/,'known Command Center branch must remain visible until split');
+  assert.match(body,/Are we actually getting better\?/,'known legacy Progress branch remains visible at the shadow checkpoint');
+  assert.match(body,/findOwnText\("Command Center"\)/,'known legacy Command Center branch remains visible at the shadow checkpoint');
+  assert.match(bridge,/window\.applyHistoryData=applyCommandCenterHistory/);
+  assert.match(bridge,/window\.__AVOID_WCL_HISTORY__/);
+  assert.doesNotMatch(bridge,/Are we actually getting better\?/);
+  assert.doesNotMatch(bridge,/MutationObserver|setInterval|setTimeout|fetch\s*\(/);
 });
 
 test('Corpus workbench remains classified but migration does not resume corpus operations',()=>{
