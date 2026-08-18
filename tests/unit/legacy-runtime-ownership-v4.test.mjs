@@ -52,13 +52,23 @@ test('Command Center owns the retired curve and history behavior through one pas
   assert.doesNotMatch(bridge,/MutationObserver|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
 });
 
-test('missing-history guard is the only Progress-specific compatibility dependency left in wcl-runtime',()=>{
+test('missing-history guard is shadowed by canonical Progress before physical retirement',async()=>{
   const guard=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='progress-compatibility-guard');
   assert.deepEqual(guard.functions,['neutralizeMissingHistory']);
   assert.equal(guard.domain,'progress');
-  assert.equal(guard.status,'compatibility-guard');
-  assert.equal(guard.canonicalOwner,'public/wcl-runtime.js');
-  assert.match(guard.retirement,/move-missing-history-policy-to-progress-owner/);
+  assert.equal(guard.status,'shadowed-compatibility-guard');
+  assert.equal(guard.canonicalOwner,'public/progress-runtime-v3713.js');
+  assert.match(guard.retirement,/physically-delete-missing-history-guard-after-browser-validation/);
+
+  const [legacy,progress]=await Promise.all([read('public/wcl-runtime.js'),read('public/progress-runtime-v3713.js')]);
+  assert.match(legacy,/function neutralizeMissingHistory\(\)/,'legacy body remains present and auditable at shadow checkpoint');
+  assert.match(progress,/wrap\('neutralizeMissingHistory'\)/,'Progress suppresses legacy writer on its active screen');
+  assert.match(progress,/missingHistoryPolicy:'canonical-progress-owner'/);
+  assert.match(progress,/function renderMissingHistory\(\)/);
+  assert.match(progress,/Raid-session history unavailable · no Golden fallback/);
+  assert.match(progress,/HISTORY UNAVAILABLE/);
+  assert.match(progress,/Current-report progression remains real\. Cross-session comparisons require the History endpoint\./);
+  assert.doesNotMatch(progress,/fetch\s*\(/,'Progress missing-history ownership must add zero direct network requests');
 });
 
 test('Corpus workbench remains classified but migration does not resume corpus operations',()=>{

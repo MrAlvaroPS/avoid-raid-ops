@@ -13,7 +13,7 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('command-center','command-center','compatibility-writer','public/wcl-runtime.js','move-to-command-center-source-owner',[
     'applyCommandCenter','applyTelemetryCoreCorrections','applyPullIntelligenceToCommand','applyIntelligenceCommandCenter',
   ]),
-  responsibility('progress-compatibility-guard','progress','compatibility-guard','public/wcl-runtime.js','move-missing-history-policy-to-progress-owner',[
+  responsibility('progress-compatibility-guard','progress','shadowed-compatibility-guard','public/progress-runtime-v3713.js','physically-delete-missing-history-guard-after-browser-validation',[
     'neutralizeMissingHistory',
   ]),
   responsibility('pull-lab','pull-lab','compatibility-writer','public/wcl-runtime.js','move-to-pull-lab-source-owner',[

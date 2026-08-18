@@ -18,7 +18,8 @@
     interactionPolicy:'explicit-controls-only',
     writerPolicy:'single-progress-writer',
     presentationPolicy:'signal-first-quality-second',
-    chartPolicy:'measured-depth-best-so-far'
+    chartPolicy:'measured-depth-best-so-far',
+    missingHistoryPolicy:'canonical-progress-owner'
   });
 
   function active(){return qsa('.page-banner h2').some(x=>x.textContent.trim()==='Are we actually getting better?');}
@@ -63,6 +64,7 @@
       wrapped.__irisProgressOwner=true;wrapped.__legacy=legacy;window[name]=wrapped;
     };
     for(const fn of ['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix'])wrap(fn);
+    wrap('neutralizeMissingHistory');
     window.__AVOID_PROGRESS_LEGACY_WRAPPED__=RELEASE;
   }
 
@@ -102,7 +104,21 @@
     return {label:picked[0],detail:picked[1],tone:picked[2],qualityLabel,qualityDetail};
   }
 
+  function renderMissingHistory(){
+    if(history()?.ok)return;
+    const panel=panelByTitle('Night-over-night');if(!panel)return;
+    const sub=qs('.panel-title p',panel);if(sub)sub.textContent='Raid-session history unavailable · no Golden fallback';
+    qsa('.night-table > div',panel).forEach(row=>{
+      const span=qs('span',row);if(span)span.textContent='HISTORY UNAVAILABLE';
+      const b=qs('b',row);if(b)b.textContent='—';
+      const em=qs('em',row);if(em)em.textContent='—';
+    });
+    const insight=qs('.insight-box p',panel);
+    if(insight)insight.textContent='Current-report progression remains real. Cross-session comparisons require the History endpoint.';
+  }
+
   function renderPending(reason='Waiting for canonical Progress model v2 from History endpoint'){
+    renderMissingHistory();
     const banner=qs('.page-banner');
     if(banner){const bs=qs('.banner-stat',banner);if(bs){bs.innerHTML=`<label>PROGRESSION SIGNAL</label><b>SYNCING</b><small>${esc(reason)}</small>`;}}
     qsa('.stats-row .stat').forEach((card,i)=>writeStat(card,['TOTAL PROG PULLS','BEST PULL','STAGE CONVERSION','DEPTH COVERAGE','LAST BREAKTHROUGH'][i]||'PROGRESS','—','MODEL V2',reason));

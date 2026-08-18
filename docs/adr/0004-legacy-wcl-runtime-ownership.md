@@ -48,9 +48,19 @@ The compatibility monolith therefore calls the extracted behavior only through o
 
 Interception remains an ownership/safety mechanism, not evidence by itself that arbitrary compatibility code is deletable. Every physical retirement still requires caller analysis and a validated replacement.
 
-## Remaining Progress compatibility dependency
+## Missing-history shadow checkpoint
 
-`neutralizeMissingHistory` remains in `public/wcl-runtime.js` as the only Progress-specific compatibility function. It protects Data Truth when raid-session History is unavailable. Its retirement path is to move that missing-history presentation policy into the canonical Progress owner, validate the replacement, and only then remove the legacy guard.
+`neutralizeMissingHistory` is the only Progress-specific function still physically declared in `public/wcl-runtime.js`, but it is no longer the canonical owner of that presentation policy.
+
+The canonical `public/progress-runtime-v3713.js` now:
+
+- owns the missing-history policy explicitly in its runtime metadata;
+- renders `Raid-session history unavailable · no Golden fallback` and the corresponding neutral night rows itself;
+- consumes only the already-loaded `window.__AVOID_WCL_HISTORY__` state;
+- adds zero direct network requests;
+- wraps the legacy `neutralizeMissingHistory` binding so the old writer is suppressed only while the Progress screen is active.
+
+The legacy declaration remains physically present during this shadow checkpoint for auditability and rollback safety. Its retirement state is `shadowed-compatibility-guard`; physical deletion requires a green browser/CI checkpoint and separate explicit approval.
 
 ## Other domains
 
