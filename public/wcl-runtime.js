@@ -364,39 +364,6 @@ function applyDamageHealing() {
   }
 }
 
-function applyPlayers() {
-  const heading = qsa(".page-banner h2").find(x => x.textContent.trim() === "Player Reliability");
-  if (!heading) return;
-
-  // Keep the table/card UX, but swap fictional identities for real roster identities.
-  // Reliability scores remain blank until mechanics/survival/defensive models exist.
-  const rows = qsa(".player-table > div:not(.pt-head)");
-  const roster = payload.roster || [];
-  rows.forEach((row, idx) => {
-    const p = roster[idx];
-    if (!p) return;
-    const cells = Array.from(row.children);
-    const nameCell = cells[0];
-    if (nameCell) {
-      const b = nameCell.querySelector("b");
-      const small = nameCell.querySelector("small");
-      text(b, p.name);
-      text(small, [p.spec, p.className].filter(Boolean).join(" · "));
-    }
-    for (let i = 1; i < cells.length; i++) {
-      if (i === cells.length - 1) continue;
-      const b = cells[i].querySelector("b") || cells[i];
-      if (b) text(b, "—");
-    }
-  });
-
-  const banner = document.querySelector(".banner-stat");
-  if (banner?.querySelector("label")?.textContent.trim() === "RAID RELIABILITY") {
-    text(banner.querySelector("b"), "—");
-    text(banner.querySelector("small"), "model pending");
-  }
-}
-
 function applyMechanicsAndDefensives() {
   const mech = qsa(".page-banner h2").find(x => x.textContent.trim() === "Mechanics");
   if (mech) {
@@ -497,92 +464,6 @@ function reliabilityMeta(p) {
   const value = reliabilityValue(p);
   if (value != null) return p?.reliability?.confidence ? `${String(p.reliability.confidence).toUpperCase()} CONF.` : "CALCULATED";
   return "PENDING";
-}
-
-function applyTelemetryPlayers() {
-  if (!telemetry?.players?.length) return;
-  const heading = qsa(".page-banner h2").find(x => x.textContent.trim() === "Player Intelligence");
-  if (!heading) return;
-
-  const players = telemetry.players;
-  const listRows = qsa(".player-list > button");
-  listRows.forEach((row, idx) => {
-    const p = players[idx];
-    if (!p) { row.style.display = "none"; return; }
-    row.style.display = "";
-    row.dataset.wclPlayerIndex = String(idx);
-    if (!row.dataset.wclPlayerBound) {
-      row.dataset.wclPlayerBound = "1";
-      row.addEventListener("click", () => {
-        selectedPlayerIndex = Number(row.dataset.wclPlayerIndex || 0);
-        setTimeout(applyTelemetryPlayers, 0);
-      }, true);
-    }
-    text(row.querySelector("i"), String(p.name || "?")[0]);
-    text(row.querySelector("span b"), p.name);
-    text(row.querySelector("span small"), `${p.spec || p.className || "Unknown"} · ${roleLabel(p)} · ${playerOutput(p)}`);
-    text(row.querySelector("strong"), reliabilityText(p));
-    text(row.querySelector("em"), p.itemLevel ? `ilvl ${p.itemLevel}` : "");
-  });
-
-  const p = players[Math.min(selectedPlayerIndex, players.length-1)] || players[0];
-  const detail = document.querySelector(".player-detail");
-  if (detail && p) {
-    const bp = p.bestPull || p;
-    const enc = p.encounter || p;
-    text(detail.querySelector(".player-identity > i"), String(p.name)[0]);
-    const badge = detail.querySelector(".player-identity .badge");
-    if (badge) text(badge, "WCL DATA");
-    text(detail.querySelector(".player-identity h2"), p.name);
-    text(detail.querySelector(".player-identity p"), `${p.spec || p.className || "Unknown"} · ${roleLabel(p)} · ilvl ${p.itemLevel ?? "—"}`);
-    const rel = detail.querySelector(".player-identity > b");
-    if (rel) {
-      const small = rel.querySelector("small");
-      for (const n of Array.from(rel.childNodes)) if (n.nodeType === Node.TEXT_NODE) n.textContent = reliabilityText(p);
-      if (small) text(small, `RELIABILITY · ${reliabilityMeta(p)}`);
-    }
-
-    setStat("PERFORMANCE", { value: playerOutput(p), delta:"BEST PULL", meta:"Scoped to selected best pull" }, detail);
-    setStat("MECHANICS", { value:"—", delta:"RULE PACK", meta:`Encounter: ${enc.interrupts ?? 0} interrupts · ${enc.dispels ?? 0} dispels` }, detail);
-    setStat("SURVIVAL", { value:`${enc.firstDeaths ?? 0}`, delta:"FIRST DEATHS", meta:`${enc.meaningfulDeaths ?? 0} meaningful · ${enc.deaths ?? 0} raw deaths` }, detail);
-    setStat("DEFENSIVES", { value:"—", delta:"RULE PACK", meta:"Availability model pending" }, detail);
-
-    const coaching = detail.querySelector(".coaching");
-    if (coaching) {
-      text(coaching.querySelector(".badge"), "OBSERVED DATA");
-      text(coaching.querySelector("p"), `${p.name}: ${playerOutput(p)} on the best pull. Across ${enc.pulls ?? telemetry.encounter?.completedPulls ?? "—"} pulls: ${enc.firstDeaths ?? 0} first deaths, ${enc.meaningfulDeaths ?? 0} deaths before WCL wipe cutoff, ${enc.interrupts ?? 0} interrupts and ${enc.dispels ?? 0} dispels. Reliability remains pending until mechanics and defensives are classified.`);
-    }
-    const trendTitle = detail.querySelector(".trend-block h3");
-    const trendSub = detail.querySelector(".trend-block p");
-    text(trendTitle, "Performance history");
-    text(trendSub, "Per-pull player trend not ingested yet · synthetic Golden curve disabled");
-    clearSyntheticChart(detail.querySelector(".trend-block"), "Player trend awaits per-pull player telemetry");
-  }
-
-  const matrix = document.querySelector(".reliability-table");
-  if (matrix) {
-    const rows = qsa(":scope > div:not(:first-child)", matrix);
-    rows.forEach((row, idx) => {
-      const p = players[idx];
-      if (!p) { row.style.display = "none"; return; }
-      row.style.display = "";
-      const enc = p.encounter || p;
-      const cells = Array.from(row.children);
-      if (cells[0]) { text(cells[0].querySelector("b"), p.name); text(cells[0].querySelector("small"), p.spec || p.className || "Unknown"); }
-      if (cells[1]) text(cells[1].querySelector("b") || cells[1], playerOutput(p));
-      if (cells[2]) text(cells[2].querySelector("b") || cells[2], "—");
-      if (cells[3]) text(cells[3].querySelector("b") || cells[3], `${enc.firstDeaths ?? 0} first`);
-      if (cells[4]) text(cells[4].querySelector("b") || cells[4], "—");
-      if (cells[5]) text(cells[5], reliabilityText(p));
-    });
-  }
-
-  const banner = document.querySelector(".banner-stat");
-  if (banner?.querySelector("label")?.textContent.trim() === "ROSTER RELIABILITY") {
-    const values = players.map(reliabilityValue).filter(Number.isFinite);
-    text(banner.querySelector("b"), values.length ? String(Math.round(values.reduce((a,b)=>a+b,0)/values.length)) : "—");
-    text(banner.querySelector("small"), values.length ? "role-aware reliability" : "mechanics + defensives pending");
-  }
 }
 
 function applyTelemetryMechanics() {
@@ -754,7 +635,6 @@ function classifyMelee(p) {
 
 const WOW_CLASSES = ["DeathKnight","DemonHunter","Druid","Evoker","Hunter","Mage","Monk","Paladin","Priest","Rogue","Shaman","Warlock","Warrior"];
 const WOW_CLASS_LABELS = {DeathKnight:"Death Knight",DemonHunter:"Demon Hunter",Druid:"Druid",Evoker:"Evoker",Hunter:"Hunter",Mage:"Mage",Monk:"Monk",Paladin:"Paladin",Priest:"Priest",Rogue:"Rogue",Shaman:"Shaman",Warlock:"Warlock",Warrior:"Warrior"};
-// Blizzard's conventional retail class colours. Keep these semantic rather than using arbitrary palette slots.
 const WOW_CLASS_COLORS = {DeathKnight:"#C41E3A",DemonHunter:"#A330C9",Druid:"#FF7C0A",Evoker:"#33937F",Hunter:"#AAD372",Mage:"#3FC7EB",Monk:"#00FF98",Paladin:"#F48CBA",Priest:"#FFFFFF",Rogue:"#FFF468",Shaman:"#0070DD",Warlock:"#8788EE",Warrior:"#C69B6D"};
 const CLASS_UTILITY_GAPS = {Monk:"Mystic Touch (physical-damage vulnerability)"};
 function classKey(value){ return String(value || "").replace(/[^a-z0-9]/gi, "").toLowerCase(); }
@@ -857,7 +737,6 @@ function applyTelemetryComposition() {
   const classPanel=document.querySelector(".spec-grid")?.closest("article.panel");if(classPanel)text(classPanel.querySelector(".panel-title p"),"Current roster class counts · peer representation pending");
   const specGrid=document.querySelector(".spec-grid");
   if(specGrid){
-    // The Golden prototype only had 12 static rows. Rebuild from the canonical 13-class list so a class can never disappear from the UI.
     specGrid.replaceChildren();
     for(const cls of WOW_CLASSES){
       const own=counts[classKey(cls)]||0;
@@ -1059,8 +938,6 @@ function finishDataTruthBoot(errorMessage = null) {
 }
 
 function applyDataTruthScrub() {
-  // Final safety net. These identifiers exist only in the Golden Master mock
-  // universe and must never survive as visible production analysis.
   const forbidden=["Nether Eruption","Cosmic Shard","Fractured Dominion","King's Command","Void Collapse","Astral Scar","Krynn","Veyra","Thorne","Mirael","Ravok","Sylen","AVD-7K2P9"];
   const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
   const hits=[]; while(walker.nextNode()){const n=walker.currentNode;if(forbidden.some(x=>String(n.nodeValue||"").includes(x)))hits.push(n);}
@@ -1337,7 +1214,6 @@ function applyIntelligence() {
 
 function applySupplemental() {
   applyTelemetryCoreCorrections();
-  applyTelemetryPlayers();
   applyTelemetryMechanics();
   applyTelemetryDamageHealing();
   applyTelemetryComposition();
@@ -1563,7 +1439,7 @@ function applyAll() {
   if (!payload?.ok || applying) return;
   applying = true;
   try {
-    removeRosterIntelligenceOutsideComposition();applyShell();applyCommandCenter();applyPullLab();applyDamageHealing();applyPlayers();applyMechanicsAndDefensives();applyComposition();applyLive();applySupplemental();applyIntelligence();applyCorpusWorkbench();removeRosterIntelligenceOutsideComposition();applyDataTruthScrub();
+    removeRosterIntelligenceOutsideComposition();applyShell();applyCommandCenter();applyPullLab();applyDamageHealing();applyMechanicsAndDefensives();applyComposition();applyLive();applySupplemental();applyIntelligence();applyCorpusWorkbench();removeRosterIntelligenceOutsideComposition();applyDataTruthScrub();
   } finally { applying = false; }
 }
 
@@ -1642,12 +1518,6 @@ async function fetchData(force = false) {
   }
 }
 
-// The compiled React prototype changes views client-side. Do NOT observe the
-// whole DOM: our own data substitutions would trigger the observer again and
-// can create an infinite mutation loop.
-//
-// Instead, re-apply the WCL mapping after user interaction/navigation. Two
-// animation frames give React time to render the destination view first.
 let reapplyScheduled = false;
 function scheduleReapply() {
   if (!payload || reapplyScheduled) return;
@@ -1663,9 +1533,6 @@ function scheduleReapply() {
 document.addEventListener("click", (event) => {
   if (event.target?.closest?.(".roster-intelligence-panel, .corpus-workbench")) return;
   scheduleReapply();
-  // React navigation is state-driven; an extra delayed pass makes sure dynamic
-  // Composition-only panels are rebuilt after leaving LIVE without observing
-  // our own DOM mutations.
   if (event.target?.closest?.("nav button")) setTimeout(()=>applyAll(), 90);
 }, true);
 
@@ -1678,7 +1545,6 @@ async function pollLiveStatus() {
     window.__AVOID_WCL_STATUS__ = status;
     applyLiveStatus(status);
 
-    // If a new fight/revision appears, refresh the rich dataset without changing UX.
     const knownPulls = payload?.encounter?.pulls ?? 0;
     const seenPulls = status?.encounter?.totalPulls ?? knownPulls;
     if (seenPulls !== knownPulls && !status?.encounter?.latestFight?.inProgress) {
