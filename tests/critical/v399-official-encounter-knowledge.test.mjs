@@ -120,7 +120,7 @@ test('CRITICAL v3.9.9 CONTRACTS: Blizzard is official published metadata while W
   assert.match(pkg,/"version": "0\.3\.9-9-vercel\.0"/);
 });
 
-test('CRITICAL v3.9.9 DOCTRINE: future Iris work must retain the official-vs-observed decision procedure',async()=>{
+test('CRITICAL v3.9.9 DOCTRINE: future Iris work must retain official, structural and observed decision procedure',async()=>{
   const [doctrine,agents,architecture,operations,pipeline,sources]=await Promise.all([
     read('docs/IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1.md'),
     read('AGENTS.md'),
@@ -131,20 +131,24 @@ test('CRITICAL v3.9.9 DOCTRINE: future Iris work must retain the official-vs-obs
   ]);
 
   assert.match(doctrine,/Blizzard defines the published semantic map/i);
+  assert.match(doctrine,/DB2 explains build-specific spell wiring/i);
   assert.match(doctrine,/WCL records the observed combat journey/i);
   for(const label of ['OFFICIAL','OBSERVED','INFERRED','UNRESOLVED'])assert.ok(doctrine.includes(label),`${label} evidence class must remain explicit`);
   assert.match(doctrine,/HOME\/AvoiD logs never train GLOBAL BOSS knowledge/i);
-  assert.match(doctrine,/no automatic mechanic promotion/i);
+  assert.match(doctrine,/No automatic mechanic promotion/i);
   assert.match(doctrine,/fails a hard gate/i);
   assert.match(doctrine,/stop spending WCL/i);
   assert.match(doctrine,/new immutable official revision/i);
   assert.match(doctrine,/overwrite historical WCL events/i);
+  assert.match(doctrine,/Same-build structural knowledge accumulates/i);
 
   for(const surface of [agents,architecture,operations])assert.match(surface,/IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1\.md/);
   assert.match(sources,/no universal provider ranking/i);
   assert.match(sources,/Use Blizzard before WCL for static semantic questions/i);
+  assert.match(sources,/Use build-pinned DB2 only for structural implementation questions/i);
 
   const officialStep=pipeline.indexOf('1. **Official encounter knowledge resolution / reuse**');
-  const empiricalStep=pipeline.indexOf('2. **Canonical empirical acquisition / reuse**');
-  assert.ok(officialStep>=0&&empiricalStep>officialStep,'official semantic reuse/refresh must precede empirical acquisition in the canonical pipeline');
+  const structuralStep=pipeline.indexOf('2. **Build-pinned spell structural knowledge resolution / reuse**');
+  const empiricalStep=pipeline.indexOf('3. **Canonical empirical acquisition / reuse**');
+  assert.ok(officialStep>=0&&structuralStep>officialStep&&empiricalStep>structuralStep,'official semantics and exact-build structure must precede empirical acquisition in the canonical pipeline');
 });
