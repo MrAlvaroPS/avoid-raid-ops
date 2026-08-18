@@ -10,9 +10,10 @@ import {
 } from '../config/legacy-runtime-ownership.mjs';
 
 const root=new URL('../',import.meta.url);
-const [legacy,progress]=await Promise.all([
+const [legacy,progress,historyBridge]=await Promise.all([
   readFile(new URL(LEGACY_RUNTIME_PATH,root),'utf8'),
   readFile(new URL('public/progress-runtime-v3713.js',root),'utf8'),
+  readFile(new URL('public/command-center-history-bridge-v4.js',root),'utf8'),
 ]);
 const fail=[];
 const expect=(condition,message)=>{if(!condition)fail.push(message)};
@@ -41,10 +42,13 @@ expect(stale.length===0,`ownership manifest lists missing functions: ${stale.joi
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='progress-shadowed-writers'),'physically retired functions must not remain active ownership responsibilities');
 
 const legacyAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
+const historyBridgeAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
 const progressAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='progress-runtime');
 expect(legacyAsset?.authority==='compatibility','wcl-runtime.js must remain compatibility-only in active asset ownership');
+expect(historyBridgeAsset?.authority==='migration-bridge'&&historyBridgeAsset?.owner==='command-center','Command Center history bridge must remain an explicit migration-only owner');
 expect(progressAsset?.authority==='primary'&&progressAsset?.owner==='progress','Progress runtime must remain the primary Progress owner');
-expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Progress owner must load after the compatibility runtime');
+expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(historyBridgeAsset),'Command Center history bridge must load after the legacy declaration it replaces');
+expect(ACTIVE_LOCAL_SCRIPTS.indexOf(historyBridgeAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Command Center history bridge must load before Progress installs its active-screen guard');
 expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),'temporary Progress retirement guard must disappear after physical source deletion');
 
 expect(JSON.stringify(LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS)===JSON.stringify(['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']),'historical Progress interception inventory changed unexpectedly');
@@ -69,14 +73,20 @@ const legacyWithoutCurveDeclaration=legacy.replace(/function\s+applyProgressCurv
 expect((legacyWithoutCurveDeclaration.match(/applyProgressCurve\s*\(\s*\)/g)||[]).length===1,'after Progress writer deletion, applyProgressCurve must have exactly the Command Center call site');
 
 const historyEntry=classified.get('applyHistoryData');
-expect(historyEntry?.id==='shared-history-writer','applyHistoryData must remain classified as shared until its Command Center branch is split');
-expect(historyEntry?.status==='shared-compatibility-writer','applyHistoryData is not safe Progress-only dead code');
-expect(!LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED.includes('applyHistoryData'),'applyHistoryData cannot be in physical retirement history while Command Center consumes it');
+expect(historyEntry?.id==='shared-history-writer','applyHistoryData must remain explicitly classified while its legacy body exists');
+expect(historyEntry?.status==='shadowed-compatibility-writer','legacy applyHistoryData body must be shadowed before physical deletion');
+expect(historyEntry?.canonicalOwner==='public/command-center-history-bridge-v4.js','Command Center history bridge must own active non-Progress history presentation');
+expect(!LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED.includes('applyHistoryData'),'applyHistoryData cannot enter physical retirement history until its legacy declaration is deleted');
 const historyStart=legacy.indexOf('function applyHistoryData()');
 const historyEnd=legacy.indexOf('\nfunction applyLiveStatus',historyStart);
 const historyBody=historyStart>=0&&historyEnd>historyStart?legacy.slice(historyStart,historyEnd):'';
-expect(/Are we actually getting better\?/.test(historyBody),'applyHistoryData known Progress branch disappeared; review ownership');
-expect(/findOwnText\("Command Center"\)/.test(historyBody),'applyHistoryData known Command Center branch disappeared; review ownership');
+expect(/Are we actually getting better\?/.test(historyBody),'legacy mixed history body unexpectedly changed before physical retirement');
+expect(/findOwnText\("Command Center"\)/.test(historyBody),'legacy mixed history body unexpectedly lost its Command Center branch');
+expect(/window\.applyHistoryData=applyCommandCenterHistory/.test(historyBridge),'bridge must replace the legacy global binding exactly once');
+expect(/window\.__AVOID_WCL_HISTORY__/.test(historyBridge),'bridge must consume the shared History payload instead of issuing another request');
+expect(/findOwnText\('Command Center'\)/.test(historyBridge),'bridge must be scoped to Command Center');
+expect(!/Are we actually getting better\?/.test(historyBridge),'bridge may not write the Progress screen');
+expect(!/MutationObserver|setInterval|setTimeout|fetch\s*\(/.test(historyBridge),'history bridge may not introduce observers, polling, timers or network requests');
 
 const applyAll=classified.get('applyAll');
 expect(applyAll?.status==='compatibility-orchestrator','applyAll must stay classified as orchestration, not a product-domain owner');
@@ -94,5 +104,5 @@ console.log(` - ${declared.length} active function declarations are explicitly c
 console.log(` - ${LEGACY_RUNTIME_RESPONSIBILITIES.length} active responsibilities have named domains and retirement paths`);
 console.log(` - ${LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED.length} Progress-only legacy writers are physically absent from wcl-runtime.js`);
 console.log(' - applyProgressCurve remains shared with Command Center and has one remaining compatibility call site');
-console.log(' - applyHistoryData remains shared until its Command Center history writer is split');
+console.log(' - applyHistoryData is shadowed by a timer-free Command Center bridge before Progress interception');
 console.log(` - status distribution ${JSON.stringify(statusCounts)}`);
