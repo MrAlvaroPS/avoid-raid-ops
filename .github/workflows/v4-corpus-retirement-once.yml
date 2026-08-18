@@ -1,0 +1,82 @@
+name: V4 Corpus Retirement One Shot
+
+on:
+  push:
+    branches:
+      - refactor/reorganizacion-2026-08-17
+
+permissions:
+  contents: write
+
+jobs:
+  retire:
+    if: github.event.head_commit.message == 'chore(v4): trigger Corpus physical retirement'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout refactor branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Remove approved legacy Corpus functions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('public/wcl-runtime.js')
+          text = path.read_text()
+          original = text
+          ranges = [
+              ('function corpusCountdown(', 'function corpusContext('),
+              ('function corpusContext(', 'async function corpusRequest('),
+              ('async function corpusRequest(', 'async function refreshCorpusStatus('),
+              ('async function refreshCorpusStatus(', 'async function pollCorpus('),
+              ('async function pollCorpus(', 'function corpusCell('),
+              ('function corpusCell(', 'function corpusButton('),
+              ('function corpusButton(', 'function applyCorpusWorkbench('),
+              ('function applyCorpusWorkbench(', 'function applyAll('),
+          ]
+          for start_marker, end_marker in ranges:
+              start = text.find(start_marker)
+              end = text.find(end_marker, start + len(start_marker))
+              if start < 0 or end < 0:
+                  raise SystemExit(f'Expected Corpus boundary missing: {start_marker} -> {end_marker}')
+              text = text[:start] + text[end:]
+
+          old_call = 'applySupplemental();applyIntelligence();applyCorpusWorkbench();removeRosterIntelligenceOutsideComposition();'
+          new_call = 'applySupplemental();applyIntelligence();removeRosterIntelligenceOutsideComposition();'
+          if text.count(old_call) != 1:
+              raise SystemExit(f'Expected exactly one applyAll Corpus call, found {text.count(old_call)}')
+          text = text.replace(old_call, new_call, 1)
+
+          retired = [
+              'corpusCountdown','corpusContext','corpusRequest','refreshCorpusStatus',
+              'pollCorpus','corpusCell','corpusButton','applyCorpusWorkbench',
+          ]
+          for name in retired:
+              if f'function {name}(' in text or f'async function {name}(' in text:
+                  raise SystemExit(f'{name} declaration survived retirement')
+          if 'applyIntelligence();applyCorpusWorkbench();' in text:
+              raise SystemExit('applyAll still invokes applyCorpusWorkbench')
+          if text == original:
+              raise SystemExit('Corpus retirement produced no changes')
+          path.write_text(text)
+          PY
+      - name: Verify retirement diff is scoped
+        run: |
+          git diff -- public/wcl-runtime.js
+          python3 - <<'PY'
+          from pathlib import Path
+          text=Path('public/wcl-runtime.js').read_text()
+          assert 'const corpusNumber = new Intl.NumberFormat();' in text, 'unauthorized Corpus state cleanup detected'
+          assert 'const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));' in text, 'unauthorized shared sleep cleanup detected'
+          assert 'function applyAll()' in text
+          assert 'function fetchJson(' in text
+          PY
+      - name: Commit physical retirement and remove one-shot workflow
+        run: |
+          rm .github/workflows/v4-corpus-retirement-once.yml
+          git config user.name 'AvoiD v4 migration'
+          git config user.email 'actions@users.noreply.github.com'
+          git add public/wcl-runtime.js .github/workflows/v4-corpus-retirement-once.yml
+          git commit -m 'refactor(v4): physically retire legacy Corpus runtime'
+          git push origin HEAD:refactor/reorganizacion-2026-08-17
