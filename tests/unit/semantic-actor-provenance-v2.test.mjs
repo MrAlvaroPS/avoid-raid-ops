@@ -38,6 +38,7 @@ test('v2 preview remains metadata-only and gets a new fingerprint/version',()=>{
   assert.equal(preview.version,'semantic-actor-provenance-preview-v2');
   assert.equal(preview.networkUpperBound.combatEventCalls,0);
   assert.equal(preview.safety.patternLevelAggregation,true);
+  assert.equal(preview.safety.deduplicationScope,'anchor-occurrence');
 });
 
 test('v2 persists pattern-level role summaries while retaining conservative ability fallback',async()=>{
@@ -56,8 +57,33 @@ test('v2 persists pattern-level role summaries while retaining conservative abil
   assert.equal(after.dominantTarget.role,'friendly-player');
   assert.equal(result.evidenceContract.rawActorIdsPersisted,false);
   assert.equal(result.evidenceContract.aggregationGranularity,'pattern-key-with-ability-fallback');
+  assert.equal(result.evidenceContract.deduplicationScope,'anchor-occurrence');
   for(const row of [...result.abilities,...result.patterns]){
     assert.equal('sourceID' in row,false);
     assert.equal('targetID' in row,false);
   }
+});
+
+test('v2 deduplicates overlapping radii but preserves one combat event against distinct anchors',async()=>{
+  const sharedEvent={timestamp:1500,type:'applydebuff',abilityId:A,sourceID:10,targetID:1};
+  const multiAnchorEvidence=[
+    {kind:'context',signalId:SIGNAL,reportCode:'R1',source:'source-1',fightID:1,anchorTimestamp:1000,windowMs:2500,pagination:{complete:true},streams:{enemyDebuffs:[sharedEvent]}},
+    {kind:'context',signalId:SIGNAL,reportCode:'R1',source:'source-1',fightID:1,anchorTimestamp:1000,windowMs:5000,pagination:{complete:true},streams:{enemyDebuffs:[sharedEvent]}},
+    {kind:'context',signalId:SIGNAL,reportCode:'R1',source:'source-1',fightID:1,anchorTimestamp:2000,windowMs:2500,pagination:{complete:true},streams:{enemyDebuffs:[sharedEvent]}},
+    {kind:'context',signalId:SIGNAL,reportCode:'R1',source:'source-1',fightID:1,anchorTimestamp:2000,windowMs:5000,pagination:{complete:true},streams:{enemyDebuffs:[sharedEvent]}},
+  ];
+  const preview=buildSemanticActorProvenancePreviewV2({signalId:SIGNAL,abilityIds:[A],evidenceRecords:multiAnchorEvidence});
+  const result=await executeSemanticActorProvenanceV2({signalId:SIGNAL,abilityIds:[A],evidenceRecords:multiAnchorEvidence,previewFingerprint:preview.fingerprint,confirmExecution:true,fetcher:fakeFetcher()});
+
+  assert.equal(result.abilities[0].events,1,'ability fallback should count the underlying combat event once');
+  assert.equal(result.patterns.length,2,'the same combat event can legitimately form a pattern around two distinct anchors');
+
+  const after=result.patterns.find(row=>row.key===`after-1s|enemyDebuffs|${A}|applydebuff`);
+  const before=result.patterns.find(row=>row.key===`before-1s|enemyDebuffs|${A}|applydebuff`);
+  assert.equal(after.events,1);
+  assert.equal(after.windows,1);
+  assert.equal(before.events,1);
+  assert.equal(before.windows,1);
+  assert.equal(after.dominantSource.role,'encounter-boss');
+  assert.equal(before.dominantSource.role,'encounter-boss');
 });
