@@ -1,6 +1,7 @@
 (() => {
   const VERSION='3.7.5';
   let cachedModel=null,cachedStatus=null,cachedEncounter=null,modelAt=0,statusAt=0,modelFlight=false,statusFlight=false;
+  let corpusShadowInstalled=false;
   const num=v=>Number.isFinite(Number(v))?Number(v):0;
   const fmt=new Intl.NumberFormat(undefined,{maximumFractionDigits:0});
   const pct=v=>Number.isFinite(Number(v))?`${Math.round(Number(v))}%`:'—';
@@ -12,6 +13,23 @@
   function el(tag,className,text){const n=document.createElement(tag);if(className)n.className=className;if(text!=null)n.textContent=text;return n;}
   function tip(text){const n=el('span','ei3-tip','i');n.tabIndex=0;n.dataset.tip=text;n.setAttribute('aria-label',text);return n;}
   function patchVersion(){const b=document.querySelector('.division b');if(b&&b.textContent!==`v${VERSION}`){b.textContent=`v${VERSION}`;b.title=`AvoiD Raid Operations ${VERSION}`;}}
+  function mechanicCatalogue(){return Array.from(document.querySelectorAll('article.panel')).find(panel=>panel.querySelector('.panel-title h3')?.textContent.trim()==='Encounter mechanic catalogue')||null;}
+  function ensureCorpusPanel(){
+    if(!mechanicsPage())return null;
+    let panel=document.querySelector('.corpus-workbench');
+    if(panel){panel.style.display='';panel.dataset.avoidPageOwner='Mechanics';panel.dataset.avoidCorpusOwner='encounter-intelligence-v375';simplifyLegacy(panel);return panel;}
+    const catalogue=mechanicCatalogue();if(!catalogue)return null;
+    panel=el('article','panel corpus-workbench');panel.dataset.avoidPageOwner='Mechanics';panel.dataset.avoidCorpusOwner='encounter-intelligence-v375';
+    const head=el('div','panel-title'),idx=el('i','', 'AI'),copy=el('div'),h3=el('h3','', 'Encounter Intelligence Corpus'),sub=el('p','', 'Durable hosted WCL corpus · background workflow · diverse raid groups · train/holdout validation · incremental enrichment');
+    copy.append(h3,sub);head.append(idx,copy);panel.append(head);catalogue.insertAdjacentElement('beforebegin',panel);simplifyLegacy(panel);return panel;
+  }
+  function syncCorpusVisibility(){const panel=document.querySelector('.corpus-workbench');if(panel&&!mechanicsPage())panel.style.display='none';}
+  function shadowLegacyCorpusWriter(){
+    if(corpusShadowInstalled)return;
+    const legacy=window.applyCorpusWorkbench;if(typeof legacy!=='function')return;
+    const shadow=function(...args){if(mechanicsPage()){ensureCorpusPanel();return;}return legacy.apply(this,args);};
+    shadow.__avoidCorpusPresentationShadow=true;shadow.__avoidLegacyCorpusWriter=legacy;window.applyCorpusWorkbench=shadow;corpusShadowInstalled=true;
+  }
 
   async function fetchJson(action){const id=encounterId();if(!id)return null;const u=new URL('/api/wcl/corpus',location.origin);u.searchParams.set('encounter',String(id));u.searchParams.set('action',action);u.searchParams.set('_',String(Date.now()));const r=await fetch(u,{headers:{Accept:'application/json'}}),d=await r.json().catch(()=>({}));if(!r.ok||!d?.ok)throw new Error(d?.error||`HTTP ${r.status}`);return d;}
   async function fetchModel(force=false){const id=encounterId(),now=Date.now();if(!id||modelFlight)return cachedModel;if(!force&&cachedEncounter===id&&cachedModel&&now-modelAt<8000)return cachedModel;modelFlight=true;try{const d=await fetchJson('model');if(d?.model){cachedModel=d.model;cachedEncounter=id;modelAt=now;}}catch(error){console.warn('[AvoiD v3.7.5 model]',error);}finally{modelFlight=false;}return cachedModel;}
@@ -119,14 +137,17 @@
 
   function structuralSignature(model,status){return`${model?.engineVersion||''}:${model?.encounterId||''}:${status?.status||'ready'}:${status?.phase||'complete'}`;}
   function render(model,status){
-    if(!mechanicsPage())return;patchVersion();const panel=document.querySelector('.corpus-workbench');if(!panel||!model)return;simplifyLegacy(panel);
+    if(!mechanicsPage())return;patchVersion();const panel=ensureCorpusPanel();if(!panel||!model)return;simplifyLegacy(panel);
     let root=panel.querySelector('.encounter-intelligence-v375');const sig=structuralSignature(model,status);
     if(!root||root.dataset.structure!==sig){const wasOpen=Boolean(root?.querySelector('.ei3-details')?.open);root?.remove();panel.querySelector('.encounter-intelligence-v374')?.remove();panel.querySelector('.encounter-intelligence-v373')?.remove();root=buildRoot(panel,model,status,wasOpen);root.dataset.structure=sig;}
     updateRoot(root,model,status);
   }
 
-  async function tick(force=false){patchVersion();if(!mechanicsPage())return;const [status,model]=await Promise.all([fetchStatus(force),fetchModel(force)]);if(model)render(model,status);}
+  async function tick(force=false){patchVersion();shadowLegacyCorpusWriter();if(!mechanicsPage()){syncCorpusVisibility();return;}ensureCorpusPanel();const [status,model]=await Promise.all([fetchStatus(force),fetchModel(force)]);if(model)render(model,status);}
+  shadowLegacyCorpusWriter();
+  window.__AVOID_ENCOUNTER_CORPUS_OWNER__=Object.freeze({version:VERSION,owner:'encounter-intelligence-v375',pageOwner:'Mechanics',writerPolicy:'single-corpus-writer',historicalWriters:Object.freeze(['applyCorpusWorkbench']),legacyRendererPolicy:'shadow-on-mechanics-delegate-elsewhere',canonicalPanelCreation:true,pollingIntervalMs:1500});
   document.addEventListener('click',event=>{if(event.target?.closest?.('nav button'))setTimeout(()=>tick(true),120);},true);
+  window.addEventListener('popstate',syncCorpusVisibility);
   setInterval(()=>tick(false),1500);window.addEventListener('DOMContentLoaded',()=>tick(true));if(document.readyState!=='loading')tick(true);
   console.info(`[AvoiD Raid Ops] Encounter Corpus UI ${VERSION}`);
 })();
