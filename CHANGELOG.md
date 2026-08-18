@@ -19,6 +19,7 @@ All meaningful product changes are recorded here. Git history remains the detail
 - Fixed a Linux case-sensitive Golden reconstruction check by falling back to the immutable Golden bundle when a historical extracted symbol collides by case.
 - Reconciled the legacy WCL runtime ownership audit into the canonical refactor branch. Every legacy writer/helper now has an explicit domain, owner and retirement state; `applyProgressCurve` remains intentionally shared because Command Center still consumes it.
 - Established one active-asset manifest and one generated compatibility CSS transport while retaining the reviewed historical CSS source layers for visual-equivalence verification.
+- Began physical legacy-runtime decomposition with a passive Command Center history ownership bridge. The bridge consumes the already-loaded shared History payload, owns only Command Center `What changed?`, adds no network request/timer/observer, and shadows the mixed legacy `applyHistoryData` binding before the canonical Progress owner installs its active-screen guard. The old mixed function body remains temporarily present until this checkpoint is fully validated and explicit deletion is approved.
 
 ### Mainline integration — v3.9.0 to v3.9.2
 
