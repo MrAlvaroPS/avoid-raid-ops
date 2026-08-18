@@ -6,7 +6,7 @@ on:
       - "**"
 
 permissions:
-  contents: read
+  contents: write
   statuses: write
 
 concurrency:
@@ -20,6 +20,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply one-shot Mechanics/Defensive fallback retirement
+        run: |
+          if [ -f .github/v4-retire-mechanics-fallback.trigger ]; then
+            python3 scripts/v4-retire-mechanics-fallback-once.py
+            git config user.name 'AvoiD v4 migration'
+            git config user.email 'actions@users.noreply.github.com'
+            rm scripts/v4-retire-mechanics-fallback-once.py .github/v4-retire-mechanics-fallback.trigger
+            git add public/wcl-runtime.js public/mechanics-defensives-fallback-bridge-v4.js config/legacy-runtime-ownership.mjs config/active-assets.mjs index.html scripts/verify-legacy-runtime-ownership.mjs tests/unit/mechanics-defensives-ownership-v4.test.mjs tests/unit/active-assets-manifest-v4.test.mjs tests/unit/runtime-dom-safety-v389.test.mjs CHANGELOG.md scripts/v4-retire-mechanics-fallback-once.py .github/v4-retire-mechanics-fallback.trigger
+            git diff --cached --check
+            git commit -m 'refactor(v4): retire shared Mechanics and Defensive fallback'
+            git push origin HEAD:refactor/reorganizacion-2026-08-17
+          fi
       - name: Node 22
         uses: actions/setup-node@v4
         with:
