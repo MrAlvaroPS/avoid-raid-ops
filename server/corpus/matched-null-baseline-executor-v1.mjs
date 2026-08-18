@@ -7,7 +7,7 @@ import { corpusId } from './keys.mjs';
 import { buildMatchedNullBaselinePreviewV1,evaluateMatchedNullBaselineV1 } from './matched-null-baseline-v1.mjs';
 
 export const MATCHED_NULL_BASELINE_EXECUTOR_V1_VERSION='matched-null-baseline-executor-v1';
-export const MATCHED_NULL_BASELINE_STORAGE_V1_VERSION='matched-null-baseline-storage-v2';
+export const MATCHED_NULL_BASELINE_STORAGE_V1_VERSION='matched-null-baseline-storage-v3';
 
 const finite=value=>Number.isFinite(Number(value))?Number(value):null;
 function baseKey(plan){return`matched-null-baselines/${corpusId(plan.scope)}/${Number(plan.signalId)}/${String(plan.episodeBuildFingerprint)}`;}
@@ -22,13 +22,13 @@ function compactStreams(streams={},windowStart=null,windowEnd=null){
   return Object.fromEntries(Object.entries(streams).map(([stream,events])=>[stream,(events||[]).filter(event=>{const timestamp=finite(event?.timestamp);return timestamp!=null&&(start==null||timestamp>=start)&&(end==null||timestamp<=end);}).map(event=>compactEvent(event,stream))]));
 }
 function containsSignal(streams,signalId){for(const events of Object.values(streams||{}))for(const event of events||[])if(Number(eventAbilityId(event))===Number(signalId))return true;return false;}
-function compatibleEvidence(row){return row?.evidenceContract?.targetSignalGuardValidated===true&&row?.evidenceContract?.innerControlEventsOnly===true;}
+function compatibleEvidence(row){return row?.evidenceContract?.targetSignalGuardValidated===true&&row?.evidenceContract?.innerControlEventsOnly===true&&row?.evidenceContract?.pairedAnchorComparison===true&&row?.evidenceContract?.anchorContextCoversEpisodeRadius===true&&row?.evidenceContract?.controlCoversEpisodeRadius===true;}
 
 export function buildMatchedNullControlEvidenceRecordV1(plan,control,bundle,{priorTargetSignalObserved=false}={}){
   const targetSignalObserved=Boolean(priorTargetSignalObserved)||containsSignal(bundle?.streams||{},plan.signalId),compact=compactStreams(bundle?.streams||{},control.windowStart,control.windowEnd);
-  return{version:MATCHED_NULL_BASELINE_STORAGE_V1_VERSION,kind:'matched-null-control',signalId:Number(plan.signalId),episodeId:plan.episodeId,episodeBuildFingerprint:plan.episodeBuildFingerprint,controlId:String(control.controlId),source:String(control.source),reportCode:String(control.reportCode),fightID:Number(control.fightID),referenceTimestamp:Number(control.referenceTimestamp),windowMs:Number(control.windowMs),windowStart:Number(control.windowStart),windowEnd:Number(control.windowEnd),anchorTimestamp:Number(control.anchorTimestamp),contaminationWindowStart:Number(control.contaminationWindowStart),contaminationWindowEnd:Number(control.contaminationWindowEnd),contaminationGuardRadiusMs:Number(control.contaminationGuardRadiusMs),match:control.match,
+  return{version:MATCHED_NULL_BASELINE_STORAGE_V1_VERSION,kind:'matched-null-control',signalId:Number(plan.signalId),episodeId:plan.episodeId,episodeBuildFingerprint:plan.episodeBuildFingerprint,controlId:String(control.controlId),source:String(control.source),reportCode:String(control.reportCode),fightID:Number(control.fightID),referenceTimestamp:Number(control.referenceTimestamp),windowMs:Number(control.windowMs),windowStart:Number(control.windowStart),windowEnd:Number(control.windowEnd),anchorTimestamp:Number(control.anchorTimestamp),anchorContextWindowMs:Number(control.anchorContextWindowMs),anchorPatternFingerprint:String(control.anchorPatternFingerprint||''),anchorObservedPatternKeys:[...(control.anchorObservedPatternKeys||[])],contaminationWindowStart:Number(control.contaminationWindowStart),contaminationWindowEnd:Number(control.contaminationWindowEnd),contaminationGuardRadiusMs:Number(control.contaminationGuardRadiusMs),match:control.match,
     streams:compact,pagination:bundle?.pagination||null,rateLimit:bundle?.rateLimit||null,contamination:{targetSignalObserved,guardRadiusMs:Number(control.contaminationGuardRadiusMs)},validNull:!targetSignalObserved,invalidReason:targetSignalObserved?'target-signal-observed-inside-episode-guard':null,
-    evidenceContract:{actorIdsPersisted:false,actorNamesPersisted:false,targetSignalGuardValidated:true,innerControlEventsOnly:true,combatEventsQueriedWithinEpisodeGuard:true,patternEventsPersistedWithinExactControlWindow:true,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false}};
+    evidenceContract:{actorIdsPersisted:false,actorNamesPersisted:false,pairedAnchorComparison:true,anchorContextCoversEpisodeRadius:true,controlCoversEpisodeRadius:true,targetSignalGuardValidated:true,innerControlEventsOnly:true,combatEventsQueriedWithinEpisodeGuard:true,patternEventsPersistedWithinExactControlWindow:true,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false}};
 }
 
 export async function loadMatchedNullCacheV1({plan,storageGet=corpusGet}={}){const rows=[];for(const control of plan?.controls||[]){const value=await storageGet(matchedNullControlEvidenceKey(plan,control)).catch(()=>null);if(value)rows.push(value);}return rows;}
@@ -65,6 +65,6 @@ export async function executeMatchedNullBaselineV1({plan,episode,previewFingerpr
   if(status==='complete'&&partialControls>0){status='evidence-incomplete';stopReason='pagination-incomplete';}
   const result={version:MATCHED_NULL_BASELINE_EXECUTOR_V1_VERSION,storageVersion:MATCHED_NULL_BASELINE_STORAGE_V1_VERSION,previewFingerprint:preview.fingerprint,planFingerprint:plan.planFingerprint,episodeId:plan.episodeId,episodeBuildFingerprint:plan.episodeBuildFingerprint,scope:plan.scope,signalId:Number(plan.signalId),status,stopReason,wclCallsExecuted:calls,rateLimit:rate,lastQuery,
     plannedControls:plan.plannedControls,completeControls,validCompleteControls,invalidControls,partialControls,evaluation,
-    evidenceContract:{matchedSameFightControls:true,targetSignalContaminationRejected:true,targetSignalGuardRadiusValidated:true,innerControlEventsOnly:true,localFlankControlsUsed:false,rawActorIdsPersisted:false,rawActorNamesPersisted:false,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false,sourceIndependenceNotYetClaimed:true,holdoutNotYetClaimed:true}};
+    evidenceContract:{matchedSameFightControls:true,pairedAnchorComparison:true,anchorContextCoversEpisodeRadius:true,controlCoversEpisodeRadius:true,targetSignalContaminationRejected:true,targetSignalGuardRadiusValidated:true,innerControlEventsOnly:true,localFlankControlsUsed:false,rawActorIdsPersisted:false,rawActorNamesPersisted:false,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false,sourceIndependenceNotYetClaimed:true,holdoutNotYetClaimed:true}};
   await storageSet(matchedNullRunKey(plan,preview.fingerprint),result);return result;
 }
