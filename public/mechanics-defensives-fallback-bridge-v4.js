@@ -1,16 +1,14 @@
 (() => {
-  const VERSION='4.0.0-migration3';
-  const shadowedNames=[
-    'applyTelemetryMechanics',
-    'applyIntelligenceMechanics',
+  const VERSION='4.0.0-migration4-shadow1';
+  const defensiveWriters=[
     'applyTelemetryDefensives',
     'applyIntelligenceDefensives',
   ];
-  const legacy=Object.fromEntries(shadowedNames.map(name=>[name,typeof window[name]==='function'?window[name]:null]));
+  const legacy=Object.fromEntries(defensiveWriters.map(name=>[name,typeof window[name]==='function'?window[name]:null]));
 
-  if(shadowedNames.some(name=>typeof legacy[name]!=='function')){
-    const missing=shadowedNames.filter(name=>typeof legacy[name]!=='function');
-    console.warn(`[AvoiD v4] Mechanics/Defensive bridge missing legacy writers: ${missing.join(', ')}`);
+  if(defensiveWriters.some(name=>typeof legacy[name]!=='function')){
+    const missing=defensiveWriters.filter(name=>typeof legacy[name]!=='function');
+    console.warn(`[AvoiD v4] Defensive bridge missing legacy writers: ${missing.join(', ')}`);
     return;
   }
 
@@ -30,8 +28,8 @@
   }
 
   function applyMechanicsFallback(){
-    if(!active('Mechanics'))return;
-    stats().forEach(card=>setPending(card,'Encounter rule pack required'));
+    if(!active('Mechanics Library'))return;
+    window.__AVOID_MECHANICS_SOURCE_RUNTIME__?.shadow?.();
   }
 
   function applyDefensiveAuditFallback(){
@@ -54,19 +52,21 @@
   applySplitFallback.__avoidV4SplitFallback=true;
   applySplitFallback.__avoidLegacyFallbackPhysicallyRetired=true;
   window.applyMechanicsAndDefensives=applySplitFallback;
-  window.applyTelemetryMechanics=screenWriter('applyTelemetryMechanics','Mechanics Library');
-  window.applyIntelligenceMechanics=screenWriter('applyIntelligenceMechanics','Mechanics Library');
   window.applyTelemetryDefensives=screenWriter('applyTelemetryDefensives','Defensive Audit');
   window.applyIntelligenceDefensives=screenWriter('applyIntelligenceDefensives','Defensive Audit');
 
   window.__AVOID_MECHANICS_DEFENSIVES_FALLBACK_OWNER__=Object.freeze({
     version:VERSION,
-    writerPolicy:'split-fallback-owner-and-screen-writer-shadow',
+    writerPolicy:'mechanics-source-parity-shadow-and-defensive-writer-shadow',
     activeOwner:'public/mechanics-defensives-fallback-bridge-v4.js',
     mechanicsSourceOwner:'apps/web/src/features/mechanics/Mechanics.js',
+    mechanicsRuntimeSource:'apps/web/src/features/mechanics/runtime.js',
+    mechanicsRuntimeTransport:'public/mechanics-runtime.js',
     defensiveAuditSourceOwner:'apps/web/src/features/defensive-audit/DefensiveAudit.js',
-    historicalWriters:Object.freeze(['applyMechanicsAndDefensives',...shadowedNames]),
+    historicalWriters:Object.freeze(['applyMechanicsAndDefensives','applyTelemetryMechanics','applyIntelligenceMechanics',...defensiveWriters]),
     fallbackLegacyPhysicallyRetired:true,
+    mechanicsParityShadow:true,
+    defensiveWriterShadow:true,
     directRequests:0,
     timers:0,
     observers:0,
