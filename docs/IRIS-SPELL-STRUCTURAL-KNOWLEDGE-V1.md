@@ -227,9 +227,25 @@ Only Wago DB2 is contacted. Blizzard and WCL network calls remain zero.
 
 `latest` is zero-network and returns the accumulated snapshot for the current stored build.
 
-## Belo'ren validation target
+## Real smoke validation
 
-The current diagnostic fixture is:
+The runtime provider must be validated against the current build after implementation/schema changes:
+
+```powershell
+npm run validate:spell-structure -- --wcl 3182 --abilities 1243560,1241163,1243866
+```
+
+The smoke must demonstrate:
+
+- persisted Blizzard namespace resolves to exact DB2 build `12.1.0.68914` for the current Belo'ren fixture;
+- Wago request budget is bounded and visible;
+- current-request query coverage is explicit;
+- accumulated latest reloads at 0 provider/WCL calls;
+- raw CSV is not persisted;
+- provider failures remain non-negative;
+- current-request relations are distinguishable from previously accumulated same-build relations.
+
+The current diagnostic structural target is:
 
 ```text
 1243560
