@@ -2,14 +2,9 @@ name: Release Critical Gate
 
 on:
   push:
-    branches:
-      - refactor/reorganizacion-2026-08-17
     tags:
       - "v*"
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 concurrency:
   group: release-critical-${{ github.ref }}
@@ -22,19 +17,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - name: Apply approved one-shot Corpus retirement
-        run: |
-          python3 scripts/v4-retire-corpus-once.py
-          git config user.name 'AvoiD v4 migration'
-          git config user.email 'actions@users.noreply.github.com'
-          git show HEAD^:.github/workflows/release-critical.yml > .github/workflows/release-critical.yml
-          rm scripts/v4-retire-corpus-once.py
-          git add public/wcl-runtime.js public/encounter-intelligence-v375.js config/legacy-runtime-ownership.mjs scripts/verify-legacy-runtime-ownership.mjs tests/unit/legacy-runtime-ownership-v4.test.mjs CHANGELOG.md .github/workflows/release-critical.yml scripts/v4-retire-corpus-once.py
-          git diff --cached --check
-          git commit -m 'refactor(v4): physically retire legacy Corpus runtime'
-          git push origin HEAD:refactor/reorganizacion-2026-08-17
       - name: Node 22
         uses: actions/setup-node@v4
         with:

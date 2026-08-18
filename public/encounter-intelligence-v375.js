@@ -26,8 +26,8 @@
   function syncCorpusVisibility(){const panel=document.querySelector('.corpus-workbench');if(panel&&!mechanicsPage())panel.style.display='none';}
   function shadowLegacyCorpusWriter(){
     if(corpusShadowInstalled)return;
-    const legacy=window.applyCorpusWorkbench;if(typeof legacy!=='function')return;
-    const shadow=function(...args){if(mechanicsPage()){ensureCorpusPanel();return;}return legacy.apply(this,args);};
+    const legacy=typeof window.applyCorpusWorkbench==='function'?window.applyCorpusWorkbench:null;
+    const shadow=function(...args){if(mechanicsPage()){ensureCorpusPanel();return;}syncCorpusVisibility();if(legacy)return legacy.apply(this,args);};
     shadow.__avoidCorpusPresentationShadow=true;shadow.__avoidLegacyCorpusWriter=legacy;window.applyCorpusWorkbench=shadow;corpusShadowInstalled=true;
   }
 
@@ -145,7 +145,7 @@
 
   async function tick(force=false){patchVersion();shadowLegacyCorpusWriter();if(!mechanicsPage()){syncCorpusVisibility();return;}ensureCorpusPanel();const [status,model]=await Promise.all([fetchStatus(force),fetchModel(force)]);if(model)render(model,status);}
   shadowLegacyCorpusWriter();
-  window.__AVOID_ENCOUNTER_CORPUS_OWNER__=Object.freeze({version:VERSION,owner:'encounter-intelligence-v375',pageOwner:'Mechanics',writerPolicy:'single-corpus-writer',historicalWriters:Object.freeze(['applyCorpusWorkbench']),legacyRendererPolicy:'shadow-on-mechanics-delegate-elsewhere',canonicalPanelCreation:true,pollingIntervalMs:1500});
+  window.__AVOID_ENCOUNTER_CORPUS_OWNER__=Object.freeze({version:VERSION,owner:'encounter-intelligence-v375',pageOwner:'Mechanics',writerPolicy:'single-corpus-writer',historicalWriters:Object.freeze(['applyCorpusWorkbench']),legacyRendererPolicy:'canonical-binding-delegates-legacy-when-present',canonicalPanelCreation:true,pollingIntervalMs:1500});
   document.addEventListener('click',event=>{if(event.target?.closest?.('nav button'))setTimeout(()=>tick(true),120);},true);
   window.addEventListener('popstate',syncCorpusVisibility);
   setInterval(()=>tick(false),1500);window.addEventListener('DOMContentLoaded',()=>tick(true));if(document.readyState!=='loading')tick(true);

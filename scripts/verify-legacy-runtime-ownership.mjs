@@ -15,6 +15,7 @@ import {
   LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS,
   LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS,
   LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED,
+  LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED,
 } from '../config/legacy-runtime-ownership.mjs';
 
 const root=new URL('../',import.meta.url);
@@ -33,7 +34,7 @@ const declaredSet=new Set(declared);
 const classified=new Map();
 
 expect(LEGACY_RUNTIME_OWNERSHIP_VERSION==='legacy-runtime-ownership-v4','legacy runtime ownership version must stay explicit');
-expect(declared.length===75,`wcl-runtime.js must contain exactly 75 active function declarations after Progress and Players presentation retirement; Corpus remains in shadow validation; found ${declared.length}`);
+expect(declared.length===67,`wcl-runtime.js must contain exactly 67 active function declarations after Progress, Players and Corpus retirement; found ${declared.length}`);
 expect(declared.length===declaredSet.size,'wcl-runtime.js contains duplicate function declarations');
 
 for(const responsibility of LEGACY_RUNTIME_RESPONSIBILITIES){
@@ -108,30 +109,31 @@ expect((players.match(/setInterval\s*\(/g)||[]).length===1&&/setInterval\(\(\)=>
 expect(!/MutationObserver|fetch\s*\(/.test(players),'Players canonical owner may not add observers or direct network requests');
 
 const historicalCorpus=['applyCorpusWorkbench'];
+const retiredCorpusHelpers=['corpusCountdown','corpusContext','corpusRequest','refreshCorpusStatus','pollCorpus','corpusCell','corpusButton'];
 expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_HISTORICAL_WRITERS)===JSON.stringify(historicalCorpus),'historical Corpus writer inventory changed unexpectedly');
-expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS)===JSON.stringify(historicalCorpus),'legacy Corpus writer must remain physically present during the shadow checkpoint');
-expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS)===JSON.stringify(historicalCorpus),'legacy Corpus writer must be explicitly shadowed on Mechanics');
-expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED)===JSON.stringify([]),'Corpus presentation may not be marked physically retired before the green shadow checkpoint');
-expect(/function\s+applyCorpusWorkbench\s*\(/.test(legacy),'legacy applyCorpusWorkbench must remain physically present during validation');
-expect(/applyIntelligence\(\);applyCorpusWorkbench\(\);removeRosterIntelligenceOutsideComposition\(\)/.test(legacy),'legacy applyAll must retain the intercepted applyCorpusWorkbench call during shadow validation');
-const corpusPresentation=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-presentation-shadow');
-const corpusBridge=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-workflow-bridge');
-expect(corpusPresentation?.status==='compatibility-shadowed-writer'&&corpusPresentation?.canonicalOwner==='public/encounter-intelligence-v375.js','Corpus presentation must be classified as shadowed by Encounter Intelligence');
-expect(JSON.stringify(corpusPresentation?.functions)===JSON.stringify(historicalCorpus),'Corpus presentation responsibility must contain only the historical writer');
-expect(corpusBridge?.status==='compatibility-support'&&corpusBridge?.functions.includes('pollCorpus')&&corpusBridge?.functions.includes('corpusRequest'),'legacy Corpus workflow helpers must remain classified separately during presentation validation');
-expect(/function ensureCorpusPanel\(\)/.test(encounter),'canonical Encounter owner must be able to create the Corpus card without the legacy renderer');
-expect(/catalogue\.insertAdjacentElement\('beforebegin',panel\)/.test(encounter),'canonical Corpus card must retain the legacy placement immediately before the mechanic catalogue');
+expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS)===JSON.stringify([]),'no legacy Corpus presentation writer may remain active after physical retirement');
+expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS)===JSON.stringify([]),'Corpus shadow inventory must be cleared after physical retirement');
+expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED)===JSON.stringify(historicalCorpus),'historical Corpus presentation writer must be physically retired');
+expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED)===JSON.stringify(retiredCorpusHelpers),'all seven legacy Corpus workflow helpers must be physically retired');
+expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='corpus-presentation-shadow'),'retired Corpus presentation cannot remain an active legacy responsibility');
+expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='corpus-workflow-bridge'),'retired Corpus workflow helpers cannot remain an active legacy responsibility');
+for(const fn of [...historicalCorpus,...retiredCorpusHelpers]){
+  expect(!new RegExp(`(?:async\s+)?function\s+${fn}\s*\(`).test(legacy),`${fn} declaration survived physical retirement`);
+  expect(!classified.has(fn),`${fn} survived in active legacy ownership responsibilities`);
+}
+expect(!/applyIntelligence\(\);applyCorpusWorkbench\(\);removeRosterIntelligenceOutsideComposition\(\)/.test(legacy),'applyAll must not invoke the retired Corpus renderer');
+expect(/function ensureCorpusPanel\(\)/.test(encounter),'canonical Encounter owner must create the Corpus card without the legacy renderer');
+expect(/catalogue\.insertAdjacentElement\('beforebegin',panel\)/.test(encounter),'canonical Corpus card must retain placement immediately before the mechanic catalogue');
 expect(/dataset\.avoidCorpusOwner='encounter-intelligence-v375'/.test(encounter),'canonical card must publish explicit DOM ownership');
-expect(/function shadowLegacyCorpusWriter\(\)/.test(encounter),'Encounter owner must install a dedicated legacy Corpus presentation shadow');
-expect(/if\(mechanicsPage\(\)\)\{ensureCorpusPanel\(\);return;\}return legacy\.apply\(this,args\);/.test(encounter),'Corpus shadow must suppress legacy presentation only on Mechanics and delegate elsewhere');
-expect(/window\.__AVOID_ENCOUNTER_CORPUS_OWNER__=Object\.freeze/.test(encounter),'Encounter owner must publish explicit Corpus ownership metadata');
-expect(/writerPolicy:'single-corpus-writer'/.test(encounter),'Encounter owner must declare the single-Corpus-writer policy');
-expect(/legacyRendererPolicy:'shadow-on-mechanics-delegate-elsewhere'/.test(encounter),'Corpus owner must record its scoped migration interception policy');
-expect((encounter.match(/setInterval\s*\(/g)||[]).length===1&&/setInterval\(\(\)=>tick\(false\),1500\)/.test(encounter),'Corpus shadow must add no polling beyond the existing Encounter 1500ms loop');
-expect((encounter.match(/\bfetch\s*\(/g)||[]).length===2,'Corpus shadow must add zero request call sites beyond the two existing Encounter Corpus fetch paths');
-expect(!/MutationObserver/.test(encounter),'Corpus shadow may not add mutation observers');
-expect(/const nativeCorpusRenderer = window\.applyCorpusWorkbench/.test(corpusGuard),'existing Corpus stability guard must remain in place for the shadow checkpoint');
-expect(/legacyPollingRendererSuppressed: true/.test(corpusGuard),'Corpus stability guard must continue declaring legacy renderer suppression');
+expect(/const legacy=typeof window\.applyCorpusWorkbench==='function'\?window\.applyCorpusWorkbench:null/.test(encounter),'canonical owner must tolerate physical absence of the historical renderer');
+expect(/window\.applyCorpusWorkbench=shadow/.test(encounter),'canonical owner must publish the temporary compatibility binding for the stability guard');
+expect(/writerPolicy:'single-corpus-writer'/.test(encounter),'Encounter owner must retain the single-Corpus-writer policy');
+expect(/legacyRendererPolicy:'canonical-binding-delegates-legacy-when-present'/.test(encounter),'Corpus owner must record post-retirement compatibility semantics');
+expect((encounter.match(/setInterval\s*\(/g)||[]).length===1&&/setInterval\(\(\)=>tick\(false\),1500\)/.test(encounter),'Corpus retirement must add no polling beyond the existing Encounter 1500ms loop');
+expect((encounter.match(/\bfetch\s*\(/g)||[]).length===2,'Corpus retirement must add zero request call sites beyond the two existing Encounter Corpus fetch paths');
+expect(!/MutationObserver/.test(encounter),'Corpus canonical owner may not add mutation observers');
+expect(/const nativeCorpusRenderer = window\.applyCorpusWorkbench/.test(corpusGuard),'Corpus stability guard must remain for one additional post-retirement validation round');
+expect(/legacyPollingRendererSuppressed: true/.test(corpusGuard),'Corpus stability guard must retain its suppression contract during the extra validation round');
 
 expect((legacy.match(/window\.applyProgressCurve\?\.\(\)/g)||[]).length===1,'Command Center must call the extracted curve through exactly one optional global bridge binding');
 expect((legacy.match(/window\.applyHistoryData\?\.\(\)/g)||[]).length===1,'supplemental orchestration must call extracted history through exactly one optional global bridge binding');
@@ -171,8 +173,9 @@ console.log(` - ${declared.length} active function declarations are explicitly c
 console.log(` - ${LEGACY_RUNTIME_RESPONSIBILITIES.length} active responsibilities have named domains and retirement paths`);
 console.log(` - ${LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED.length} historical Progress compatibility targets are physically absent from wcl-runtime.js`);
 console.log(` - ${LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED.length} historical Players presentation writers are physically absent from wcl-runtime.js`);
-console.log(` - ${LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS.length} historical Corpus presentation writer is shadowed on Mechanics while remaining physically present`);
-console.log(' - canonical Encounter Intelligence can create/place the Corpus card and retains the existing 1500ms polling owner');
+console.log(` - ${LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED.length} historical Corpus presentation writer is physically retired from wcl-runtime.js`);
+console.log(` - ${LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED.length} legacy Corpus workflow helpers are physically retired from wcl-runtime.js`);
+console.log(' - canonical Encounter Intelligence creates/places the Corpus card, owns the compatibility binding and retains the existing 1500ms polling owner');
 console.log(' - shared Players data/helper bridge remains active for the canonical dossier owner');
 console.log(' - Command Center owns extracted progression-curve and cross-night history bindings through one passive bridge');
 console.log(' - missing-History presentation is now exclusively owned by canonical Progress; the legacy body and call are physically absent');
