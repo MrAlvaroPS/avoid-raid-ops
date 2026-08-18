@@ -6,7 +6,7 @@ on:
       - "**"
 
 permissions:
-  contents: read
+  contents: write
   statuses: write
 
 concurrency:
@@ -20,6 +20,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply approved one-shot Corpus closure
+        run: |
+          if [ -f .github/v4-corpus-closure.trigger ]; then
+            python3 scripts/v4-close-corpus-once.py
+            git config user.name 'AvoiD v4 migration'
+            git config user.email 'actions@users.noreply.github.com'
+            rm scripts/v4-close-corpus-once.py .github/v4-corpus-closure.trigger
+            git add -A
+            git diff --cached --check
+            git commit -m 'refactor(v4): close Corpus compatibility surface'
+            git push origin HEAD:refactor/reorganizacion-2026-08-17
+          fi
       - name: Node 22
         uses: actions/setup-node@v4
         with:
