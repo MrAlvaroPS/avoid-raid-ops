@@ -25,10 +25,10 @@ jobs:
       - name: Apply one-shot Mechanics source-owner retirement
         run: |
           if [ -f .github/v4-retire-mechanics-source.trigger ]; then
-            python3 scripts/v4-retire-mechanics-source-once.py
+            python3 scripts/v4-retire-mechanics-source-runner.py
             git config user.name 'AvoiD v4 migration'
             git config user.email 'actions@users.noreply.github.com'
-            rm scripts/v4-retire-mechanics-source-once.py .github/v4-retire-mechanics-source.trigger
+            rm scripts/v4-retire-mechanics-source-once.py scripts/v4-retire-mechanics-source-runner.py .github/v4-retire-mechanics-source.trigger
             git add -A
             git diff --cached --check
             git commit -m 'refactor(v4): promote Mechanics source owner and retire legacy writers'
