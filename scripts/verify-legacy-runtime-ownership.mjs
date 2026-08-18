@@ -10,8 +10,9 @@ import {
 } from '../config/legacy-runtime-ownership.mjs';
 
 const root=new URL('../',import.meta.url);
-const [legacy,progress]=await Promise.all([
+const [legacy,guard,progress]=await Promise.all([
   readFile(new URL(LEGACY_RUNTIME_PATH,root),'utf8'),
+  readFile(new URL('public/progress-legacy-retirement-v4.js',root),'utf8'),
   readFile(new URL('public/progress-runtime-v3713.js',root),'utf8'),
 ]);
 const fail=[];
@@ -39,26 +40,33 @@ expect(unclassified.length===0,`unclassified wcl-runtime.js functions: ${unclass
 expect(stale.length===0,`ownership manifest lists missing functions: ${stale.join(', ')||'none'}`);
 
 const legacyAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
+const guardAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='progress-legacy-retirement');
 const progressAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='progress-runtime');
+const legacyIndex=ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset);
+const guardIndex=ACTIVE_LOCAL_SCRIPTS.indexOf(guardAsset);
+const progressIndex=ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset);
 expect(legacyAsset?.authority==='compatibility','wcl-runtime.js must remain compatibility-only in active asset ownership');
+expect(guardAsset?.authority==='guard'&&guardAsset?.retirement==='delete-with-retired-legacy-writers','Progress execution-retirement guard must be explicitly temporary');
 expect(progressAsset?.authority==='primary'&&progressAsset?.owner==='progress','Progress runtime must remain the primary Progress owner');
-expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Progress owner must load after the legacy runtime it intercepts');
+expect(guardIndex===legacyIndex+1&&progressIndex>guardIndex,'temporary Progress retirement guard must load immediately after legacy runtime and before the canonical Progress owner');
 
 const progressEntry=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='progress-shadowed-writers');
 expect(progressEntry?.status==='execution-retired','retirable Progress legacy writers must be execution-retired before source deletion');
 expect(progressEntry?.canonicalOwner==='public/progress-runtime-v3713.js','retirable Progress legacy writers must point to the canonical Progress owner');
 expect(JSON.stringify(progressEntry?.functions)===JSON.stringify(LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES),'Progress retirement candidates must have one canonical declaration');
 expect(JSON.stringify(LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED)===JSON.stringify(LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES),'execution-retired set must exactly match the pending physical-deletion set');
-expect(/const EXECUTION_RETIRED=Object\.freeze\(\['applyProgressPage','applyRealProgressMatrix'\]\)/.test(progress),'canonical Progress owner must globally execution-retire only the two Progress-only legacy writers');
-expect(/const ACTIVE_ONLY_INTERCEPTED=Object\.freeze\(\['applyProgressCurve','applyHistoryData'\]\)/.test(progress),'shared curve/history writers must remain active outside Progress');
-expect(/if\(executionRetired\|\|active\(\)\)return/.test(progress),'Progress ownership wrapper must distinguish global execution retirement from Progress-only interception');
-expect(/for\(const fn of EXECUTION_RETIRED\)wrap\(fn,true\)/.test(progress),'execution-retired writers must use the hard no-op path');
-expect(/for\(const fn of ACTIVE_ONLY_INTERCEPTED\)wrap\(fn,false\)/.test(progress),'shared writers must use the active-Progress-only no-op path');
+expect(/const EXECUTION_RETIRED=Object\.freeze\(\['applyProgressPage','applyRealProgressMatrix'\]\)/.test(guard),'retirement guard must globally disable exactly the two Progress-only legacy writers');
+expect(!/applyProgressCurve|applyHistoryData/.test(guard),'retirement guard must never disable shared Command Center behavior');
+expect(/retired\.__avoidExecutionRetired=true/.test(guard),'retirement guard must mark its hard no-op writers');
+expect(/retired\.__irisProgressOwner=true/.test(guard),'canonical Progress wrapper must skip already hard-retired writers');
+expect(/temporary-guard-until-physical-source-deletion/.test(guard),'retirement guard must advertise its deletion condition');
 for(const fn of LEGACY_RUNTIME_PROGRESS_INTERCEPTED){
-  expect(new RegExp(`['\"]${fn}['\"]`).test(progress),`canonical Progress owner no longer accounts for ${fn}`);
+  expect(new RegExp(`['\"]${fn}['\"]`).test(progress),`historical canonical Progress owner no longer accounts for ${fn}`);
 }
+expect(/const wrapped=function\(\.\.\.args\)\{if\(active\(\)\)return;return legacy\.apply\(this,args\);\}/.test(progress),'historical Progress owner must retain its active-screen-only interception semantics');
 expect(/writerPolicy:'single-progress-writer'/.test(progress),'Progress owner must retain single-writer policy');
 expect(/setInterval\(\(\)=>renderFull\(false\),750\)/.test(progress),'canonical Progress owner must repaint independently of legacy writer execution');
+expect(/&quot;/.test(progress),'historical Progress runtime HTML escaping must remain intact');
 
 const curveEntry=classified.get('applyProgressCurve');
 expect(curveEntry?.id==='shared-progression-curve','applyProgressCurve must remain classified separately from retirable Progress writers');
@@ -90,7 +98,7 @@ for(const entry of LEGACY_RUNTIME_RESPONSIBILITIES)statusCounts[entry.status]=(s
 console.log('LEGACY RUNTIME OWNERSHIP VERIFICATION: PASS');
 console.log(` - ${declared.length} function declarations are explicitly classified; 0 unowned`);
 console.log(` - ${LEGACY_RUNTIME_RESPONSIBILITIES.length} responsibilities have named domains and retirement paths`);
-console.log(` - Progress accounts for ${LEGACY_RUNTIME_PROGRESS_INTERCEPTED.length} legacy functions; ${LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED.length} Progress-only writers are execution-retired and pending source deletion`);
+console.log(` - Progress accounts for ${LEGACY_RUNTIME_PROGRESS_INTERCEPTED.length} legacy functions; ${LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED.length} Progress-only writers are execution-retired by a temporary guard and pending source deletion`);
 console.log(' - applyProgressCurve remains shared with Command Center and cannot be removed as Progress-only code');
 console.log(' - applyHistoryData also remains shared until its Command Center history writer is split');
 console.log(` - status distribution ${JSON.stringify(statusCounts)}`);
