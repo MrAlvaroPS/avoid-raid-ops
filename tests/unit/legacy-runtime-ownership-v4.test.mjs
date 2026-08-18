@@ -5,13 +5,14 @@ import {
   LEGACY_RUNTIME_OWNERSHIP,
   LEGACY_RUNTIME_RESPONSIBILITIES,
   LEGACY_RUNTIME_PROGRESS_INTERCEPTED,
+  LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED,
   LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES,
 } from '../../config/legacy-runtime-ownership.mjs';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
 
 test('legacy WCL runtime responsibilities are explicit and contain no miscellaneous bucket',()=>{
-  assert.equal(LEGACY_RUNTIME_OWNERSHIP.version,'legacy-runtime-ownership-v2');
+  assert.equal(LEGACY_RUNTIME_OWNERSHIP.version,'legacy-runtime-ownership-v3');
   assert.equal(LEGACY_RUNTIME_OWNERSHIP.path,'public/wcl-runtime.js');
   assert.ok(LEGACY_RUNTIME_RESPONSIBILITIES.length>=10);
   for(const entry of LEGACY_RUNTIME_RESPONSIBILITIES){
@@ -21,13 +22,25 @@ test('legacy WCL runtime responsibilities are explicit and contain no miscellane
   }
 });
 
-test('Progress interception is broader than the safe physical-retirement set',()=>{
+test('Progress execution retirement is narrower than interception and precedes source deletion',async()=>{
   assert.deepEqual(LEGACY_RUNTIME_PROGRESS_INTERCEPTED,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
-  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES,['applyProgressPage','applyRealProgressMatrix']);
+  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED,['applyProgressPage','applyRealProgressMatrix']);
+  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES,LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED);
   const progress=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='progress-shadowed-writers');
-  assert.equal(progress.status,'shadowed-by-primary-owner');
+  assert.equal(progress.status,'execution-retired');
   assert.equal(progress.canonicalOwner,'public/progress-runtime-v3713.js');
-  assert.deepEqual(progress.functions,LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES);
+  assert.match(progress.retirement,/delete-from-legacy-runtime-after-green-browser-regression/);
+  assert.deepEqual(progress.functions,LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED);
+
+  const source=await read('public/progress-runtime-v3713.js');
+  assert.match(source,/const EXECUTION_RETIRED=Object\.freeze\(\['applyProgressPage','applyRealProgressMatrix'\]\)/);
+  assert.match(source,/const ACTIVE_ONLY_INTERCEPTED=Object\.freeze\(\['applyProgressCurve','applyHistoryData'\]\)/);
+  assert.match(source,/if\(executionRetired\|\|active\(\)\)return/);
+  assert.match(source,/for\(const fn of EXECUTION_RETIRED\)wrap\(fn,true\)/);
+  assert.match(source,/for\(const fn of ACTIVE_ONLY_INTERCEPTED\)wrap\(fn,false\)/);
+  assert.match(source,/migrationPolicy:'execution-retire-shadowed-progress-writers-before-source-deletion'/);
+  assert.match(source,/setInterval\(\(\)=>renderFull\(false\),750\)/,'canonical Progress owner must repaint independently of legacy writer execution');
+  assert.match(source,/&quot;/,'HTML escaping contract must retain a terminated quote entity');
 });
 
 test('applyProgressCurve stays shared until Command Center is extracted from the compatibility monolith',()=>{
