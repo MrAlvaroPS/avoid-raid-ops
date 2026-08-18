@@ -119,3 +119,31 @@ test('CRITICAL v3.9.9 CONTRACTS: Blizzard is official published metadata while W
   assert.match(pipeline,/Official encounter knowledge resolution/);
   assert.match(pkg,/"version": "0\.3\.9-9-vercel\.0"/);
 });
+
+test('CRITICAL v3.9.9 DOCTRINE: future Iris work must retain the official-vs-observed decision procedure',async()=>{
+  const [doctrine,agents,architecture,operations,pipeline,sources]=await Promise.all([
+    read('docs/IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1.md'),
+    read('AGENTS.md'),
+    read('IRIS-ARCHITECTURE.md'),
+    read('IRIS-OPERATIONS.md'),
+    read('docs/IRIS-BOSS-AGNOSTIC-LEARNING-PIPELINE-V1.md'),
+    read('docs/iris-sources/README.md'),
+  ]);
+
+  assert.match(doctrine,/Blizzard defines the published semantic map/i);
+  assert.match(doctrine,/WCL records the observed combat journey/i);
+  for(const label of ['OFFICIAL','OBSERVED','INFERRED','UNRESOLVED'])assert.ok(doctrine.includes(label),`${label} evidence class must remain explicit`);
+  assert.match(doctrine,/HOME\/AvoiD logs never train GLOBAL BOSS knowledge/i);
+  assert.match(doctrine,/no automatic mechanic promotion/i);
+  assert.match(doctrine,/failed.*hard gate.*stop/i);
+  assert.match(doctrine,/new immutable official revision/i);
+  assert.match(doctrine,/never rewrite historical WCL evidence/i);
+
+  for(const surface of [agents,architecture,operations])assert.match(surface,/IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1\.md/);
+  assert.match(sources,/no universal provider ranking/i);
+  assert.match(sources,/Use Blizzard before WCL for static semantic questions/i);
+
+  const officialStep=pipeline.indexOf('1. **Official encounter knowledge resolution / reuse**');
+  const empiricalStep=pipeline.indexOf('2. **Canonical empirical acquisition / reuse**');
+  assert.ok(officialStep>=0&&empiricalStep>officialStep,'official semantic reuse/refresh must precede empirical acquisition in the canonical pipeline');
+});
