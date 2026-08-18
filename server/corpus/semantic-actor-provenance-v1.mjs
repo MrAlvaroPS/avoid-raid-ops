@@ -4,12 +4,13 @@ import { CORPUS_RATE_LIMIT_QUERY } from '../wcl/queries/corpus.mjs';
 import { SEMANTIC_ACTOR_PROVENANCE_QUERY } from '../wcl/queries/semantic-actor-provenance.mjs';
 import { eventAbilityId,eventSourceId,eventTargetId } from '../wcl/normalization/events.mjs';
 
-export const SEMANTIC_ACTOR_PROVENANCE_VERSION='semantic-actor-provenance-v1';
-export const SEMANTIC_ACTOR_PROVENANCE_PREVIEW_VERSION='semantic-actor-provenance-preview-v1';
+export const SEMANTIC_ACTOR_PROVENANCE_VERSION='semantic-actor-provenance-v2';
+export const SEMANTIC_ACTOR_PROVENANCE_PREVIEW_VERSION='semantic-actor-provenance-preview-v2';
 
 const uniqInts=value=>[...new Set((Array.isArray(value)?value:[value]).map(Number).filter(Number.isInteger).filter(n=>n>0))];
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])])):value;
 const fingerprint=value=>createHash('sha256').update(JSON.stringify(stable(value))).digest('hex').slice(0,40);
+const finite=value=>Number.isFinite(Number(value))?Number(value):null;
 
 function signalRecords(evidenceRecords,signalId){
   return (evidenceRecords||[]).filter(Boolean).filter(row=>Number(row.signalId)===Number(signalId));
@@ -33,7 +34,16 @@ export function buildSemanticActorProvenancePreview({signalId,abilityIds=[],evid
     signalId:Number(signalId),abilityIds:payload.abilityIds,
     reports:reportCodes.length,
     networkUpperBound:{wclCalls:1+reportCodes.length,preflightCalls:1,reportMetadataCalls:reportCodes.length,combatEventCalls:0},
-    safety:{manualConfirmationRequired:true,matchingFingerprintRequired:true,combatEventsFetched:false,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false,rawActorIdsPersisted:false},
+    safety:{
+      manualConfirmationRequired:true,
+      matchingFingerprintRequired:true,
+      combatEventsFetched:false,
+      canonicalDeepContribution:{reports:0,pulls:0},
+      directScoreDelta:0,
+      automaticPromotion:false,
+      rawActorIdsPersisted:false,
+      patternScopedDerivedRolesPersisted:true,
+    },
     _execution:{reportCodes},
   };
 }
@@ -68,26 +78,64 @@ function dominant(counts={}){
   return{role:best[0],count:Number(best[1]||0),share:total?Number(best[1]||0)/total:0,total};
 }
 
+function relativeBucket(delta){
+  const abs=Math.abs(Number(delta)||0);
+  const distance=abs<=1000?'1s':abs<=2500?'2.5s':abs<=5000?'5s':'far';
+  if(abs<=250)return`simultaneous-${distance}`;
+  return`${delta<0?'before':'after'}-${distance}`;
+}
+
+function patternIdentity({abilityId,stream,eventType,relation}){
+  return{
+    key:[relation,String(stream),Number(abilityId),String(eventType)].join('|'),
+    abilityId:Number(abilityId),stream:String(stream),eventType:String(eventType),relation:String(relation),
+  };
+}
+
+function emptyAggregate(identity={}){
+  return{...identity,events:0,reports:new Set(),windows:new Set(),sourceRoles:{},targetRoles:{}};
+}
+
+function addEvent(row,{reportCode,windowKey,sourceRole,targetRole}){
+  row.events++;row.reports.add(reportCode);row.windows.add(windowKey);increment(row.sourceRoles,sourceRole);increment(row.targetRoles,targetRole);
+}
+
+function summarizeAggregate(row){
+  return{
+    ...(row.key?{key:row.key}:{}),abilityId:Number(row.abilityId),
+    ...(row.relation?{relation:row.relation}:{}),...(row.stream?{stream:row.stream}:{}),...(row.eventType?{eventType:row.eventType}:{}),
+    events:row.events,reports:row.reports.size,windows:row.windows.size,
+    sourceRoles:row.sourceRoles,targetRoles:row.targetRoles,
+    dominantSource:dominant(row.sourceRoles),dominantTarget:dominant(row.targetRoles),
+  };
+}
+
 function aggregateEvidence({records,abilityIds,roleMaps}){
   const wanted=new Set(abilityIds.map(Number));
-  const rows=new Map(abilityIds.map(id=>[Number(id),{abilityId:Number(id),events:0,reports:new Set(),windows:new Set(),streams:{},eventTypes:{},sourceRoles:{},targetRoles:{}}]));
+  const abilities=new Map(abilityIds.map(id=>[Number(id),emptyAggregate({abilityId:Number(id)})]));
+  const patterns=new Map();
   for(const record of records){
     if(record?.kind!=='context'||record?.pagination?.complete!==true)continue;
     const reportCode=String(record.reportCode||''),roles=roleMaps.get(reportCode);if(!roles)continue;
+    const reference=finite(record.anchorTimestamp??record.referenceTimestamp);if(reference==null)continue;
     const windowKey=[reportCode,record.fightID,record.anchorTimestamp,record.windowMs].join(':');
     for(const [stream,events] of Object.entries(record.streams||{}))for(const event of events||[]){
       const abilityId=Number(eventAbilityId(event));if(!wanted.has(abilityId))continue;
-      const row=rows.get(abilityId);row.events++;row.reports.add(reportCode);row.windows.add(windowKey);increment(row.streams,String(stream));increment(row.eventTypes,String(event?.type||'event'));
+      const timestamp=finite(event?.timestamp);if(timestamp==null)continue;
+      const eventType=String(event?.type||'event'),relation=relativeBucket(timestamp-reference);
+      const identity=patternIdentity({abilityId,stream,eventType,relation});
       const sourceId=Number(eventSourceId(event)),targetId=Number(eventTargetId(event));
-      increment(row.sourceRoles,Number.isFinite(sourceId)?(roles.get(sourceId)||'unknown'):'none');
-      increment(row.targetRoles,Number.isFinite(targetId)?(roles.get(targetId)||'unknown'):'none');
+      const sourceRole=Number.isFinite(sourceId)?(roles.get(sourceId)||'unknown'):'none';
+      const targetRole=Number.isFinite(targetId)?(roles.get(targetId)||'unknown'):'none';
+      addEvent(abilities.get(abilityId),{reportCode,windowKey,sourceRole,targetRole});
+      const patternRow=patterns.get(identity.key)||emptyAggregate(identity);
+      addEvent(patternRow,{reportCode,windowKey,sourceRole,targetRole});patterns.set(identity.key,patternRow);
     }
   }
-  return [...rows.values()].map(row=>({
-    abilityId:row.abilityId,events:row.events,reports:row.reports.size,windows:row.windows.size,
-    streams:row.streams,eventTypes:row.eventTypes,sourceRoles:row.sourceRoles,targetRoles:row.targetRoles,
-    dominantSource:dominant(row.sourceRoles),dominantTarget:dominant(row.targetRoles),
-  }));
+  return{
+    abilities:[...abilities.values()].map(summarizeAggregate),
+    patterns:[...patterns.values()].map(summarizeAggregate).sort((a,b)=>a.abilityId-b.abilityId||String(a.relation).localeCompare(String(b.relation))||String(a.stream).localeCompare(String(b.stream))||String(a.eventType).localeCompare(String(b.eventType))),
+  };
 }
 
 function rateState(rate,{reservePct=.18,reservePoints=600}={}){
@@ -114,11 +162,11 @@ export async function executeSemanticActorProvenance({signalId,abilityIds=[],evi
     }catch(error){calls++;errors.push({scope:'report-actor-metadata',error:error instanceof Error?error.message:String(error)});}
   }
   const records=signalRecords(evidenceRecords,signalId);
-  const abilities=aggregateEvidence({records,abilityIds:preview.abilityIds,roleMaps});
+  const aggregated=aggregateEvidence({records,abilityIds:preview.abilityIds,roleMaps});
   return{
     version:SEMANTIC_ACTOR_PROVENANCE_VERSION,previewFingerprint:preview.fingerprint,signalId:Number(signalId),
     reportsRequested:preview.reports,reportsResolved:roleMaps.size,wclCallsExecuted:calls,rateLimit:rate,
-    abilities,errors,
-    evidenceContract:{combatEventsFetched:false,classificationSource:'WCL ReportMasterData actors + already-persisted semantic event actor IDs',rawActorIdsPersisted:false,rawActorNamesPersisted:false,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false},
+    abilities:aggregated.abilities,patterns:aggregated.patterns,errors,
+    evidenceContract:{combatEventsFetched:false,classificationSource:'WCL ReportMasterData actors + already-persisted semantic event actor IDs',aggregationScope:'pattern-signature-v1',patternKey:'relation|stream|abilityId|eventType',rawActorIdsPersisted:false,rawActorNamesPersisted:false,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false},
   };
 }
