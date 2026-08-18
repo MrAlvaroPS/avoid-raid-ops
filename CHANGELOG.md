@@ -22,6 +22,7 @@ All meaningful product changes are recorded here. Git history remains the detail
 - Began physical legacy-runtime decomposition with one passive Command Center bridge. It consumes the already-loaded report and History payloads, owns only Command Center `What changed?` plus the Command Center progression curve, and adds no network request/timer/observer/animation loop. After two green shadow checkpoints and explicit approval, the legacy `applyProgressCurve` and mixed `applyHistoryData` declarations were physically retired; `wcl-runtime.js` now delegates those two responsibilities through optional bridge bindings.
 - The physical-retirement implementation is anchored at commit `daadb4b700001845b44082157dab9e0eb8547579`; the following documentation-only push exists to exercise the normal full CI gate on that same functional tree.
 - Started the final Progress compatibility shadow checkpoint: canonical `progress-runtime-v3713.js` now owns the missing-History Data Truth presentation, suppresses the legacy `neutralizeMissingHistory` writer only on the active Progress screen, consumes the already-loaded History state and adds zero direct network requests. The old function body remains physically present until browser/CI validation is green and separate deletion approval is given.
+- The missing-History shadow implementation is anchored at commit `2a1ea8055366de9ecc686066303986b7d754cc27`; this documentation-only follow-up triggers the normal full CI gate on the same functional tree.
 
 ### Mainline integration — v3.9.0 to v3.9.2
 
