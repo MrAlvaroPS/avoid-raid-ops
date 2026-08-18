@@ -35,7 +35,6 @@ export const ACTIVE_LOCAL_SCRIPTS=Object.freeze([
   asset('wcl-legacy-runtime','/wcl-runtime.js?v=3.8.5','legacy-wcl-runtime','wcl-compatibility','legacy-wcl-screen-writers-and-compatibility','decompose-per-domain-before-retirement',{authority:'compatibility'}),
   asset('command-center-history-bridge','/command-center-history-bridge-v4.js?v=4.0.0-migration1','command-center','command-center','command-center-progression-and-history-writer','move-to-command-center-source-owner',{authority:'migration-bridge'}),
   asset('encounter-intelligence','/encounter-intelligence-v375.js?v=3.8.5','mechanics-corpus','mechanics','encounter-corpus-intelligence-ui','migrate-to-source-module',{authority:'primary',family:'encounter-intelligence'}),
-  asset('corpus-ui-stability','/corpus-ui-stability-v1.js?v=1.1.0','mechanics-corpus','mechanics-page-guard','mechanics-only-corpus-visibility-guard','retire-after-page-ownership-is-source-native',{authority:'guard'}),
   asset('progress-runtime','/progress-runtime-v3713.js?v=3.8.5','progress','progress','canonical-strategic-progress-owner','migrate-to-source-module',{authority:'primary',family:'progress-runtime'}),
   asset('iris-runtime','/iris-runtime-v3713.js?v=3.8.9.1','iris','iris','cross-screen-intelligence-and-operations-bridge','migrate-to-source-module',{authority:'primary',family:'iris-runtime'}),
   asset('player-intelligence','/player-intelligence-v392.js?v=3.9.2','players','players','canonical-player-dossier-owner','migrate-to-source-module',{authority:'primary',family:'player-intelligence'}),

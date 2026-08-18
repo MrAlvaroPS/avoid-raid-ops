@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { ACTIVE_LOCAL_SCRIPTS } from '../config/active-assets.mjs';
 import {
   LEGACY_RUNTIME_OWNERSHIP_VERSION,
@@ -16,16 +16,17 @@ import {
   LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS,
   LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED,
   LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED,
+  LEGACY_RUNTIME_CORPUS_RESIDUALS_PHYSICALLY_RETIRED,
+  LEGACY_RUNTIME_CORPUS_GUARDS_PHYSICALLY_RETIRED,
 } from '../config/legacy-runtime-ownership.mjs';
 
 const root=new URL('../',import.meta.url);
-const [legacy,progress,commandBridge,players,encounter,corpusGuard]=await Promise.all([
+const [legacy,progress,commandBridge,players,encounter]=await Promise.all([
   readFile(new URL(LEGACY_RUNTIME_PATH,root),'utf8'),
   readFile(new URL('public/progress-runtime-v3713.js',root),'utf8'),
   readFile(new URL('public/command-center-history-bridge-v4.js',root),'utf8'),
   readFile(new URL('public/player-intelligence-v392.js',root),'utf8'),
   readFile(new URL('public/encounter-intelligence-v375.js',root),'utf8'),
-  readFile(new URL('public/corpus-ui-stability-v1.js',root),'utf8'),
 ]);
 const fail=[];
 const expect=(condition,message)=>{if(!condition)fail.push(message)};
@@ -58,18 +59,16 @@ expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='players-presenta
 const legacyAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
 const commandBridgeAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
 const encounterAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='encounter-intelligence');
-const corpusGuardAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='corpus-ui-stability');
 const progressAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='progress-runtime');
 const playersAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='player-intelligence');
 expect(legacyAsset?.authority==='compatibility','wcl-runtime.js must remain compatibility-only in active asset ownership');
 expect(commandBridgeAsset?.authority==='migration-bridge'&&commandBridgeAsset?.owner==='command-center','Command Center bridge must remain an explicit migration-only owner');
 expect(encounterAsset?.authority==='primary'&&encounterAsset?.owner==='mechanics-corpus','Encounter Intelligence must remain the primary Mechanics/Corpus owner');
-expect(corpusGuardAsset?.authority==='guard','Corpus stability runtime must remain an explicit guard during this checkpoint');
+expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='corpus-ui-stability'),'retired Corpus stability guard must not remain active');
 expect(progressAsset?.authority==='primary'&&progressAsset?.owner==='progress','Progress runtime must remain the primary Progress owner');
 expect(playersAsset?.authority==='primary'&&playersAsset?.owner==='players','Player Intelligence runtime must remain the primary Players owner');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(commandBridgeAsset),'Command Center bridge must load after the compatibility runtime call sites');
-expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(encounterAsset),'canonical Corpus owner must load after the legacy writer so it can shadow the historical global');
-expect(ACTIVE_LOCAL_SCRIPTS.indexOf(encounterAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(corpusGuardAsset),'Corpus stability guard must wrap the already-installed canonical shadow during validation');
+expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(encounterAsset),'canonical Corpus owner must remain after the compatibility runtime in the reviewed load order');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(commandBridgeAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Command Center bridge must load before Progress installs its historical active-screen guards');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(playersAsset),'canonical Players owner must load after the compatibility runtime and consume its shared data/helper bridge');
 expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),'temporary Progress retirement guard must not return');
@@ -110,30 +109,37 @@ expect(!/MutationObserver|fetch\s*\(/.test(players),'Players canonical owner may
 
 const historicalCorpus=['applyCorpusWorkbench'];
 const retiredCorpusHelpers=['corpusCountdown','corpusContext','corpusRequest','refreshCorpusStatus','pollCorpus','corpusCell','corpusButton'];
+const retiredCorpusResidues=['corpusEndpoint','corpusState','corpusLoadedEncounter','corpusFetching','corpusDriving','corpusTargetReports','corpusNumber','sleep'];
 expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_HISTORICAL_WRITERS)===JSON.stringify(historicalCorpus),'historical Corpus writer inventory changed unexpectedly');
 expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS)===JSON.stringify([]),'no legacy Corpus presentation writer may remain active after physical retirement');
 expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS)===JSON.stringify([]),'Corpus shadow inventory must be cleared after physical retirement');
 expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED)===JSON.stringify(historicalCorpus),'historical Corpus presentation writer must be physically retired');
 expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED)===JSON.stringify(retiredCorpusHelpers),'all seven legacy Corpus workflow helpers must be physically retired');
+expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_RESIDUALS_PHYSICALLY_RETIRED)===JSON.stringify(retiredCorpusResidues),'all eight dead legacy Corpus residues must be physically retired');
+expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_GUARDS_PHYSICALLY_RETIRED)===JSON.stringify(['public/corpus-ui-stability-v1.js']),'retired Corpus guard inventory changed unexpectedly');
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='corpus-presentation-shadow'),'retired Corpus presentation cannot remain an active legacy responsibility');
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='corpus-workflow-bridge'),'retired Corpus workflow helpers cannot remain an active legacy responsibility');
 for(const fn of [...historicalCorpus,...retiredCorpusHelpers]){
   expect(!new RegExp(`(?:async\\s+)?function\\s+${fn}\\s*\\(`).test(legacy),`${fn} declaration survived physical retirement`);
   expect(!classified.has(fn),`${fn} survived in active legacy ownership responsibilities`);
 }
+for(const token of retiredCorpusResidues)expect(!new RegExp(`\\b${token}\\b`).test(legacy),`${token} residue survived physical retirement`);
 expect(!/applyIntelligence\(\);applyCorpusWorkbench\(\);removeRosterIntelligenceOutsideComposition\(\)/.test(legacy),'applyAll must not invoke the retired Corpus renderer');
-expect(/function ensureCorpusPanel\(\)/.test(encounter),'canonical Encounter owner must create the Corpus card without the legacy renderer');
+expect(/function ensureCorpusPanel\(\)/.test(encounter),'canonical Encounter owner must create the Corpus card');
+expect(/function syncCorpusVisibility\(\)/.test(encounter),'canonical Encounter owner must own cross-page Corpus visibility');
 expect(/catalogue\.insertAdjacentElement\('beforebegin',panel\)/.test(encounter),'canonical Corpus card must retain placement immediately before the mechanic catalogue');
 expect(/dataset\.avoidCorpusOwner='encounter-intelligence-v375'/.test(encounter),'canonical card must publish explicit DOM ownership');
-expect(/const legacy=typeof window\.applyCorpusWorkbench==='function'\?window\.applyCorpusWorkbench:null/.test(encounter),'canonical owner must tolerate physical absence of the historical renderer');
-expect(/window\.applyCorpusWorkbench=shadow/.test(encounter),'canonical owner must publish the temporary compatibility binding for the stability guard');
+expect(!/applyCorpusWorkbench|shadowLegacyCorpusWriter|corpusShadowInstalled/.test(encounter),'canonical owner must contain no executable legacy Corpus compatibility binding');
 expect(/writerPolicy:'single-corpus-writer'/.test(encounter),'Encounter owner must retain the single-Corpus-writer policy');
-expect(/legacyRendererPolicy:'canonical-binding-delegates-legacy-when-present'/.test(encounter),'Corpus owner must record post-retirement compatibility semantics');
-expect((encounter.match(/setInterval\s*\(/g)||[]).length===1&&/setInterval\(\(\)=>tick\(false\),1500\)/.test(encounter),'Corpus retirement must add no polling beyond the existing Encounter 1500ms loop');
-expect((encounter.match(/\bfetch\s*\(/g)||[]).length===2,'Corpus retirement must add zero request call sites beyond the two existing Encounter Corpus fetch paths');
-expect(!/MutationObserver/.test(encounter),'Corpus canonical owner may not add mutation observers');
-expect(/const nativeCorpusRenderer = window\.applyCorpusWorkbench/.test(corpusGuard),'Corpus stability guard must remain for one additional post-retirement validation round');
-expect(/legacyPollingRendererSuppressed: true/.test(corpusGuard),'Corpus stability guard must retain its suppression contract during the extra validation round');
+expect(/legacyRendererPolicy:'physically-retired-no-runtime-binding'/.test(encounter),'Corpus owner must record final legacy renderer retirement');
+expect(/legacyCompatibilityBinding:false/.test(encounter),'Corpus owner must explicitly publish zero legacy compatibility binding');
+expect(/crossPageVisibilityOwner:'encounter-intelligence-v375'/.test(encounter),'Encounter must own cross-page visibility after guard deletion');
+expect(encounter.includes("window.addEventListener('popstate',syncCorpusVisibility)"),'canonical Corpus owner must retain popstate visibility protection');
+expect(encounter.includes("document.addEventListener('click',event=>{if(event.target?.closest?.('nav button'))setTimeout(()=>tick(true),120);},true);"),'canonical Corpus owner must retain navigation repaint protection');
+expect((encounter.match(/setInterval\s*\(/g)||[]).length===1&&/setInterval\(\(\)=>tick\(false\),1500\)/.test(encounter),'Corpus closure must retain exactly the existing Encounter 1500ms loop');
+expect((encounter.match(/\bfetch\s*\(/g)||[]).length===2,'Corpus closure must add zero request call sites beyond the two canonical Encounter Corpus fetch paths');
+expect(!/MutationObserver|requestAnimationFrame/.test(encounter),'Corpus canonical owner may not add observers or guard animation loops');
+try{await access(new URL('public/corpus-ui-stability-v1.js',root));fail.push('retired Corpus stability guard file still exists')}catch{}
 
 expect((legacy.match(/window\.applyProgressCurve\?\.\(\)/g)||[]).length===1,'Command Center must call the extracted curve through exactly one optional global bridge binding');
 expect((legacy.match(/window\.applyHistoryData\?\.\(\)/g)||[]).length===1,'supplemental orchestration must call extracted history through exactly one optional global bridge binding');

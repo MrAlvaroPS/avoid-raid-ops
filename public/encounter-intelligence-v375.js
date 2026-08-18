@@ -1,7 +1,6 @@
 (() => {
   const VERSION='3.7.5';
   let cachedModel=null,cachedStatus=null,cachedEncounter=null,modelAt=0,statusAt=0,modelFlight=false,statusFlight=false;
-  let corpusShadowInstalled=false;
   const num=v=>Number.isFinite(Number(v))?Number(v):0;
   const fmt=new Intl.NumberFormat(undefined,{maximumFractionDigits:0});
   const pct=v=>Number.isFinite(Number(v))?`${Math.round(Number(v))}%`:'—';
@@ -24,13 +23,6 @@
     copy.append(h3,sub);head.append(idx,copy);panel.append(head);catalogue.insertAdjacentElement('beforebegin',panel);simplifyLegacy(panel);return panel;
   }
   function syncCorpusVisibility(){const panel=document.querySelector('.corpus-workbench');if(panel&&!mechanicsPage())panel.style.display='none';}
-  function shadowLegacyCorpusWriter(){
-    if(corpusShadowInstalled)return;
-    const legacy=typeof window.applyCorpusWorkbench==='function'?window.applyCorpusWorkbench:null;
-    const shadow=function(...args){if(mechanicsPage()){ensureCorpusPanel();return;}syncCorpusVisibility();if(legacy)return legacy.apply(this,args);};
-    shadow.__avoidCorpusPresentationShadow=true;shadow.__avoidLegacyCorpusWriter=legacy;window.applyCorpusWorkbench=shadow;corpusShadowInstalled=true;
-  }
-
   async function fetchJson(action){const id=encounterId();if(!id)return null;const u=new URL('/api/wcl/corpus',location.origin);u.searchParams.set('encounter',String(id));u.searchParams.set('action',action);u.searchParams.set('_',String(Date.now()));const r=await fetch(u,{headers:{Accept:'application/json'}}),d=await r.json().catch(()=>({}));if(!r.ok||!d?.ok)throw new Error(d?.error||`HTTP ${r.status}`);return d;}
   async function fetchModel(force=false){const id=encounterId(),now=Date.now();if(!id||modelFlight)return cachedModel;if(!force&&cachedEncounter===id&&cachedModel&&now-modelAt<8000)return cachedModel;modelFlight=true;try{const d=await fetchJson('model');if(d?.model){cachedModel=d.model;cachedEncounter=id;modelAt=now;}}catch(error){console.warn('[AvoiD v3.7.5 model]',error);}finally{modelFlight=false;}return cachedModel;}
   async function fetchStatus(force=false){const id=encounterId(),now=Date.now();if(!id||statusFlight)return cachedStatus;if(!force&&cachedEncounter===id&&cachedStatus&&now-statusAt<1200)return cachedStatus;statusFlight=true;try{const d=await fetchJson('status');if(d?.status){cachedStatus=d.status;cachedEncounter=id;statusAt=now;}}catch(error){console.warn('[AvoiD v3.7.5 status]',error);}finally{statusFlight=false;}return cachedStatus;}
@@ -143,9 +135,8 @@
     updateRoot(root,model,status);
   }
 
-  async function tick(force=false){patchVersion();shadowLegacyCorpusWriter();if(!mechanicsPage()){syncCorpusVisibility();return;}ensureCorpusPanel();const [status,model]=await Promise.all([fetchStatus(force),fetchModel(force)]);if(model)render(model,status);}
-  shadowLegacyCorpusWriter();
-  window.__AVOID_ENCOUNTER_CORPUS_OWNER__=Object.freeze({version:VERSION,owner:'encounter-intelligence-v375',pageOwner:'Mechanics',writerPolicy:'single-corpus-writer',historicalWriters:Object.freeze(['applyCorpusWorkbench']),legacyRendererPolicy:'canonical-binding-delegates-legacy-when-present',canonicalPanelCreation:true,pollingIntervalMs:1500});
+  async function tick(force=false){patchVersion();if(!mechanicsPage()){syncCorpusVisibility();return;}ensureCorpusPanel();const [status,model]=await Promise.all([fetchStatus(force),fetchModel(force)]);if(model)render(model,status);}
+  window.__AVOID_ENCOUNTER_CORPUS_OWNER__=Object.freeze({version:VERSION,owner:'encounter-intelligence-v375',pageOwner:'Mechanics',writerPolicy:'single-corpus-writer',historicalWriters:Object.freeze(['applyCorpusWorkbench']),legacyRendererPolicy:'physically-retired-no-runtime-binding',legacyCompatibilityBinding:false,canonicalPanelCreation:true,crossPageVisibilityOwner:'encounter-intelligence-v375',pollingIntervalMs:1500});
   document.addEventListener('click',event=>{if(event.target?.closest?.('nav button'))setTimeout(()=>tick(true),120);},true);
   window.addEventListener('popstate',syncCorpusVisibility);
   setInterval(()=>tick(false),1500);window.addEventListener('DOMContentLoaded',()=>tick(true));if(document.readyState!=='loading')tick(true);

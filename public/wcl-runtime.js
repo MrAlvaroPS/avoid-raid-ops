@@ -33,17 +33,10 @@ const intelligenceEndpoint = new URL("/api/wcl/intelligence", location.origin);
 intelligenceEndpoint.searchParams.set("report", reportCode);
 if (encounterId) intelligenceEndpoint.searchParams.set("encounter", encounterId);
 
-const corpusEndpoint = new URL("/api/wcl/corpus", location.origin);
-
 let telemetry = null;
 let historyData = null;
 let intelligence = null;
 let selectedPlayerIndex = 0;
-let corpusState = null;
-let corpusLoadedEncounter = null;
-let corpusFetching = false;
-let corpusDriving = false;
-let corpusTargetReports = 1000;
 
 const qsa = (sel, root = document) => root ? Array.from(root.querySelectorAll(sel)) : [];
 
@@ -1223,8 +1216,6 @@ function applySupplemental() {
 }
 
 
-const corpusNumber = new Intl.NumberFormat();
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 function applyAll() {
   if (!payload?.ok || applying) return;
   applying = true;

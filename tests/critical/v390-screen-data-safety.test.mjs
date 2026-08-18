@@ -13,13 +13,14 @@ import { CSS_BUNDLE_SOURCES } from '../../config/active-assets.mjs';
 const read=file=>readFile(new URL(`../../${file}`,import.meta.url),'utf8');
 const cssSourceUrls=()=>CSS_BUNDLE_SOURCES.map(asset=>asset.src);
 
-test('CRITICAL SCREEN ISOLATION: Encounter Corpus is page-owned by Mechanics and cannot be forced visible elsewhere',async()=>{
-  const guard=await read('public/corpus-ui-stability-v1.js');
-  assert.match(guard,/const PAGE_OWNER = 'Mechanics'/);
-  assert.match(guard,/if \(!onMechanics\)/);
-  assert.match(guard,/current\.style\.display = 'none'/);
-  assert.match(guard,/dataset\.avoidPageOwner/);
-  assert.doesNotMatch(guard,/if \(panel\?\.querySelector\('\.encounter-intelligence-v375'\)\) \{\s*panel\.style\.display = '';\s*return;/s,'the old cross-tab visibility bug must not return');
+test('CRITICAL SCREEN ISOLATION: Encounter Corpus is source-owned by Mechanics and hidden elsewhere',async()=>{
+  const owner=await read('public/encounter-intelligence-v375.js');
+  assert.match(owner,/function mechanicsPage\(\)/);
+  assert.match(owner,/function syncCorpusVisibility\(\)/);
+  assert.match(owner,/if\(panel&&!mechanicsPage\(\)\)panel\.style\.display='none'/);
+  assert.match(owner,/dataset\.avoidPageOwner='Mechanics'/);
+  assert.match(owner,/crossPageVisibilityOwner:'encounter-intelligence-v375'/);
+  assert.doesNotMatch(owner,/window\.applyCorpusWorkbench|shadowLegacyCorpusWriter|requestAnimationFrame/,'retired compatibility visibility machinery must not return');
 });
 
 test('CRITICAL SCREEN LOAD CONTRACT: every navigation destination has an explicit source component',async()=>{
@@ -214,6 +215,7 @@ test('CRITICAL RELEASE WIRING: v3.9.4 semantic specificity overlays v3.9.3 provi
   const dataHub=index.indexOf('/data-hub-v390.js?v=3.9.0');
   const knowledgeReindex=index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const runtime=index.indexOf('/wcl-runtime.js?v=3.8.5');
+  const encounter=index.indexOf('/encounter-intelligence-v375.js?v=3.8.5');
   const players=index.indexOf('/player-intelligence-v392.js?v=3.9.2');
   const styleSources=cssSourceUrls();
   assert.equal(pkg.version,'0.3.9-4-vercel.0');
@@ -224,6 +226,6 @@ test('CRITICAL RELEASE WIRING: v3.9.4 semantic specificity overlays v3.9.3 provi
   assert.ok(styleSources.includes('/raidops-v392.css?v=3.9.2'));
   assert.ok(styleSources.indexOf('/raidops-v390.css?v=3.9.0')<styleSources.indexOf('/raidops-v392.css?v=3.9.2'));
   assert.ok(index.includes('/raidops-active.css?v=3.9.2-css1'));
-  assert.ok(bootstrap>=0&&dataHub>bootstrap&&knowledgeReindex>dataHub&&runtime>knowledgeReindex&&players>runtime);
-  assert.ok(index.includes('/corpus-ui-stability-v1.js?v=1.1.0'));
+  assert.ok(bootstrap>=0&&dataHub>bootstrap&&knowledgeReindex>dataHub&&runtime>knowledgeReindex&&encounter>runtime&&players>encounter);
+  assert.ok(!index.includes('/corpus-ui-stability-v1.js'),'retired Corpus guard must not be transported');
 });

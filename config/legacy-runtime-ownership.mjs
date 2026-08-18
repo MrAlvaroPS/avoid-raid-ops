@@ -53,6 +53,8 @@ export const LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED=Object.freeze(['applyCorpusWorkbench']);
 export const LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED=Object.freeze(['corpusCountdown','corpusContext','corpusRequest','refreshCorpusStatus','pollCorpus','corpusCell','corpusButton']);
+export const LEGACY_RUNTIME_CORPUS_RESIDUALS_PHYSICALLY_RETIRED=Object.freeze(['corpusEndpoint','corpusState','corpusLoadedEncounter','corpusFetching','corpusDriving','corpusTargetReports','corpusNumber','sleep']);
+export const LEGACY_RUNTIME_CORPUS_GUARDS_PHYSICALLY_RETIRED=Object.freeze(['public/corpus-ui-stability-v1.js']);
 
 export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   version:LEGACY_RUNTIME_OWNERSHIP_VERSION,
@@ -70,4 +72,6 @@ export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   corpusShadowedWriters:LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS,
   corpusPhysicallyRetired:LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED,
   corpusWorkflowHelpersPhysicallyRetired:LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED,
+  corpusResidualsPhysicallyRetired:LEGACY_RUNTIME_CORPUS_RESIDUALS_PHYSICALLY_RETIRED,
+  corpusGuardsPhysicallyRetired:LEGACY_RUNTIME_CORPUS_GUARDS_PHYSICALLY_RETIRED,
 });

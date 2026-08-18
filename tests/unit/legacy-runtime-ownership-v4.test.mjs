@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import {
   LEGACY_RUNTIME_OWNERSHIP,
   LEGACY_RUNTIME_RESPONSIBILITIES,
@@ -16,6 +16,8 @@ import {
   LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS,
   LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED,
   LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED,
+  LEGACY_RUNTIME_CORPUS_RESIDUALS_PHYSICALLY_RETIRED,
+  LEGACY_RUNTIME_CORPUS_GUARDS_PHYSICALLY_RETIRED,
 } from '../../config/legacy-runtime-ownership.mjs';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
@@ -80,33 +82,39 @@ test('Players presentation writers are physically retired while the shared data 
   assert.doesNotMatch(owner,/MutationObserver|fetch\s*\(/);
 });
 
-test('Corpus presentation and legacy workflow helpers are physically retired while canonical Encounter remains sole owner',async()=>{
+test('Corpus legacy runtime, residues and migration guard are fully retired while Encounter remains sole owner',async()=>{
   const writers=['applyCorpusWorkbench'];
   const helpers=['corpusCountdown','corpusContext','corpusRequest','refreshCorpusStatus','pollCorpus','corpusCell','corpusButton'];
+  const residues=['corpusEndpoint','corpusState','corpusLoadedEncounter','corpusFetching','corpusDriving','corpusTargetReports','corpusNumber','sleep'];
   assert.deepEqual(LEGACY_RUNTIME_CORPUS_HISTORICAL_WRITERS,writers);
   assert.deepEqual(LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS,[]);
   assert.deepEqual(LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS,[]);
   assert.deepEqual(LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED,writers);
   assert.deepEqual(LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED,helpers);
+  assert.deepEqual(LEGACY_RUNTIME_CORPUS_RESIDUALS_PHYSICALLY_RETIRED,residues);
+  assert.deepEqual(LEGACY_RUNTIME_CORPUS_GUARDS_PHYSICALLY_RETIRED,['public/corpus-ui-stability-v1.js']);
   assert.equal(LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-presentation-shadow'),undefined);
   assert.equal(LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-workflow-bridge'),undefined);
 
-  const [legacy,owner,guard]=await Promise.all([read('public/wcl-runtime.js'),read('public/encounter-intelligence-v375.js'),read('public/corpus-ui-stability-v1.js')]);
+  const [legacy,owner]=await Promise.all([read('public/wcl-runtime.js'),read('public/encounter-intelligence-v375.js')]);
   for(const name of [...writers,...helpers]) assert.doesNotMatch(legacy,new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\(`),`${name} must be physically absent`);
+  for(const token of residues)assert.doesNotMatch(legacy,new RegExp(`\\b${token}\\b`),`${token} must be physically absent`);
   assert.doesNotMatch(legacy,/applyIntelligence\(\);applyCorpusWorkbench\(\);removeRosterIntelligenceOutsideComposition\(\)/,'applyAll no longer invokes Corpus presentation');
+  assert.match(legacy,/\.roster-intelligence-panel, \.corpus-workbench/,'click isolation for the canonical Corpus card remains intact');
   assert.match(owner,/function ensureCorpusPanel\(\)/);
+  assert.match(owner,/function syncCorpusVisibility\(\)/);
   assert.match(owner,/catalogue\.insertAdjacentElement\('beforebegin',panel\)/);
   assert.match(owner,/dataset\.avoidCorpusOwner='encounter-intelligence-v375'/);
-  assert.match(owner,/const legacy=typeof window\.applyCorpusWorkbench==='function'\?window\.applyCorpusWorkbench:null/);
-  assert.match(owner,/window\.applyCorpusWorkbench=shadow/,'canonical owner keeps the temporary compatibility binding for the guard');
+  assert.doesNotMatch(owner,/window\.applyCorpusWorkbench|shadowLegacyCorpusWriter|corpusShadowInstalled/);
   assert.match(owner,/writerPolicy:'single-corpus-writer'/);
-  assert.match(owner,/legacyRendererPolicy:'canonical-binding-delegates-legacy-when-present'/);
-  assert.equal((owner.match(/setInterval\s*\(/g)||[]).length,1,'retirement adds no polling beyond the existing Encounter loop');
+  assert.match(owner,/legacyRendererPolicy:'physically-retired-no-runtime-binding'/);
+  assert.match(owner,/legacyCompatibilityBinding:false/);
+  assert.match(owner,/crossPageVisibilityOwner:'encounter-intelligence-v375'/);
+  assert.equal((owner.match(/setInterval\s*\(/g)||[]).length,1,'closure adds no polling beyond the existing Encounter loop');
   assert.match(owner,/setInterval\(\(\)=>tick\(false\),1500\)/);
-  assert.equal((owner.match(/\bfetch\s*\(/g)||[]).length,2,'retirement adds zero request call sites');
-  assert.doesNotMatch(owner,/MutationObserver/);
-  assert.match(guard,/const nativeCorpusRenderer = window\.applyCorpusWorkbench/,'stability guard stays active for one extra validation round');
-  assert.match(guard,/legacyPollingRendererSuppressed: true/);
+  assert.equal((owner.match(/\bfetch\s*\(/g)||[]).length,2,'closure adds zero request call sites');
+  assert.doesNotMatch(owner,/MutationObserver|requestAnimationFrame/);
+  await assert.rejects(()=>access(new URL('../../public/corpus-ui-stability-v1.js',import.meta.url)),'retired Corpus migration guard must be physically absent');
 });
 
 test('Command Center owns the retired curve and history behavior through one passive bridge',async()=>{

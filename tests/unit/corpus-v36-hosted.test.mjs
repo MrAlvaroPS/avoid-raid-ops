@@ -97,12 +97,15 @@ test('duplicate local improve requests reuse the active job instead of extending
   assert.match(api,/reusedExistingJob:Boolean\(launched\.reusedExistingJob\)/);
 });
 
-test('v375 corpus stability guard is release-wiring ready',async()=>{
-  const guard=await read('../../public/corpus-ui-stability-v1.js');
-  assert.match(guard,/nativeCorpusRenderer/);
-  assert.match(guard,/encounter-intelligence-v375/);
-  assert.match(guard,/window\.applyCorpusWorkbench = function stableCorpusWorkbench/);
-  assert.match(guard,/legacyPollingRendererSuppressed: true/);
+test('v375 canonical Corpus owner is source-native after migration guard retirement',async()=>{
+  const owner=await read('../../public/encounter-intelligence-v375.js');
+  assert.match(owner,/function ensureCorpusPanel\(\)/);
+  assert.match(owner,/function syncCorpusVisibility\(\)/);
+  assert.match(owner,/dataset\.avoidPageOwner='Mechanics'/);
+  assert.match(owner,/legacyRendererPolicy:'physically-retired-no-runtime-binding'/);
+  assert.match(owner,/legacyCompatibilityBinding:false/);
+  assert.match(owner,/window\.addEventListener\('popstate',syncCorpusVisibility\)/);
+  assert.doesNotMatch(owner,/window\.applyCorpusWorkbench|shadowLegacyCorpusWriter|corpusShadowInstalled/);
 });
 
 test('canonical Encounter owner polls Corpus status and keeps the panel above mechanic catalogue',async()=>{

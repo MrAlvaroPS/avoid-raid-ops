@@ -14,7 +14,7 @@ test('active compatibility asset manifest makes the current production stack exp
   assert.equal(ACTIVE_ASSET_MANIFEST.version,'active-assets-v1');
   assert.equal(ACTIVE_STYLES.length,2);
   assert.equal(CSS_BUNDLE_SOURCES.length,17);
-  assert.equal(ACTIVE_LOCAL_SCRIPTS.length,11);
+  assert.equal(ACTIVE_LOCAL_SCRIPTS.length,10);
   assert.equal(ACTIVE_EXTERNAL_SCRIPTS.length,1);
   assert.equal(ACTIVE_STYLES[0].src,'/main.css');
   assert.equal(ACTIVE_STYLES[1].src,'/raidops-active.css?v=3.9.2-css1');
@@ -25,6 +25,7 @@ test('active compatibility asset manifest makes the current production stack exp
   assert.equal(historyBridge?.owner,'command-center');
   assert.equal(historyBridge?.authority,'migration-bridge');
   assert.equal(ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),false,'temporary retirement guard must not survive physical source deletion');
+  assert.equal(ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='corpus-ui-stability'),false,'Corpus migration guard must be physically retired after the green post-retirement checkpoint');
 });
 
 test('runtime domains have one primary owner while the monolithic WCL runtime is compatibility-only',()=>{
