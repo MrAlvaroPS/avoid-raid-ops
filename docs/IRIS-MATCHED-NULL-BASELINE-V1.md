@@ -32,7 +32,7 @@ Each control is selected from the same:
 ```text
 report/fight
 encounter
- difficulty
+difficulty
 partition
 outcome
 phase, when WCL supplied phase transitions
@@ -62,13 +62,30 @@ The Episode temporal radius is added to the control radius and guard when exclud
 A control is rejected by the planner when it:
 
 - leaves the fight bounds;
+- cannot fit its full Episode exclusion guard inside the fight;
 - changes WCL phase when phase data exists;
-- crosses a phase transition;
+- crosses a phase transition in the inner control window;
 - is too far from the anchor in normalized fight time;
 - overlaps a known target-anchor Episode exclusion area;
 - overlaps another selected control too closely.
 
-The final network evidence adds a second safety gate: if the target signal itself is observed inside the queried control window, the control is persisted as contaminated and **does not count** toward the baseline.
+### Full guard contamination validation
+
+The zero-WCL planner only knows target anchors that have already been persisted. That is not enough to prove a control is truly null because an unobserved occurrence of the target signal could sit just outside the inner ±2.5 s control while still placing that control inside the same Episode neighborhood.
+
+Execution therefore queries the **full Episode exclusion guard** around each selected control center. If the target signal is observed anywhere inside that guard, the control is persisted as contaminated and does **not** count toward the baseline.
+
+Only the inner control window is retained as pattern-prevalence evidence. Events seen solely in the outer guard are used only to invalidate the null; they cannot become matched-background pattern hits.
+
+This distinction is permanent:
+
+```text
+queried window     = full Episode exclusion guard
+pattern evidence   = inner control window only
+null validity      = no target signal anywhere in the full guard
+```
+
+The control identity includes the guard radius, and cache reuse requires explicit guarded-validation metadata. Evidence generated before this contract cannot silently satisfy the matched-null gate.
 
 ## Preview and execution
 
@@ -87,7 +104,7 @@ result    0 WCL, reads a persisted execution result
 execute   explicit approval + matching fingerprint required
 ```
 
-Execution uses exact fight IDs and exact time windows only.
+Execution uses exact fight IDs and exact bounded time windows only.
 
 There is no whole-report fallback.
 
@@ -99,9 +116,11 @@ Execution is bounded by:
 - resumable per-stream pagination;
 - persistent evidence after every successful page.
 
+The wider guard is fetched through the same bounded multi-stream GraphQL bundle. It does not authorize a whole-fight or whole-report query.
+
 ## Persisted evidence
 
-Matched-control evidence persists only the fields needed for pattern prevalence:
+Matched-control pattern evidence persists only the fields needed for prevalence and only for the inner control window:
 
 ```text
 stream
@@ -111,13 +130,15 @@ event type
 abilityId
 ```
 
+The record additionally persists the guard bounds and a boolean contamination result so pagination can resume without forgetting a target-signal occurrence seen on an earlier page.
+
 Actor IDs and actor names are deliberately not persisted by this module.
 
 Pattern-level actor provenance remains a separate evidence product.
 
 ## Evaluation
 
-The evaluator compares every Episode supporting `pattern_key` against valid complete controls.
+The evaluator compares every Episode supporting `pattern_key` against valid, complete, guard-validated controls.
 
 The pattern key remains:
 
@@ -176,6 +197,7 @@ Direct Boss Learned delta    = 0
 Automatic promotion          = false
 Provider network calls       = 0
 Whole-report fallback        = false
+Guard-only events as pattern evidence = false
 ```
 
 ## Expected Belo'ren validation
