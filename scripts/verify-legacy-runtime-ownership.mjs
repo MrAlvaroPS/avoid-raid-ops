@@ -118,7 +118,7 @@ expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED)
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='corpus-presentation-shadow'),'retired Corpus presentation cannot remain an active legacy responsibility');
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='corpus-workflow-bridge'),'retired Corpus workflow helpers cannot remain an active legacy responsibility');
 for(const fn of [...historicalCorpus,...retiredCorpusHelpers]){
-  expect(!new RegExp(`(?:async\s+)?function\s+${fn}\s*\(`).test(legacy),`${fn} declaration survived physical retirement`);
+  expect(!new RegExp(`(?:async\\s+)?function\\s+${fn}\\s*\\(`).test(legacy),`${fn} declaration survived physical retirement`);
   expect(!classified.has(fn),`${fn} survived in active legacy ownership responsibilities`);
 }
 expect(!/applyIntelligence\(\);applyCorpusWorkbench\(\);removeRosterIntelligenceOutsideComposition\(\)/.test(legacy),'applyAll must not invoke the retired Corpus renderer');
