@@ -1,17 +1,19 @@
-export const IRIS_SOURCE_REGISTRY_VERSION='iris-source-registry-v2';
+export const IRIS_SOURCE_REGISTRY_VERSION='iris-source-registry-v3';
 
 const endpoint=(method,path,purpose,config={})=>Object.freeze({method,path,purpose,...config});
 const source=(id,config)=>Object.freeze({id,...config});
 
 export const IRIS_EXTERNAL_SOURCE_REGISTRY=Object.freeze({
   version:IRIS_SOURCE_REGISTRY_VERSION,
-  reviewedAt:'2026-08-17',
+  reviewedAt:'2026-08-18',
   documentationRoot:'docs/iris-sources/README.md',
   policy:Object.freeze({
     primaryCombatTruth:'warcraftlogs',
+    officialPublishedGameMetadata:'blizzard-game-data',
     doNotInventEndpoints:true,
-    undocumentedWebsiteRequests:'forbidden-as-production-contract',
+    undocumentedWebsiteRequests:'forbidden-as-production-contract; targeted human/reference lookup does not create a runtime scraping contract',
     thirdPartyDerived:'must retain provenance and cannot silently override WCL evidence',
+    officialMetadataBoundary:'official published metadata may establish identity/Journal membership but does not prove observed occurrence, actor topology, timing or causality in a pull',
     sourceUpgrade:'requires reviewed docs/auth/rate-limit/terms/schema/trust tests and registry versioning',
   }),
   sources:Object.freeze([
@@ -26,6 +28,19 @@ export const IRIS_EXTERNAL_SOURCE_REGISTRY=Object.freeze({
       recommendedFor:Object.freeze(['combat-events','fight-identity','raid-history','player-presence','mechanic-evidence','death-analysis','rankings','guild-attendance','game-ids','world-scope','rate-budget']),
       prohibited:Object.freeze(['website-scraping-to-bypass-api','private-data-exposure-without-opt-in','credentials-in-client-or-repo']),
       notes:'ArchonViewModels exists in the schema but is largely undocumented JSON; prefer documented typed GraphQL roots.',
+    }),
+    source('blizzard-game-data',{
+      name:'Blizzard Game Data',baseUrl:'https://develop.battle.net',apiBaseUrl:'https://{region}.api.blizzard.com',status:'official-api',runtimeIntegration:'available',trust:'official-published-game-metadata',publicApi:true,
+      auth:'OAuth 2.0 client credentials via server-side BLIZZARD_CLIENT_ID / BLIZZARD_CLIENT_SECRET',
+      docs:Object.freeze(['https://develop.battle.net/documentation/world-of-warcraft/game-data-apis','docs/iris-sources/BLIZZARD-GAME-DATA.md','docs/IRIS-OFFICIAL-ENCOUNTER-KNOWLEDGE-V1.md']),
+      readEndpoints:Object.freeze([
+        endpoint('GET','/data/wow/search/journal-encounter','official Encounter Journal discovery',{namespace:'static-{region}'}),
+        endpoint('GET','/data/wow/journal-encounter/{journalEncounterId}','official Encounter Journal hierarchy, semantics and spell membership',{namespace:'prefer exact key.href/build namespace returned by Blizzard search'}),
+        endpoint('GET','/data/wow/spell/{spellId}','official spell identity/description when the endpoint publishes the record',{coverage:'not assumed complete for encounter spells'}),
+      ]),
+      recommendedFor:Object.freeze(['official-encounter-identity','official-journal-hierarchy','official-spell-membership','phase-stage-semantics','role-guidance','mechanic-description','build-versioned-metadata']),
+      prohibited:Object.freeze(['treating-journal-as-observed-pull-evidence','treating-spell-403-or-404-as-negative-encounter-evidence','client-side-client-secret','client-side-access-token','automatic-mechanic-promotion']),
+      notes:'v3.9.9 compiles the official Encounter Journal into a versioned semantic graph. Journal metadata can establish published structure/membership but never substitutes for WCL observed combat. Spell-detail failure remains non-negative evidence.',
     }),
     source('wowanalyzer',{
       name:'WoWAnalyzer',baseUrl:'https://wowanalyzer.com',status:'open-source-reference',runtimeIntegration:'reference-only',trust:'derived-analysis-reference',publicApi:false,
