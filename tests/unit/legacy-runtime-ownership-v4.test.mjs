@@ -11,6 +11,10 @@ import {
   LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS,
   LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS,
   LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED,
+  LEGACY_RUNTIME_CORPUS_HISTORICAL_WRITERS,
+  LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS,
+  LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS,
+  LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED,
 } from '../../config/legacy-runtime-ownership.mjs';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
@@ -75,6 +79,42 @@ test('Players presentation writers are physically retired while the shared data 
   assert.doesNotMatch(owner,/MutationObserver|fetch\s*\(/);
 });
 
+test('Corpus presentation is shadowed by canonical Encounter while workflow helpers remain physically present',async()=>{
+  const writers=['applyCorpusWorkbench'];
+  assert.deepEqual(LEGACY_RUNTIME_CORPUS_HISTORICAL_WRITERS,writers);
+  assert.deepEqual(LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS,writers);
+  assert.deepEqual(LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS,writers);
+  assert.deepEqual(LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED,[]);
+
+  const presentation=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-presentation-shadow');
+  const bridge=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-workflow-bridge');
+  assert.equal(presentation.status,'compatibility-shadowed-writer');
+  assert.equal(presentation.canonicalOwner,'public/encounter-intelligence-v375.js');
+  assert.deepEqual(presentation.functions,writers);
+  assert.equal(bridge.status,'compatibility-support');
+  assert.ok(bridge.functions.includes('pollCorpus'));
+  assert.ok(bridge.functions.includes('corpusRequest'));
+  assert.ok(!bridge.functions.includes('applyCorpusWorkbench'));
+
+  const [legacy,owner,guard]=await Promise.all([read('public/wcl-runtime.js'),read('public/encounter-intelligence-v375.js'),read('public/corpus-ui-stability-v1.js')]);
+  assert.match(legacy,/function\s+applyCorpusWorkbench\s*\(/,'legacy Corpus renderer remains physically present during the shadow checkpoint');
+  assert.equal((legacy.match(/applyCorpusWorkbench\s*\(\s*\)\s*;/g)||[]).length,1,'applyAll retains one intercepted Corpus presentation call');
+  assert.match(owner,/function ensureCorpusPanel\(\)/);
+  assert.match(owner,/catalogue\.insertAdjacentElement\('beforebegin',panel\)/,'canonical card preserves the historical placement before the mechanic catalogue');
+  assert.match(owner,/dataset\.avoidCorpusOwner='encounter-intelligence-v375'/);
+  assert.match(owner,/function shadowLegacyCorpusWriter\(\)/);
+  assert.match(owner,/if\(mechanicsPage\(\)\)\{ensureCorpusPanel\(\);return;\}return legacy\.apply\(this,args\)/,'shadow suppresses legacy presentation only on Mechanics');
+  assert.match(owner,/window\.__AVOID_ENCOUNTER_CORPUS_OWNER__=Object\.freeze/);
+  assert.match(owner,/writerPolicy:'single-corpus-writer'/);
+  assert.match(owner,/legacyRendererPolicy:'shadow-on-mechanics-delegate-elsewhere'/);
+  assert.equal((owner.match(/setInterval\s*\(/g)||[]).length,1,'Corpus shadow adds no polling beyond the existing Encounter loop');
+  assert.match(owner,/setInterval\(\(\)=>tick\(false\),1500\)/);
+  assert.equal((owner.match(/\bfetch\s*\(/g)||[]).length,2,'Corpus shadow adds zero request call sites');
+  assert.doesNotMatch(owner,/MutationObserver/);
+  assert.match(guard,/const nativeCorpusRenderer = window\.applyCorpusWorkbench/,'existing guard remains for one additional validation round');
+  assert.match(guard,/legacyPollingRendererSuppressed: true/);
+});
+
 test('Command Center owns the retired curve and history behavior through one passive bridge',async()=>{
   const [legacy,bridge]=await Promise.all([read('public/wcl-runtime.js'),read('public/command-center-history-bridge-v4.js')]);
   assert.match(legacy,/window\.applyProgressCurve\?\.\(\)/,'Command Center uses extracted curve binding');
@@ -101,13 +141,6 @@ test('missing-history policy is owned only by canonical Progress after physical 
   assert.match(progress,/HISTORY UNAVAILABLE/);
   assert.match(progress,/Current-report progression remains real\. Cross-session comparisons require the History endpoint\./);
   assert.doesNotMatch(progress,/fetch\s*\(/,'Progress missing-history ownership must add zero direct network requests');
-});
-
-test('Corpus workbench remains classified but migration does not resume corpus operations',()=>{
-  const corpus=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-workbench');
-  assert.equal(corpus.domain,'mechanics-corpus');
-  assert.equal(corpus.canonicalOwner,'public/encounter-intelligence-v375.js');
-  assert.match(corpus.retirement,/without-resuming-corpus/);
 });
 
 test('legacy monolith has orchestration ownership but no canonical product-domain claim',()=>{
