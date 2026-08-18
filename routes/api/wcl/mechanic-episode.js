@@ -8,6 +8,8 @@ import { SEMANTIC_PROBE_EXECUTION_DEFAULTS } from '../../../server/corpus/semant
 import { buildStoredSemanticSourceEvidenceV2,buildStoredFlankBackgroundEvidenceV2 } from '../../../server/corpus/semantic-probe-stored-evidence-v2.mjs';
 import { verifySemanticProbeEvidenceV32 } from '../../../server/corpus/semantic-probe-verifier-v3-2.mjs';
 import { buildMechanicEpisodeGraphV1 } from '../../../server/corpus/mechanic-episode-graph-v1.mjs';
+import { enrichMechanicEpisodeWithOfficialKnowledgeV1 } from '../../../server/corpus/mechanic-episode-official-reconciliation-v1.mjs';
+import { loadLatestOfficialEncounterGraphByWclIdV1 } from '../../../server/knowledge/official-encounter-store-v1.mjs';
 
 const API_VERSION='mechanic-episode-api-v1';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
@@ -52,6 +54,16 @@ async function actorProvenanceFor(args,signalId,input){
   return{value,source:value?'persisted-fingerprint':'persisted-fingerprint-missing',fingerprint};
 }
 
+async function officialGraphFor(encounterId,input){
+  if(Object.prototype.hasOwnProperty.call(input,'officialGraph'))return{value:input.officialGraph||null,source:input.officialGraph?'caller-supplied':'caller-disabled'};
+  try{
+    const value=await loadLatestOfficialEncounterGraphByWclIdV1(encounterId);
+    return{value,source:value?'persisted-wcl-alias':'not-cached'};
+  }catch{
+    return{value:null,source:'stored-read-unavailable'};
+  }
+}
+
 const episodeStorageKey=(args,signalId,buildFingerprint)=>`mechanic-episodes/${corpusId(args)}/${Number(signalId)}/${String(buildFingerprint)}.json`;
 
 async function buildEpisode(input,{persist=false}={}){
@@ -68,6 +80,7 @@ async function buildEpisode(input,{persist=false}={}){
   const background=buildStoredFlankBackgroundEvidenceV2({signalId,evidenceRecords,innerRadiusMs:innerRadius});
   const actor=await actorProvenanceFor(ctx.args,signalId,input);
   const abilityKnowledge=input.abilityKnowledge||input.providerKnowledge||null;
+  const official=await officialGraphFor(ctx.args.encounterId,input);
 
   const verification=verifySemanticProbeEvidenceV32({
     signalId,
@@ -79,7 +92,7 @@ async function buildEpisode(input,{persist=false}={}){
     minimumAnchorOccurrences:signal?.verificationContract?.minimumAnchorOccurrences||6,
   });
 
-  const episode=buildMechanicEpisodeGraphV1({
+  const empiricalEpisode=buildMechanicEpisodeGraphV1({
     scope:ctx.args,
     signal,
     verification,
@@ -87,6 +100,7 @@ async function buildEpisode(input,{persist=false}={}){
     actorProvenance:actor.value,
     actorProvenanceFingerprint:actor.fingerprint,
   });
+  const episode=enrichMechanicEpisodeWithOfficialKnowledgeV1(empiricalEpisode,official.value);
 
   const result={
     ...episode,
@@ -94,6 +108,7 @@ async function buildEpisode(input,{persist=false}={}){
       semanticEvidence:'persisted-diagnostic-semantic-surgical',
       actorProvenance:actor.source,
       providerKnowledge:abilityKnowledge?'caller-supplied':'none',
+      officialEncounterSemantics:official.source,
     },
     inputEvidence:{stored:stored.summary,background:background.summary},
   };
