@@ -1,4 +1,4 @@
-export const IRIS_SOURCE_REGISTRY_VERSION='iris-source-registry-v3';
+export const IRIS_SOURCE_REGISTRY_VERSION='iris-source-registry-v4';
 
 const endpoint=(method,path,purpose,config={})=>Object.freeze({method,path,purpose,...config});
 const source=(id,config)=>Object.freeze({id,...config});
@@ -10,10 +10,12 @@ export const IRIS_EXTERNAL_SOURCE_REGISTRY=Object.freeze({
   policy:Object.freeze({
     primaryCombatTruth:'warcraftlogs',
     officialPublishedGameMetadata:'blizzard-game-data',
+    clientStructuralMetadata:'wago-db2',
     doNotInventEndpoints:true,
     undocumentedWebsiteRequests:'forbidden-as-production-contract; targeted human/reference lookup does not create a runtime scraping contract',
     thirdPartyDerived:'must retain provenance and cannot silently override WCL evidence',
     officialMetadataBoundary:'official published metadata may establish identity/Journal membership but does not prove observed occurrence, actor topology, timing or causality in a pull',
+    structuralMetadataBoundary:'build-pinned client DB2 relations may explain spell wiring but do not prove observed combat, causality, failure or promotion eligibility',
     sourceUpgrade:'requires reviewed docs/auth/rate-limit/terms/schema/trust tests and registry versioning',
   }),
   sources:Object.freeze([
@@ -41,6 +43,18 @@ export const IRIS_EXTERNAL_SOURCE_REGISTRY=Object.freeze({
       recommendedFor:Object.freeze(['official-encounter-identity','official-journal-hierarchy','official-spell-membership','phase-stage-semantics','role-guidance','mechanic-description','build-versioned-metadata']),
       prohibited:Object.freeze(['treating-journal-as-observed-pull-evidence','treating-spell-403-or-404-as-negative-encounter-evidence','client-side-client-secret','client-side-access-token','automatic-mechanic-promotion']),
       notes:'v3.9.9 compiles the official Encounter Journal into a versioned semantic graph. Journal metadata can establish published structure/membership but never substitutes for WCL observed combat. Spell-detail failure remains non-negative evidence.',
+    }),
+    source('wago-db2',{
+      name:'Wago DB2',baseUrl:'https://wago.tools/db2',apiBaseUrl:'https://wago.tools/db2',status:'reviewed-build-pinned-db2-export',runtimeIntegration:'available-bounded',trust:'community-exported-client-structural-metadata',publicApi:false,
+      auth:'none for reviewed filtered CSV surface',
+      docs:Object.freeze(['https://github.com/RPGLogs/wow-dbc','docs/iris-sources/WAGO-DB2.md','docs/IRIS-SPELL-STRUCTURAL-KNOWLEDGE-V1.md']),
+      readEndpoints:Object.freeze([
+        endpoint('GET','/SpellEffect/csv','build-pinned SpellEffect lookup by source spell',{query:['build','filter[SpellID]'],bounded:true}),
+        endpoint('GET','/SpellEffect/csv','build-pinned reverse SpellEffect lookup by triggered spell',{query:['build','filter[EffectTriggerSpell]'],bounded:true}),
+      ]),
+      recommendedFor:Object.freeze(['spell-trigger-structure','internal-helper-spell-discovery','official-spell-implementation-context','exact-build-db2-structure']),
+      prohibited:Object.freeze(['bulk-db2-mirroring','unbounded-recursive-crawl','whole-table-fallback','raw-csv-persistence','treating-wago-as-official-blizzard-api','treating-db2-relation-as-observed-combat','treating-empty-or-failed-lookup-as-negative-encounter-evidence','satisfying-wcl-provenance-or-promotion-gates']),
+      notes:'v3.9.9 uses only bounded filtered SpellEffect CSV lookups. The build is derived from persisted Blizzard namespace; normalized structural relations are versioned, while raw CSV is discarded. Wago relations have no direct score or Promotion effect.',
     }),
     source('wowanalyzer',{
       name:'WoWAnalyzer',baseUrl:'https://wowanalyzer.com',status:'open-source-reference',runtimeIntegration:'reference-only',trust:'derived-analysis-reference',publicApi:false,
