@@ -212,7 +212,7 @@ test('CRITICAL RELEASE WIRING: v3.9.4 semantic specificity overlays v3.9.3 provi
   const knowledgeReindex=index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const runtime=index.indexOf('/wcl-runtime.js?v=3.8.5');
   const players=index.indexOf('/player-intelligence-v392.js?v=3.9.2');
-  assert.equal(pkg.version,'0.3.9-4-vercel.0');
+  assert.match(pkg.version,/^0\.3\.9-(?:[4-9]|\d{2,})-vercel\.0$/);
   assert.equal(getIrisCapabilityContract().release,'3.9.4');
   assert.match(hub,/const RELEASE='3\.9\.0'/);
   assert.match(reindex,/const RELEASE='3\.9\.0'/);

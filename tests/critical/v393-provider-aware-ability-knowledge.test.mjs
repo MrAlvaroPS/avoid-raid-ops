@@ -34,10 +34,10 @@ test('CRITICAL v3.9.3 API: GET preview performs no provider execution and stale/
   assert.equal(unconfirmed.status,409);
 });
 
-test('CRITICAL v3.9.3 DOCS: provider metadata remains unable to become combat truth, Deep coverage or automatic promotion under v3.9.4',async()=>{
+test('CRITICAL v3.9.3 DOCS: provider metadata remains unable to become combat truth, Deep coverage or automatic promotion under later v3.9 releases',async()=>{
   const [contract,parse,lorrgs,readme,route,pkg]=await Promise.all([read('docs/IRIS-PROVIDER-AWARE-ABILITY-KNOWLEDGE-V1.md'),read('docs/iris-sources/PARSE-WOWHEAD.md'),read('docs/iris-sources/LORRGS.md'),read('docs/iris-sources/README.md'),read('routes/api/knowledge/ability.js'),read('package.json')]);
   assert.match(contract,/0 canonical Deep reports\/pulls/);assert.match(contract,/no automatic mechanic promotion/);
   assert.match(parse,/not an official Wowhead developer API/i);assert.match(parse,/confirmParseCredits:true/);
   assert.match(lorrgs,/secondary boss-membership evidence/i);assert.match(readme,/Parse Wowhead API/);
-  assert.match(route,/ability-knowledge-service/);assert.match(pkg,/"version": "0\.3\.9-4-vercel\.0"/);
+  assert.match(route,/ability-knowledge-service/);assert.match(pkg,/"version": "0\.3\.9-(?:[4-9]|\d{2,})-vercel\.0"/);
 });
