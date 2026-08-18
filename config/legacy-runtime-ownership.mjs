@@ -5,6 +5,7 @@ export const LEGACY_RUNTIME_PATH='public/wcl-runtime.js';
 
 export const LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER='apps/web/src/features/mechanics/Mechanics.js';
 export const LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER='apps/web/src/features/defensive-audit/DefensiveAudit.js';
+export const LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER='public/mechanics-defensives-fallback-bridge-v4.js';
 export const LEGACY_RUNTIME_MECHANICS_FALLBACK_WRITERS=Object.freeze(['applyMechanicsAndDefensives']);
 export const LEGACY_RUNTIME_MECHANICS_WRITERS=Object.freeze(['applyTelemetryMechanics','applyIntelligenceMechanics']);
 export const LEGACY_RUNTIME_DEFENSIVES_WRITERS=Object.freeze(['applyTelemetryDefensives','applyIntelligenceDefensives']);
@@ -28,7 +29,7 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('players-data-bridge','players','compatibility-support','public/player-intelligence-v392.js','extract-shared-player-data-helpers',[
     'telemetryPlayerNameMap','roleLabel','playerOutput','reliabilityValue','reliabilityText','reliabilityMeta',
   ]),
-  responsibility('mechanics-defensives-fallback','mechanics-defensives-fallback','compatibility-writer','split-source-owners','split-fallback-by-active-feature-before-retirement',[
+  responsibility('mechanics-defensives-fallback','mechanics-defensives-fallback','migration-bridge',LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER,'retire-after-both-source-owners-are-live',[
     'applyMechanicsAndDefensives',
   ]),
   responsibility('mechanics-presentation','mechanics','compatibility-writer',LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER,'move-to-mechanics-source-owner',[
@@ -74,6 +75,7 @@ export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   responsibilities:LEGACY_RUNTIME_RESPONSIBILITIES,
   mechanicsSourceOwner:LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER,
   defensivesSourceOwner:LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,
+  mechanicsDefensivesFallbackOwner:LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER,
   mechanicsFallbackWriters:LEGACY_RUNTIME_MECHANICS_FALLBACK_WRITERS,
   mechanicsWriters:LEGACY_RUNTIME_MECHANICS_WRITERS,
   defensivesWriters:LEGACY_RUNTIME_DEFENSIVES_WRITERS,
