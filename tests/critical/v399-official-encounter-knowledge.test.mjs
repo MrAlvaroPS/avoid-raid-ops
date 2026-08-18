@@ -135,7 +135,8 @@ test('CRITICAL v3.9.9 DOCTRINE: future Iris work must retain the official-vs-obs
   for(const label of ['OFFICIAL','OBSERVED','INFERRED','UNRESOLVED'])assert.ok(doctrine.includes(label),`${label} evidence class must remain explicit`);
   assert.match(doctrine,/HOME\/AvoiD logs never train GLOBAL BOSS knowledge/i);
   assert.match(doctrine,/no automatic mechanic promotion/i);
-  assert.match(doctrine,/failed.*hard gate.*stop/i);
+  assert.match(doctrine,/fails a hard gate/i);
+  assert.match(doctrine,/stop spending WCL/i);
   assert.match(doctrine,/new immutable official revision/i);
   assert.match(doctrine,/never rewrite historical WCL evidence/i);
 
