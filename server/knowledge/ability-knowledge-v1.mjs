@@ -106,11 +106,13 @@ function aggregateAbility(id,{internal,officialGraph,officialMembership,lorrgs,l
     :{status:'not-cached-or-unavailable',role:'official-published-encounter-membership',negativeEvidence:false};
   const structuralUse=officialMembership?.officialEncounterAssociation
     ?'Blizzard publishes this ID under the official Encounter Journal hierarchy for the selected encounter/build; this establishes official semantic membership but not occurrence or causality in a pull.'
-    :association==='supported'
-      ?'Secondary/internal metadata supports encounter relevance; observed combat meaning still requires WCL evidence.'
-      :association==='not-listed-by-lorrgs'
-        ?'Lorrgs resolved the boss tracking catalogue but does not track this ID there; this is weak negative evidence only because the catalogue is curated and non-exhaustive.'
-        :'provider metadata does not yet establish encounter relevance';
+    :lorrgsBossMember
+      ?'Lorrgs explicitly tracks this ID as a boss timeline/analysis marker, supporting encounter relevance.'
+      :internal?.encounterMatch
+        ?'An active versioned AvoiD rule pack associates this ID with the encounter; observed combat meaning still requires WCL evidence.'
+        :association==='not-listed-by-lorrgs'
+          ?'Lorrgs resolved the boss tracking catalogue but does not track this ID there; this is weak negative evidence only because the catalogue is curated and non-exhaustive.'
+          :'provider metadata does not yet establish encounter relevance';
   return {
     abilityId:id,
     identity:{name:names[0]?.[1]||null,icon:wcl?.icon||lorrgs?.icon||null,wowheadUrl:parse?.url||`https://www.wowhead.com/spell=${id}`},
