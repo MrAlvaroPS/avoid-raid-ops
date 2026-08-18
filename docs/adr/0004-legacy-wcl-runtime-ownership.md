@@ -6,7 +6,7 @@ Status: accepted during the pre-4.0 repository reorganization.
 
 `public/wcl-runtime.js` is still active, but its historical shape hides several different kinds of code in one file: shared DOM/format helpers, WCL fetch orchestration, screen writers, Data Truth guards, Corpus controls and functions intercepted by newer domain runtimes.
 
-Treating the whole file as either "legacy" or "owner" is unsafe. Deleting it would lose active behavior; allowing it to remain an undefined catch-all would let ownership drift back into a monolith.
+Treating the whole file as either "legacy" or "owner" is unsafe. Removing it wholesale would lose active behavior; allowing it to remain an undefined catch-all would let ownership drift back into a monolith.
 
 ## Decision
 
@@ -21,18 +21,19 @@ Treating the whole file as either "legacy" or "owner" is unsafe. Deleting it wou
 - `wcl-runtime.js` is promoted from compatibility authority;
 - a known primary owner loses its ownership relationship.
 
-The ownership audit began as an observational stage. Physical retirement is allowed only after the replacement owner has been isolated, browser-validated and explicitly approved.
+Physical retirement is allowed only after the replacement owner has been isolated, browser-validated and explicitly approved.
 
 ## Progress interception and physical retirement
 
-`public/progress-runtime-v3713.js` retains historical interception knowledge for four global functions:
+`public/progress-runtime-v3713.js` retains historical interception knowledge for five global functions:
 
 - `applyProgressPage`
 - `applyProgressCurve`
 - `applyHistoryData`
 - `applyRealProgressMatrix`
+- `neutralizeMissingHistory`
 
-All four declarations are now physically absent from `public/wcl-runtime.js`.
+All five declarations are now physically absent from `public/wcl-runtime.js`.
 
 `applyProgressPage` and `applyRealProgressMatrix` were retired after the canonical Progress runtime demonstrated independent rendering. `applyProgressCurve` and `applyHistoryData` required an additional shadow checkpoint because Command Center still consumed their behavior.
 
@@ -44,23 +45,25 @@ That cross-screen behavior now belongs to the passive `public/command-center-his
 - creates no timer, polling loop, `MutationObserver` or animation loop;
 - loads after the compatibility runtime and before the canonical Progress runtime.
 
-The compatibility monolith therefore calls the extracted behavior only through optional global bindings (`window.applyProgressCurve?.()` and `window.applyHistoryData?.()`). The canonical Progress runtime may continue to wrap the historical names as an active-screen safety guard even when some or all declarations no longer exist in the monolith.
+The compatibility monolith therefore calls the extracted behavior only through optional global bindings (`window.applyProgressCurve?.()` and `window.applyHistoryData?.()`). The canonical Progress runtime may continue to wrap historical names as an active-screen safety guard even when declarations no longer exist in the monolith.
 
-Interception remains an ownership/safety mechanism, not evidence by itself that arbitrary compatibility code is deletable. Every physical retirement still requires caller analysis and a validated replacement.
+Interception remains an ownership/safety mechanism, not evidence by itself that arbitrary compatibility code is removable. Every physical retirement still requires caller analysis and a validated replacement.
 
-## Missing-history shadow checkpoint
+## Missing-history physical retirement
 
-`neutralizeMissingHistory` is the only Progress-specific function still physically declared in `public/wcl-runtime.js`, but it is no longer the canonical owner of that presentation policy.
+`neutralizeMissingHistory` completed the same shadow-first retirement process rather than being removed on assumption.
 
-The canonical `public/progress-runtime-v3713.js` now:
+Before retirement, canonical `public/progress-runtime-v3713.js`:
 
-- owns the missing-history policy explicitly in its runtime metadata;
-- renders `Raid-session history unavailable · no Golden fallback` and the corresponding neutral night rows itself;
-- consumes only the already-loaded `window.__AVOID_WCL_HISTORY__` state;
-- adds zero direct network requests;
-- wraps the legacy `neutralizeMissingHistory` binding so the old writer is suppressed only while the Progress screen is active.
+- took explicit ownership of the missing-history policy in its runtime metadata;
+- rendered `Raid-session history unavailable · no Golden fallback` and the corresponding neutral night rows itself;
+- consumed only the already-loaded `window.__AVOID_WCL_HISTORY__` state;
+- added zero direct network requests;
+- suppressed the compatibility writer only while the Progress screen was active.
 
-The legacy declaration remains physically present during this shadow checkpoint for auditability and rollback safety. Its retirement state is `shadowed-compatibility-guard`; physical deletion requires a green browser/CI checkpoint and separate explicit approval.
+The shadow checkpoint at `8202dca10abe420b4288f27797851a6def3bba8c` passed the repository `AvoiD Validation` gate. The Vercel status at that checkpoint was limited by deployment quota rather than a repository test failure.
+
+After that validation and explicit continuation approval, both the `neutralizeMissingHistory` declaration and its `applySupplemental()` call were retired from `public/wcl-runtime.js`. Missing-History presentation is now exclusively a canonical Progress responsibility. The historical interception name remains recorded in Progress during the v4 migration as a defensive compatibility guard, but there is no current compatibility writer left for it to suppress.
 
 ## Other domains
 

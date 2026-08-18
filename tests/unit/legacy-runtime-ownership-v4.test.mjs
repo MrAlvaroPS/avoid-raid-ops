@@ -22,19 +22,22 @@ test('legacy WCL runtime responsibilities are explicit and contain no miscellane
   }
 });
 
-test('all historical Progress interception targets are physically absent from the legacy monolith',async()=>{
-  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
+test('all historical Progress compatibility targets are physically absent from the legacy monolith',async()=>{
+  const retired=['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix','neutralizeMissingHistory'];
+  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,retired);
   assert.deepEqual(LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,[]);
-  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
+  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,retired);
   assert.equal(LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='progress-shadowed-writers'),undefined,'physically deleted functions cannot remain active ownership entries');
+  assert.equal(LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='progress-compatibility-guard'),undefined,'retired missing-history guard cannot remain an active legacy responsibility');
   assert.equal(LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='shared-progression-curve'),undefined,'retired curve cannot remain an active legacy responsibility');
   assert.equal(LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='shared-history-writer'),undefined,'retired history writer cannot remain an active legacy responsibility');
 
   const [legacy,progress]=await Promise.all([read('public/wcl-runtime.js'),read('public/progress-runtime-v3713.js')]);
-  for(const retired of LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED){
-    assert.doesNotMatch(legacy,new RegExp(`function\\s+${retired}\\s*\\(`),`${retired} declaration must be physically absent`);
-    assert.match(progress,new RegExp(`['\"]${retired}['\"]`),`${retired} remains historical interception knowledge in canonical Progress`);
+  for(const retiredName of LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED){
+    assert.doesNotMatch(legacy,new RegExp(`function\\s+${retiredName}\\s*\\(`),`${retiredName} declaration must be physically absent`);
+    assert.match(progress,new RegExp(`['\"]${retiredName}['\"]`),`${retiredName} remains historical interception knowledge in canonical Progress`);
   }
+  assert.doesNotMatch(legacy,/neutralizeMissingHistory\s*\(\s*\)\s*;/,'supplemental orchestration must not invoke the retired missing-history writer');
   assert.match(progress,/setInterval\(\(\)=>renderFull\(false\),750\)/,'canonical Progress owner must repaint independently of legacy writers');
   assert.match(progress,/&quot;/,'historical HTML escaping contract remains intact');
 });
@@ -52,17 +55,13 @@ test('Command Center owns the retired curve and history behavior through one pas
   assert.doesNotMatch(bridge,/MutationObserver|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
 });
 
-test('missing-history guard is shadowed by canonical Progress before physical retirement',async()=>{
-  const guard=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='progress-compatibility-guard');
-  assert.deepEqual(guard.functions,['neutralizeMissingHistory']);
-  assert.equal(guard.domain,'progress');
-  assert.equal(guard.status,'shadowed-compatibility-guard');
-  assert.equal(guard.canonicalOwner,'public/progress-runtime-v3713.js');
-  assert.match(guard.retirement,/physically-delete-missing-history-guard-after-browser-validation/);
+test('missing-history policy is owned only by canonical Progress after physical retirement',async()=>{
+  assert.equal(LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='progress-compatibility-guard'),undefined);
 
   const [legacy,progress]=await Promise.all([read('public/wcl-runtime.js'),read('public/progress-runtime-v3713.js')]);
-  assert.match(legacy,/function neutralizeMissingHistory\(\)/,'legacy body remains present and auditable at shadow checkpoint');
-  assert.match(progress,/wrap\('neutralizeMissingHistory'\)/,'Progress suppresses legacy writer on its active screen');
+  assert.doesNotMatch(legacy,/function neutralizeMissingHistory\(\)/,'legacy missing-history declaration must be physically absent');
+  assert.doesNotMatch(legacy,/neutralizeMissingHistory\s*\(\s*\)\s*;/,'legacy orchestration must not call missing-history presentation');
+  assert.match(progress,/wrap\('neutralizeMissingHistory'\)/,'Progress retains historical interception knowledge during the v4 migration');
   assert.match(progress,/missingHistoryPolicy:'canonical-progress-owner'/);
   assert.match(progress,/function renderMissingHistory\(\)/);
   assert.match(progress,/Raid-session history unavailable · no Golden fallback/);

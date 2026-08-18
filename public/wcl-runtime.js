@@ -1058,18 +1058,6 @@ function finishDataTruthBoot(errorMessage = null) {
   if(boot)boot.remove();
 }
 
-function neutralizeMissingHistory() {
-  if(historyData?.ok)return;
-  if(qsa(".page-banner h2").some(x=>x.textContent.trim()==="Are we actually getting better?")){
-    const panel=panelByTitle("Night-over-night");
-    if(panel){
-      text(panel.querySelector(".panel-title p"),"Raid-session history unavailable · no Golden fallback");
-      qsa(".night-table > div",panel).forEach(row=>{const span=row.querySelector("span");if(span)text(span,"HISTORY UNAVAILABLE");text(row.querySelector("b"),"—");text(row.querySelector("em"),"—");});
-      const insight=panel.querySelector(".insight-box p");if(insight)text(insight,"Current-report progression remains real. Cross-session comparisons require the History endpoint.");
-    }
-  }
-}
-
 function applyDataTruthScrub() {
   // Final safety net. These identifiers exist only in the Golden Master mock
   // universe and must never survive as visible production analysis.
@@ -1356,7 +1344,6 @@ function applySupplemental() {
   applyTelemetryDefensives();
   window.applyHistoryData?.();
   applyPullIntelligenceToCommand();
-  neutralizeMissingHistory();
 }
 
 

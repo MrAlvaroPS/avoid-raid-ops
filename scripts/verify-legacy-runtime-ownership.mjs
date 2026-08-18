@@ -22,7 +22,7 @@ const declaredSet=new Set(declared);
 const classified=new Map();
 
 expect(LEGACY_RUNTIME_OWNERSHIP_VERSION==='legacy-runtime-ownership-v4','legacy runtime ownership version must stay explicit');
-expect(declared.length===78,`wcl-runtime.js must contain exactly 78 active function declarations during missing-history shadow validation; found ${declared.length}`);
+expect(declared.length===77,`wcl-runtime.js must contain exactly 77 active function declarations after Progress compatibility retirement; found ${declared.length}`);
 expect(declared.length===declaredSet.size,'wcl-runtime.js contains duplicate function declarations');
 
 for(const responsibility of LEGACY_RUNTIME_RESPONSIBILITIES){
@@ -40,6 +40,7 @@ const stale=[...classified.keys()].filter(fn=>!declaredSet.has(fn));
 expect(unclassified.length===0,`unclassified wcl-runtime.js functions: ${unclassified.join(', ')||'none'}`);
 expect(stale.length===0,`ownership manifest lists missing functions: ${stale.join(', ')||'none'}`);
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='progress-shadowed-writers'),'physically retired functions must not remain active ownership responsibilities');
+expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='progress-compatibility-guard'),'physically retired missing-history policy must not remain an active legacy responsibility');
 
 const legacyAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
 const commandBridgeAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
@@ -51,9 +52,10 @@ expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(co
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(commandBridgeAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Command Center bridge must load before Progress installs its historical active-screen guards');
 expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),'temporary Progress retirement guard must not return');
 
-expect(JSON.stringify(LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS)===JSON.stringify(['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']),'historical Progress interception inventory changed unexpectedly');
+const retiredProgressNames=['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix','neutralizeMissingHistory'];
+expect(JSON.stringify(LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS)===JSON.stringify(retiredProgressNames),'historical Progress interception inventory changed unexpectedly');
 expect(JSON.stringify(LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS)===JSON.stringify([]),'no historical Progress writer may remain declared in the legacy monolith');
-expect(JSON.stringify(LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED)===JSON.stringify(['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']),'all four historical Progress writer targets must remain physically retired');
+expect(JSON.stringify(LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED)===JSON.stringify(retiredProgressNames),'all five historical Progress compatibility targets must remain physically retired');
 for(const fn of LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED){
   expect(!new RegExp(`function\\s+${fn}\\s*\\(`).test(legacy),`${fn} declaration survived physical retirement`);
   expect(!classified.has(fn),`${fn} survived in active legacy ownership responsibilities`);
@@ -74,13 +76,9 @@ expect(/findOwnText\('Command Center'\)/.test(commandBridge),'Command Center bri
 expect(!/Are we actually getting better\?/.test(commandBridge),'Command Center bridge may not write the Progress screen');
 expect(!/MutationObserver|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/.test(commandBridge),'Command Center bridge may not introduce observers, polling, timers, animation loops or network requests');
 
-const progressGuard=classified.get('neutralizeMissingHistory');
-expect(progressGuard?.id==='progress-compatibility-guard','neutralizeMissingHistory must remain explicitly classified while its legacy body exists');
-expect(progressGuard?.status==='shadowed-compatibility-guard','legacy missing-history guard must be shadowed before physical deletion');
-expect(progressGuard?.canonicalOwner==='public/progress-runtime-v3713.js','canonical Progress runtime must own missing-history presentation at the shadow checkpoint');
-expect(progressGuard?.retirement==='physically-delete-missing-history-guard-after-browser-validation','missing-history guard retirement must require browser validation before deletion');
-expect(/function\s+neutralizeMissingHistory\s*\(\s*\)/.test(legacy),'legacy missing-history declaration must remain auditable during shadow validation');
-expect(/wrap\('neutralizeMissingHistory'\)/.test(progress),'canonical Progress owner must suppress the legacy missing-history writer on the active Progress screen');
+expect(!/function\s+neutralizeMissingHistory\s*\(\s*\)/.test(legacy),'legacy missing-history declaration must be physically retired');
+expect(!/neutralizeMissingHistory\s*\(\s*\)\s*;/.test(legacy),'legacy supplemental orchestration must not invoke the retired missing-history writer');
+expect(/wrap\('neutralizeMissingHistory'\)/.test(progress),'canonical Progress owner should retain historical interception knowledge during the v4 migration');
 expect(/missingHistoryPolicy:'canonical-progress-owner'/.test(progress),'Progress runtime metadata must declare canonical missing-history ownership');
 expect(/function\s+renderMissingHistory\s*\(/.test(progress),'canonical Progress owner must contain the missing-history renderer');
 for(const text of [
@@ -104,7 +102,7 @@ for(const entry of LEGACY_RUNTIME_RESPONSIBILITIES)statusCounts[entry.status]=(s
 console.log('LEGACY RUNTIME OWNERSHIP VERIFICATION: PASS');
 console.log(` - ${declared.length} active function declarations are explicitly classified; 0 unowned`);
 console.log(` - ${LEGACY_RUNTIME_RESPONSIBILITIES.length} active responsibilities have named domains and retirement paths`);
-console.log(` - ${LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED.length} historical Progress writer targets are physically absent from wcl-runtime.js`);
+console.log(` - ${LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED.length} historical Progress compatibility targets are physically absent from wcl-runtime.js`);
 console.log(' - Command Center owns extracted progression-curve and cross-night history bindings through one passive bridge');
-console.log(' - neutralizeMissingHistory remains physically present but is shadowed by canonical Progress missing-history presentation');
+console.log(' - missing-History presentation is now exclusively owned by canonical Progress; the legacy body and call are physically absent');
 console.log(` - status distribution ${JSON.stringify(statusCounts)}`);
