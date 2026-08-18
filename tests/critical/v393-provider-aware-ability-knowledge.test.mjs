@@ -8,7 +8,7 @@ import abilityKnowledgeService from '../../server/services/ability-knowledge-ser
 const read=file=>readFile(new URL(`../../${file}`,import.meta.url),'utf8');
 
 test('CRITICAL v3.9.3 SOURCES: Lorrgs runtime and Parse Wowhead wrapper retain explicit trust boundaries under later releases',()=>{
-  assert.equal(getIrisSourceRegistry().version,'iris-source-registry-v3');
+  assert.match(getIrisSourceRegistry().version,/^iris-source-registry-v(?:[4-9]|\d{2,})$/);
   const lorrgs=findIrisSource('lorrgs'),parse=findIrisSource('parse-wowhead');
   assert.equal(lorrgs.runtimeIntegration,'available-readonly');
   assert.equal(lorrgs.trust,'secondary-derived-from-warcraftlogs');
