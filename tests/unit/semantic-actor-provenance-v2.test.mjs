@@ -76,6 +76,7 @@ test('v2 deduplicates overlapping radii but preserves one combat event against d
   const result=await executeSemanticActorProvenanceV2({signalId:SIGNAL,abilityIds:[A],evidenceRecords:multiAnchorEvidence,previewFingerprint:preview.fingerprint,confirmExecution:true,fetcher:fakeFetcher()});
 
   assert.equal(result.abilities[0].events,1,'ability fallback should count the underlying combat event once');
+  assert.equal(result.abilities[0].windows,2,'ability fallback should still report both distinct anchor occurrences');
   assert.equal(result.patterns.length,2,'the same combat event can legitimately form a pattern around two distinct anchors');
 
   const after=result.patterns.find(row=>row.key===`after-1s|enemyDebuffs|${A}|applydebuff`);
