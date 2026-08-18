@@ -1,0 +1,40 @@
+name: Phase 3 retire Progress legacy writers
+
+on:
+  push:
+    branches:
+      - refactor/reorganizacion-2026-08-17
+    paths:
+      - .github/workflows/phase3-retire-progress-writers.yml
+
+permissions:
+  contents: write
+
+jobs:
+  retire:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout canonical refactor branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/reorganizacion-2026-08-17
+          fetch-depth: 0
+      - name: Physically remove execution-retired Progress writers
+        run: node scripts/phase3-retire-progress-writers.mjs
+      - name: Verify surgical diff
+        run: |
+          git diff --check
+          git diff --exit-code -- public/progress-runtime-v3713.js
+          git diff --name-only | grep -Fx 'public/wcl-runtime.js'
+          test "$(git diff --name-only | wc -l)" -eq 1
+          ! grep -q 'function applyProgressPage(' public/wcl-runtime.js
+          ! grep -q 'function applyRealProgressMatrix(' public/wcl-runtime.js
+          grep -q 'function applyProgressCurve(' public/wcl-runtime.js
+          grep -q 'function applyHistoryData(' public/wcl-runtime.js
+      - name: Commit physical retirement
+        run: |
+          git config user.name 'AvoiD Refactor Bot'
+          git config user.email '31500250+MrAlvaroPS@users.noreply.github.com'
+          git add public/wcl-runtime.js
+          git commit -m 'refactor(v4): physically retire Progress legacy writers'
+          git push origin HEAD:refactor/reorganizacion-2026-08-17
