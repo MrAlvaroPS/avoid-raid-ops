@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "iris": "node --env-file=.env.local scripts/iris-local-worker.mjs",
+    "validate:official-encounter": "node --env-file=.env.local scripts/iris-official-encounter-smoke.mjs",
     "dev:source": "npm --workspace @avoid/web run dev",
     "build:web": "npm --workspace @avoid/web run build",
     "verify:golden": "python3 scripts/verify_golden.py",
