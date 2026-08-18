@@ -35,9 +35,9 @@ test('index uses one generated compatibility stylesheet while preserving histori
 
 test('legacy WCL Progress retirement is complete while the active owner keeps historical interception knowledge',async()=>{
   const [legacy,owner,bridge]=await Promise.all([read('public/wcl-runtime.js'),read('public/progress-runtime-v3713.js'),read('public/command-center-history-bridge-v4.js')]);
-  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
+  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix','neutralizeMissingHistory']);
   assert.deepEqual(LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,[]);
-  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
+  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix','neutralizeMissingHistory']);
   for(const fn of LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED)assert.doesNotMatch(legacy,new RegExp(`function ${fn}\\(`),`${fn} is historical and must stay physically retired`);
   for(const fn of LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS)assert.match(owner,new RegExp(`['"]${fn}['"]`),`${fn} must remain traceable in the canonical Progress owner's historical interception inventory`);
   assert.match(legacy,/window\.applyProgressCurve\?\.\(\)/);
