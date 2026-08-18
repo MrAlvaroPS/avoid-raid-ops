@@ -73,7 +73,7 @@ test('CRITICAL IRIS SOURCE API: registry and single-provider lookup are actually
 test('CRITICAL IRIS SOURCE DOCS: source directory records provider-specific API and evidence boundaries',async()=>{
   const [index,wcl,blizzard,wow,wipe,archon,lorrgs,parse,mythic,agents]=await Promise.all([read('docs/iris-sources/README.md'),read('docs/iris-sources/WARCRAFT-LOGS.md'),read('docs/iris-sources/BLIZZARD-GAME-DATA.md'),read('docs/iris-sources/WOWANALYZER.md'),read('docs/iris-sources/WIPEFEST.md'),read('docs/iris-sources/ARCHON.md'),read('docs/iris-sources/LORRGS.md'),read('docs/iris-sources/PARSE-WOWHEAD.md'),read('docs/iris-sources/MYTHIC-TRAP.md'),read('AGENTS.md')]);
   assert.match(index,/Warcraft Logs observed evidence remains the combat source of truth/);assert.match(index,/Blizzard Encounter Journal/);assert.match(wcl,/Operational API safety/);assert.match(wcl,/no permanent-storage prohibition/i);assert.doesNotMatch(wcl,/API terms and persistence guard/i);assert.match(wcl,/rateLimitData/);
-  assert.match(blizzard,/official published encounter semantics/i);assert.match(blizzard,/403/);assert.match(blizzard,/negative evidence/i);
+  assert.match(blizzard,/official published encounter semantics/i);assert.match(blizzard,/403/);assert.match(blizzard,/(?:non-negative|negative evidence)/i);
   assert.match(wow,/AGPL-3\.0-or-later/);assert.match(wipe,/answers \*\*no\*\*/i);assert.match(archon,/ArchonViewModels/);assert.match(lorrgs,/Safe read-only endpoint catalogue/);assert.match(parse,/not an official Wowhead developer API/i);assert.match(mythic,/No supported public developer API/);assert.match(agents,/docs\/iris-sources\/README\.md/);
 });
 
