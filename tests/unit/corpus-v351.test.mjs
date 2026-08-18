@@ -46,11 +46,13 @@ test('deep aggregate tracks deep pulls separately from wide pulls',()=>{
   assert.equal(aggregate.wipePulls,0);
 });
 
-test('deploy runtime labels corpus targets as pulls, not ranked reports',async()=>{
-  const runtime=await readFile(new URL('../../public/wcl-runtime.js',import.meta.url),'utf8');
-  assert.match(runtime,/target pulls/);
-  assert.match(runtime,/ENRICH \+/);
-  assert.doesNotMatch(runtime,/ranked reports/);
+test('canonical Corpus UI labels work in pulls rather than ranked reports',async()=>{
+  const owner=await readFile(new URL('../../public/encounter-intelligence-v375.js',import.meta.url),'utf8');
+  assert.match(owner,/WIDE PULLS/);
+  assert.match(owner,/DEEP PULLS/);
+  assert.match(owner,/targetPulls/);
+  assert.match(owner,/IMPROVE MODEL/);
+  assert.doesNotMatch(owner,/ranked reports/);
 });
 
 
