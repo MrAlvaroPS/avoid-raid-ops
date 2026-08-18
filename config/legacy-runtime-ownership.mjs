@@ -16,7 +16,7 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('shared-progression-curve','command-center-progress','shared-compatibility-helper','public/wcl-runtime.js','extract-shared-curve-before-removing-progress-wrapper',[
     'applyProgressCurve',
   ]),
-  responsibility('shared-history-writer','command-center-progress','shared-compatibility-writer','public/wcl-runtime.js','split-command-center-history-from-progress-before-retirement',[
+  responsibility('shared-history-writer','command-center-progress','shadowed-compatibility-writer','public/command-center-history-bridge-v4.js','physically-delete-mixed-legacy-body-after-browser-validation',[
     'applyHistoryData',
   ]),
   responsibility('progress-compatibility-guard','progress','compatibility-guard','public/wcl-runtime.js','move-missing-history-policy-to-progress-owner',[
