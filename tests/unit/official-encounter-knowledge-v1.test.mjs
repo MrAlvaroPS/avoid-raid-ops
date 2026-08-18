@@ -70,7 +70,7 @@ test('resolver uses official search href/build and does not spend WCL',async()=>
     if(String(url).startsWith(href))return json(syntheticJournal);
     throw new Error(`Unexpected URL ${url}`);
   };
-  const result=await resolveOfficialEncounterKnowledgeV1({encounterName:'Synthetic Boss',wclEncounterId:4321,region:'eu',locale:'en_US'},{fetcher,clientId:'id',clientSecret:'secret'});
+  const result=await resolveOfficialEncounterKnowledgeV1({encounterName:'Synthetic Boss',wclEncounterId:4321,region:'eu',locale:'en_US'},{fetcher,clientId:'id',clientSecret:'secret',persist:false});
   assert.equal(result.source.namespace,'static-12.1.0_99999-eu');
   assert.equal(result.usage.oauthCalls,1);
   assert.equal(result.usage.blizzardGameDataCalls,2);
