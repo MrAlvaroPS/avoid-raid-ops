@@ -6,7 +6,7 @@ on:
       - "**"
 
 permissions:
-  contents: write
+  contents: read
   statuses: write
 
 concurrency:
@@ -20,20 +20,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Apply one-shot Corpus verifier fix when triggered
-        run: |
-          if [ -f .github/v4-corpus-verifier.trigger ]; then
-            python3 scripts/v4-fix-corpus-verifier-once.py
-            git config user.name 'AvoiD v4 migration'
-            git config user.email 'actions@users.noreply.github.com'
-            rm scripts/v4-fix-corpus-verifier-once.py .github/v4-corpus-verifier.trigger
-            git add scripts/verify-legacy-runtime-ownership.mjs scripts/v4-fix-corpus-verifier-once.py .github/v4-corpus-verifier.trigger
-            git diff --cached --check
-            git commit -m 'test(v4): fix Corpus retirement verifier escape'
-            git push origin HEAD:refactor/reorganizacion-2026-08-17
-          fi
       - name: Node 22
         uses: actions/setup-node@v4
         with:
