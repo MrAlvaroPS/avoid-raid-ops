@@ -7,9 +7,12 @@ import {
   LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER,
   LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,
   LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER,
+  LEGACY_RUNTIME_MECHANICS_DEFENSIVES_SHADOW_OWNER,
   LEGACY_RUNTIME_MECHANICS_FALLBACK_WRITERS,
   LEGACY_RUNTIME_MECHANICS_WRITERS,
   LEGACY_RUNTIME_DEFENSIVES_WRITERS,
+  LEGACY_RUNTIME_MECHANICS_SHADOWED_WRITERS,
+  LEGACY_RUNTIME_DEFENSIVES_SHADOWED_WRITERS,
 } from '../../config/legacy-runtime-ownership.mjs';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
@@ -28,6 +31,8 @@ test('legacy writers are partitioned by screen instead of one mechanics-defensiv
   assert.deepEqual(LEGACY_RUNTIME_MECHANICS_FALLBACK_WRITERS,['applyMechanicsAndDefensives']);
   assert.deepEqual(LEGACY_RUNTIME_MECHANICS_WRITERS,['applyTelemetryMechanics','applyIntelligenceMechanics']);
   assert.deepEqual(LEGACY_RUNTIME_DEFENSIVES_WRITERS,['applyTelemetryDefensives','applyIntelligenceDefensives']);
+  assert.deepEqual(LEGACY_RUNTIME_MECHANICS_SHADOWED_WRITERS,LEGACY_RUNTIME_MECHANICS_WRITERS);
+  assert.deepEqual(LEGACY_RUNTIME_DEFENSIVES_SHADOWED_WRITERS,LEGACY_RUNTIME_DEFENSIVES_WRITERS);
   assert.equal(LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='mechanics-defensives'),undefined);
 
   const fallback=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='mechanics-defensives-fallback');
@@ -49,22 +54,26 @@ test('legacy writers are partitioned by screen instead of one mechanics-defensiv
   for(const writer of classified)assert.match(legacy,new RegExp(`function\\s+${writer}\\s*\\(`),`${writer} remains physically present until its own shadow checkpoint passes`);
 });
 
-test('shared fallback binding is shadowed by one passive split-screen bridge',async()=>{
+test('all five legacy bindings are shadowed by one passive split-screen bridge',async()=>{
   assert.equal(LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER,'public/mechanics-defensives-fallback-bridge-v4.js');
+  assert.equal(LEGACY_RUNTIME_MECHANICS_DEFENSIVES_SHADOW_OWNER,LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER);
   const asset=ACTIVE_LOCAL_SCRIPTS.find(entry=>entry.id==='mechanics-defensives-fallback-bridge');
   const legacyIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(entry=>entry.id==='wcl-legacy-runtime');
   const bridgeIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(entry=>entry.id==='mechanics-defensives-fallback-bridge');
   assert.equal(asset?.authority,'migration-bridge');
   assert.equal(asset?.owner,'split-source-owners');
-  assert.ok(bridgeIndex>legacyIndex,'bridge must load after the legacy declaration it shadows');
+  assert.equal(asset?.role,'screen-scoped-writer-shadow');
+  assert.ok(bridgeIndex>legacyIndex,'bridge must load after all legacy declarations it shadows');
 
-  const bridge=await read(LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER);
+  const bridge=await read(LEGACY_RUNTIME_MECHANICS_DEFENSIVES_SHADOW_OWNER);
   assert.match(bridge,/window\.applyMechanicsAndDefensives=applySplitFallback/);
-  assert.match(bridge,/function applyMechanicsFallback\(\)/);
-  assert.match(bridge,/function applyDefensiveAuditFallback\(\)/);
-  assert.match(bridge,/writerPolicy:'split-screen-fallback-writer'/);
-  assert.match(bridge,/mechanicsOwner:'apps\/web\/src\/features\/mechanics\/Mechanics\.js'/);
-  assert.match(bridge,/defensiveAuditOwner:'apps\/web\/src\/features\/defensive-audit\/DefensiveAudit\.js'/);
+  assert.match(bridge,/window\.applyTelemetryMechanics=screenWriter\('applyTelemetryMechanics','Mechanics Library'\)/);
+  assert.match(bridge,/window\.applyIntelligenceMechanics=screenWriter\('applyIntelligenceMechanics','Mechanics Library'\)/);
+  assert.match(bridge,/window\.applyTelemetryDefensives=screenWriter\('applyTelemetryDefensives','Defensive Audit'\)/);
+  assert.match(bridge,/window\.applyIntelligenceDefensives=screenWriter\('applyIntelligenceDefensives','Defensive Audit'\)/);
+  assert.match(bridge,/writerPolicy:'split-screen-writer-shadow'/);
+  assert.match(bridge,/mechanicsSourceOwner:'apps\/web\/src\/features\/mechanics\/Mechanics\.js'/);
+  assert.match(bridge,/defensiveAuditSourceOwner:'apps\/web\/src\/features\/defensive-audit\/DefensiveAudit\.js'/);
   assert.doesNotMatch(bridge,/MutationObserver|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
 });
 
