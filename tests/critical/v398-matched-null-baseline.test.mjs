@@ -15,7 +15,7 @@ test('CRITICAL v3.9.8 MATCHED NULL: preview/evaluate are zero-WCL and execution 
   assert.doesNotMatch(route,/wholeReport|startCorpus|launchCorpusExecution|improveModel/);
 });
 
-test('CRITICAL v3.9.8 MATCHED NULL: local flanks cannot masquerade as Promotion baseline and nulls validate the full Episode guard',async()=>{
+test('CRITICAL v3.9.8 MATCHED NULL: nulls cover every Episode pattern and validate the full Episode guard',async()=>{
   const [module,executor,doc]=await Promise.all([
     read('server/corpus/matched-null-baseline-v1.mjs'),
     read('server/corpus/matched-null-baseline-executor-v1.mjs'),
@@ -23,6 +23,8 @@ test('CRITICAL v3.9.8 MATCHED NULL: local flanks cannot masquerade as Promotion 
   ]);
   assert.match(module,/localFlankControlsUsed:false/);
   assert.match(module,/localFlankBaselineIsPromotionBaseline:false/);
+  assert.match(module,/controlCoversEpisodeRadius:true/);
+  assert.match(module,/Math\.max\(requestedConfig\.controlRadiusMs,episodeRadius\)/);
   assert.match(module,/targetSignalContaminationMustBeRejected:true/);
   assert.match(module,/targetSignalGuardRadiusValidated:true/);
   assert.match(module,/innerControlEventsOnly:true/);
@@ -34,6 +36,7 @@ test('CRITICAL v3.9.8 MATCHED NULL: local flanks cannot masquerade as Promotion 
   assert.match(doc,/There is no whole-report fallback/i);
   assert.match(doc,/full Episode exclusion guard/i);
   assert.match(doc,/only the inner control window/i);
+  assert.match(doc,/at least the Episode temporal radius/i);
 });
 
 test('CRITICAL v3.9.8 RELEASE: package overlay remains the integer v3.9 counter',async()=>{
