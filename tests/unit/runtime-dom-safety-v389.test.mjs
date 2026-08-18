@@ -13,7 +13,6 @@ const ACTIVE_OVERLAYS = [
   'public/data-hub-v390.js',
   'public/knowledge-reindex-v390.js',
   'public/wcl-runtime.js',
-  'public/progress-legacy-retirement-v4.js',
   'public/encounter-intelligence-v375.js',
   'public/corpus-ui-stability-v1.js',
   'public/progress-runtime-v3713.js',
@@ -87,7 +86,6 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   assert.ok(reindex > dataHub, 'knowledge reindex guard must listen after the data hub is initialized');
   for (const asset of [
     '/wcl-runtime.js?v=3.8.5',
-    '/progress-legacy-retirement-v4.js?v=1',
     '/encounter-intelligence-v375.js?v=3.8.5',
     '/corpus-ui-stability-v1.js?v=1.1.0',
     '/progress-runtime-v3713.js?v=3.8.5',
