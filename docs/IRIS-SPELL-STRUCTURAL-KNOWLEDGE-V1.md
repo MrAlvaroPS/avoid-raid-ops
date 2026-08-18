@@ -102,6 +102,8 @@ Hard limits:
 - no recursive graph crawl;
 - no automatic expansion beyond relations returned for requested seeds.
 
+A single failed filtered lookup does not erase successful sibling queries. Partial coverage is persisted explicitly and provider failure is non-negative evidence. If every requested Wago query fails, the resolution fails rather than manufacturing an empty structural graph.
+
 ## Persistence
 
 Raw CSV is **never** persisted.
@@ -118,16 +120,44 @@ Only normalized derived facts are stored:
 - official Blizzard context for either endpoint;
 - fingerprint and previous revision metadata.
 
-Latest lookup:
+Each network execution first creates an immutable exact request revision:
+
+```text
+knowledge/spell-structure/wago/by-wcl/{wclEncounterId}/builds/{build}/revisions/{requestFingerprint}.json
+```
+
+The current build also has an accumulated structural snapshot:
 
 ```text
 knowledge/spell-structure/wago/by-wcl/{wclEncounterId}/latest.json
 ```
 
-Immutable revision:
+and immutable aggregate snapshots:
 
 ```text
-knowledge/spell-structure/wago/by-wcl/{wclEncounterId}/builds/{build}/revisions/{fingerprint}.json
+knowledge/spell-structure/wago/by-wcl/{wclEncounterId}/builds/{build}/aggregate-revisions/{aggregateFingerprint}.json
+```
+
+### Same-build accumulation
+
+`latest` is cumulative **within one exact client build**.
+
+If Iris resolves one set of seeds today and another set tomorrow under the same Blizzard-derived build, it unions:
+
+- requested seed IDs;
+- normalized structural relations;
+- per-filter coverage state;
+- bounded request history.
+
+A later transient failure cannot downgrade a query that was already successfully resolved for the same build.
+
+If the Blizzard-derived client build changes, accumulation stops at the build boundary and a new latest snapshot starts from the new build. Old request and aggregate revisions remain immutable and addressable.
+
+This prevents both failure modes:
+
+```text
+new seed batch -> forgetting old structural knowledge       [forbidden]
+new client build -> mixing old/new DB2 structure together   [forbidden]
 ```
 
 ## Official reconciliation
@@ -195,7 +225,7 @@ previewFingerprint = current fingerprint
 
 Only Wago DB2 is contacted. Blizzard and WCL network calls remain zero.
 
-`latest` is zero-network.
+`latest` is zero-network and returns the accumulated snapshot for the current stored build.
 
 ## Belo'ren validation target
 
