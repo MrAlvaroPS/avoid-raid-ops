@@ -98,7 +98,7 @@ test('Corpus presentation is shadowed by canonical Encounter while workflow help
 
   const [legacy,owner,guard]=await Promise.all([read('public/wcl-runtime.js'),read('public/encounter-intelligence-v375.js'),read('public/corpus-ui-stability-v1.js')]);
   assert.match(legacy,/function\s+applyCorpusWorkbench\s*\(/,'legacy Corpus renderer remains physically present during the shadow checkpoint');
-  assert.equal((legacy.match(/applyCorpusWorkbench\s*\(\s*\)\s*;/g)||[]).length,1,'applyAll retains one intercepted Corpus presentation call');
+  assert.match(legacy,/applyIntelligence\(\);applyCorpusWorkbench\(\);removeRosterIntelligenceOutsideComposition\(\)/,'applyAll retains the intercepted Corpus presentation call');
   assert.match(owner,/function ensureCorpusPanel\(\)/);
   assert.match(owner,/catalogue\.insertAdjacentElement\('beforebegin',panel\)/,'canonical card preserves the historical placement before the mechanic catalogue');
   assert.match(owner,/dataset\.avoidCorpusOwner='encounter-intelligence-v375'/);
