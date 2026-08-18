@@ -14,12 +14,13 @@ test('active compatibility asset manifest makes the current production stack exp
   assert.equal(ACTIVE_ASSET_MANIFEST.version,'active-assets-v1');
   assert.equal(ACTIVE_STYLES.length,2);
   assert.equal(CSS_BUNDLE_SOURCES.length,17);
-  assert.equal(ACTIVE_LOCAL_SCRIPTS.length,11);
+  assert.equal(ACTIVE_LOCAL_SCRIPTS.length,10);
   assert.equal(ACTIVE_EXTERNAL_SCRIPTS.length,1);
   assert.equal(ACTIVE_STYLES[0].src,'/main.css');
   assert.equal(ACTIVE_STYLES[1].src,'/raidops-active.css?v=3.9.2-css1');
   assert.equal(ACTIVE_LOCAL_SCRIPTS[0].src,'/main.js');
   assert.equal(ACTIVE_LOCAL_SCRIPTS.at(-1).src,'/player-intelligence-v392.js?v=3.9.2');
+  assert.equal(ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),false,'temporary retirement guard must not survive physical source deletion');
 });
 
 test('runtime domains have one primary owner while the monolithic WCL runtime is compatibility-only',()=>{
@@ -30,18 +31,6 @@ test('runtime domains have one primary owner while the monolithic WCL runtime is
   const legacy=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
   assert.equal(legacy.authority,'compatibility');
   assert.equal(legacy.retirement,'decompose-per-domain-before-retirement');
-});
-
-test('Progress retirement guard is temporary, ordered after legacy and before the canonical owner',()=>{
-  const legacyIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(asset=>asset.id==='wcl-legacy-runtime');
-  const guardIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(asset=>asset.id==='progress-legacy-retirement');
-  const progressIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(asset=>asset.id==='progress-runtime');
-  assert.ok(legacyIndex>=0&&guardIndex===legacyIndex+1&&progressIndex>guardIndex);
-  const guard=ACTIVE_LOCAL_SCRIPTS[guardIndex];
-  assert.equal(guard.authority,'guard');
-  assert.equal(guard.domain,'progress');
-  assert.equal(guard.role,'temporary-execution-retirement-guard');
-  assert.equal(guard.retirement,'delete-with-retired-legacy-writers');
 });
 
 test('versioned runtime families identify exactly one active generation in the manifest',()=>{
