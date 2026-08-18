@@ -33,14 +33,17 @@ test('index uses one generated compatibility stylesheet while preserving histori
   assert.ok(index.indexOf('/iris-runtime-v3713.js?v=3.8.9.1')<index.indexOf('/player-intelligence-v392.js?v=3.9.2'));
 });
 
-test('legacy WCL Progress retirement remains explicit while the active owner keeps historical interception knowledge',async()=>{
-  const [legacy,owner]=await Promise.all([read('public/wcl-runtime.js'),read('public/progress-runtime-v3713.js')]);
+test('legacy WCL Progress retirement is complete while the active owner keeps historical interception knowledge',async()=>{
+  const [legacy,owner,bridge]=await Promise.all([read('public/wcl-runtime.js'),read('public/progress-runtime-v3713.js'),read('public/command-center-history-bridge-v4.js')]);
   assert.deepEqual(LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
-  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,['applyProgressCurve','applyHistoryData']);
-  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,['applyProgressPage','applyRealProgressMatrix']);
+  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,[]);
+  assert.deepEqual(LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix']);
   for(const fn of LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED)assert.doesNotMatch(legacy,new RegExp(`function ${fn}\\(`),`${fn} is historical and must stay physically retired`);
-  for(const fn of LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS)assert.match(legacy,new RegExp(`function ${fn}\\(`),`${fn} remains active compatibility code at this checkpoint`);
   for(const fn of LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS)assert.match(owner,new RegExp(`['"]${fn}['"]`),`${fn} must remain traceable in the canonical Progress owner's historical interception inventory`);
+  assert.match(legacy,/window\.applyProgressCurve\?\.\(\)/);
+  assert.match(legacy,/window\.applyHistoryData\?\.\(\)/);
+  assert.match(bridge,/window\.applyProgressCurve=applyCommandCenterProgressCurve/);
+  assert.match(bridge,/window\.applyHistoryData=applyCommandCenterHistory/);
 });
 
 test('component versions remain traceable while product release has one shared owner',async()=>{

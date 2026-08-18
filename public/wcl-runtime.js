@@ -167,48 +167,6 @@ function applyShell() {
   }
 }
 
-function applyProgressCurve() {
-  const curve = document.querySelector(".pullcurve");
-  if (!curve || !payload?.progression?.length) return;
-
-  const values = payload.progression
-    .map(p => Number(p.fightPercentage))
-    .filter(Number.isFinite);
-
-  if (!values.length) return;
-
-  const svg = curve.querySelector("svg");
-  if (!svg) return;
-
-  const points = values.map((v, i) => {
-    const x = values.length === 1 ? 50 : 3 + i / (values.length - 1) * 94;
-    const clamped = Math.max(0, Math.min(100, v));
-    const y = 6 + clamped / 100 * 74;
-    return `${x},${y}`;
-  }).join(" ");
-
-  const polyline = svg.querySelector("polyline");
-  const polygon = svg.querySelector("polygon");
-  if (polyline) polyline.setAttribute("points", points);
-  if (polygon) polygon.setAttribute("points", `3,80 ${points} 97,80`);
-
-  qsa("circle", svg).forEach(c => c.remove());
-  values.forEach((v, i) => {
-    const x = values.length === 1 ? 50 : 3 + i / (values.length - 1) * 94;
-    const y = 6 + Math.max(0, Math.min(100, v)) / 100 * 74;
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("cx", String(x));
-    circle.setAttribute("cy", String(y));
-    circle.setAttribute("r", i === values.length - 1 ? "1.5" : ".6");
-    svg.appendChild(circle);
-  });
-
-  const labels = qsa(".pull-labels span", curve);
-  if (labels[0]) text(labels[0], "PULL 1");
-  if (labels[1]) text(labels[1], `PULL ${Math.max(1, Math.ceil(values.length / 2))}`);
-  if (labels[2]) text(labels[2], `PULL ${values.length}`);
-}
-
 function applyCommandCenter() {
   if (!findOwnText("Command Center")) return;
   const o = payload.overview;
@@ -267,7 +225,7 @@ function applyCommandCenter() {
     meta: o.raidDps == null ? "Summary table unavailable" : `Pull ${best?.pullNumber ?? "—"}`
   });
 
-  applyProgressCurve();
+  window.applyProgressCurve?.();
 
   const progressionPanel = panelByTitle("Progression intelligence");
   if (progressionPanel) {
@@ -979,71 +937,6 @@ function applyTelemetryDefensives() {
   }
 }
 
-function applyHistoryData() {
-  if (!historyData?.ok) return;
-
-  const heading = qsa(".page-banner h2").find(x => x.textContent.trim() === "Are we actually getting better?");
-  if (heading) {
-    const recent = historyData.recentNights || [];
-    const panel = panelByTitle("Night-over-night");
-    if (panel) {
-      const rows = qsa(".night-table > div", panel);
-      const show = recent.slice(-3);
-      rows.forEach((row, idx) => {
-        const n = show[idx];
-        if (!n) {
-          text(row.querySelector("span"), "NO ADDITIONAL REPORT");
-          text(row.querySelector("b"), "—");
-          text(row.querySelector("em"), "—");
-          return;
-        }
-        const date = new Date(n.startTime);
-        const day = date.toLocaleDateString(undefined,{weekday:"short"}).toUpperCase();
-        const span = row.querySelector("span");
-        if (span) {
-          span.innerHTML = `${day} · ${n.pulls} PULLS<small>Best ${fmtPct(n.bestFightPercentage)}</small>`;
-        }
-        text(row.querySelector("b"), n.kills ? "Killed" : `${n.sourceReports > 1 ? `${n.sourceReports} logs · ` : ""}Progression`);
-        text(row.querySelector("em"), `${fmtPct(n.medianFightPercentage)} median`);
-        row.classList.toggle("active", n.sessionId ? n.sessionId === historyData.currentNight?.sessionId : n.reportCode === historyData.currentNight?.reportCode);
-      });
-      const insight = panel.querySelector(".insight-box p");
-      if (historyData.delta) {
-        text(insight, `Vs previous deduplicated raid session: median progression ${fmtDeltaPctPoints(historyData.delta.medianPctPoints)} and best pull ${fmtDeltaPctPoints(historyData.delta.bestPctPoints)}. Overlapping logger reports are merged before comparison.`);
-      } else {
-        text(insight, "Only one comparable indexed raid night is available in the current history window.");
-      }
-    }
-  }
-
-  const command = findOwnText("Command Center");
-  if (command) {
-    const what = panelByTitle("What changed?");
-    if (what && historyData.delta) {
-      text(what.querySelector(".panel-title p"), "Latest deduplicated raid session vs previous session");
-      const changes = qsa(".change", what);
-      if (changes[0]) {
-        text(changes[0].querySelector("label"), "PROGRESSION DELTA");
-        text(changes[0].querySelector("b"), `Median ${fmtDeltaPctPoints(historyData.delta.medianPctPoints)}`);
-        text(changes[0].querySelector("p"), `Best pull changed ${fmtDeltaPctPoints(historyData.delta.bestPctPoints)}.`);
-        text(changes[0].querySelector("strong"), fmtDeltaPctPoints(historyData.delta.medianPctPoints));
-      }
-      if (changes[1]) {
-        text(changes[1].querySelector("label"), "PULL VOLUME");
-        text(changes[1].querySelector("b"), `${historyData.delta.pullDelta >= 0 ? "+" : ""}${historyData.delta.pullDelta} pulls`);
-        text(changes[1].querySelector("p"), "Observed report-to-report volume; not a performance verdict.");
-        text(changes[1].querySelector("strong"), String(historyData.delta.pullDelta));
-      }
-      if (changes[2]) {
-        text(changes[2].querySelector("label"), "ROSTER EFFECT");
-        text(changes[2].querySelector("b"), "Association model pending");
-        text(changes[2].querySelector("p"), "Matched-pull roster analysis is deliberately not inferred from two report summaries.");
-        text(changes[2].querySelector("strong"), "—");
-      }
-    }
-  }
-}
-
 function applyLiveStatus(status) {
   if (!status?.ok) return;
   const heading = qsa(".live-command h2").find(x => x.textContent.trim() === "Raid Night Control Room");
@@ -1461,7 +1354,7 @@ function applySupplemental() {
   applyTelemetryDamageHealing();
   applyTelemetryComposition();
   applyTelemetryDefensives();
-  applyHistoryData();
+  window.applyHistoryData?.();
   applyPullIntelligenceToCommand();
   neutralizeMissingHistory();
 }

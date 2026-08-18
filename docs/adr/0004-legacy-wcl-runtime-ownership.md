@@ -10,7 +10,7 @@ Treating the whole file as either "legacy" or "owner" is unsafe. Deleting it wou
 
 ## Decision
 
-`config/legacy-runtime-ownership.mjs` classifies every named function declaration in `public/wcl-runtime.js` into a named product/domain responsibility with an explicit status, canonical owner and retirement path.
+`config/legacy-runtime-ownership.mjs` classifies every named function declaration that remains in `public/wcl-runtime.js` into a named product/domain responsibility with an explicit status, canonical owner and retirement path.
 
 `scripts/verify-legacy-runtime-ownership.mjs` extracts function declarations from the active file and fails when:
 
@@ -21,30 +21,40 @@ Treating the whole file as either "legacy" or "owner" is unsafe. Deleting it wou
 - `wcl-runtime.js` is promoted from compatibility authority;
 - a known primary owner loses its ownership relationship.
 
-This first stage is intentionally observational: it does not move or delete runtime behavior.
+The ownership audit began as an observational stage. Physical retirement is allowed only after the replacement owner has been isolated, browser-validated and explicitly approved.
 
-## Progress interception is not the same as safe deletion
+## Progress interception and physical retirement
 
-`public/progress-runtime-v3713.js` loads after the compatibility runtime and intercepts four global functions while the strategic Progress screen is active:
+`public/progress-runtime-v3713.js` retains historical interception knowledge for four global functions:
 
 - `applyProgressPage`
 - `applyProgressCurve`
 - `applyHistoryData`
 - `applyRealProgressMatrix`
 
-However, only three are currently classified as Progress-only physical-retirement candidates:
+All four declarations are now physically absent from `public/wcl-runtime.js`.
 
-- `applyProgressPage`
-- `applyHistoryData`
-- `applyRealProgressMatrix`
+`applyProgressPage` and `applyRealProgressMatrix` were retired after the canonical Progress runtime demonstrated independent rendering. `applyProgressCurve` and `applyHistoryData` required an additional shadow checkpoint because Command Center still consumed their behavior.
 
-`applyProgressCurve` is deliberately excluded from that set. The compatibility implementation is also called by Command Center to render its progression curve, so removing it as if it were dead Progress code would create a cross-screen regression. It remains `shared-compatibility-helper` until that curve is extracted behind an explicit shared or Command Center owner.
+That cross-screen behavior now belongs to the passive `public/command-center-history-bridge-v4.js` migration bridge. The bridge:
 
-This distinction is a migration invariant: interception proves who may write on a screen; it does not by itself prove a function has no callers elsewhere.
+- consumes the already-loaded `window.__AVOID_WCL__` and `window.__AVOID_WCL_HISTORY__` payloads;
+- owns only the Command Center progression curve and cross-night `What changed?` presentation;
+- issues no additional WCL/network request;
+- creates no timer, polling loop, `MutationObserver` or animation loop;
+- loads after the compatibility runtime and before the canonical Progress runtime.
+
+The compatibility monolith therefore calls the extracted behavior only through optional global bindings (`window.applyProgressCurve?.()` and `window.applyHistoryData?.()`). The canonical Progress runtime may continue to wrap the historical names as an active-screen safety guard even when some or all declarations no longer exist in the monolith.
+
+Interception remains an ownership/safety mechanism, not evidence by itself that arbitrary compatibility code is deletable. Every physical retirement still requires caller analysis and a validated replacement.
+
+## Remaining Progress compatibility dependency
+
+`neutralizeMissingHistory` remains in `public/wcl-runtime.js` as the only Progress-specific compatibility function. It protects Data Truth when raid-session History is unavailable. Its retirement path is to move that missing-history presentation policy into the canonical Progress owner, validate the replacement, and only then remove the legacy guard.
 
 ## Other domains
 
-Players and Mechanics already have newer primary runtimes, but the compatibility monolith still supplies supporting telemetry/presentation behavior to them. They are therefore classified as compatibility support rather than falsely declared dead.
+Players and Mechanics already have newer primary runtimes, but the compatibility monolith still supplies supporting telemetry/presentation behavior to them. They remain compatibility support until those dependencies are isolated and validated.
 
 Live, Pull Lab, Damage & Healing, Composition and parts of Command Center still rely directly on compatibility writers and need source-native owners before their writers can leave the monolith.
 
