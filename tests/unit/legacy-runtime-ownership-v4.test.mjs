@@ -7,6 +7,10 @@ import {
   LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,
   LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,
   LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,
+  LEGACY_RUNTIME_PLAYERS_HISTORICAL_WRITERS,
+  LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS,
+  LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS,
+  LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED,
 } from '../../config/legacy-runtime-ownership.mjs';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
@@ -40,6 +44,36 @@ test('all historical Progress compatibility targets are physically absent from t
   assert.doesNotMatch(legacy,/neutralizeMissingHistory\s*\(\s*\)\s*;/,'supplemental orchestration must not invoke the retired missing-history writer');
   assert.match(progress,/setInterval\(\(\)=>renderFull\(false\),750\)/,'canonical Progress owner must repaint independently of legacy writers');
   assert.match(progress,/&quot;/,'historical HTML escaping contract remains intact');
+});
+
+test('Players presentation is shadowed by the canonical dossier owner without touching its shared data bridge',async()=>{
+  const writers=['applyPlayers','applyTelemetryPlayers'];
+  assert.deepEqual(LEGACY_RUNTIME_PLAYERS_HISTORICAL_WRITERS,writers);
+  assert.deepEqual(LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS,writers);
+  assert.deepEqual(LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS,writers);
+  assert.deepEqual(LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED,[]);
+
+  const presentation=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='players-presentation-shadow');
+  const bridge=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='players-data-bridge');
+  assert.equal(presentation.status,'compatibility-shadowed-writer');
+  assert.equal(presentation.canonicalOwner,'public/player-intelligence-v392.js');
+  assert.deepEqual(presentation.functions,writers);
+  assert.equal(bridge.status,'compatibility-support');
+  assert.ok(bridge.functions.includes('playerOutput'));
+  assert.ok(!bridge.functions.some(fn=>writers.includes(fn)));
+
+  const [legacy,owner]=await Promise.all([read('public/wcl-runtime.js'),read('public/player-intelligence-v392.js')]);
+  for(const writer of writers){
+    assert.match(legacy,new RegExp(`function\\s+${writer}\\s*\\(`),`${writer} remains present during shadow validation`);
+    assert.match(owner,new RegExp(`['\"]${writer}['\"]`),`${writer} is tracked by the canonical Players owner`);
+  }
+  assert.match(owner,/window\.__AVOID_PLAYER_INTELLIGENCE_OWNER__=PLAYER_OWNER/);
+  assert.match(owner,/writerPolicy:'single-player-writer'/);
+  assert.match(owner,/function shadowLegacyPlayerWriter\(name\)/);
+  assert.match(owner,/if\(isPage\(\)\)return;return legacy\.apply\(this,args\)/);
+  assert.equal((owner.match(/setInterval\s*\(/g)||[]).length,1,'shadow adds no polling beyond the existing canonical repaint');
+  assert.match(owner,/setInterval\(\(\)=>render\(\),750\)/);
+  assert.doesNotMatch(owner,/MutationObserver|fetch\s*\(/);
 });
 
 test('Command Center owns the retired curve and history behavior through one passive bridge',async()=>{
