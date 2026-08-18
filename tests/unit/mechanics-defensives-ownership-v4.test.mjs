@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
+import { ACTIVE_LOCAL_SCRIPTS } from '../../config/active-assets.mjs';
 import {
   LEGACY_RUNTIME_RESPONSIBILITIES,
   LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER,
   LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,
+  LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER,
   LEGACY_RUNTIME_MECHANICS_FALLBACK_WRITERS,
   LEGACY_RUNTIME_MECHANICS_WRITERS,
   LEGACY_RUNTIME_DEFENSIVES_WRITERS,
@@ -32,7 +34,8 @@ test('legacy writers are partitioned by screen instead of one mechanics-defensiv
   const mechanics=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='mechanics-presentation');
   const defensives=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='defensive-audit-presentation');
 
-  assert.equal(fallback?.canonicalOwner,'split-source-owners');
+  assert.equal(fallback?.status,'migration-bridge');
+  assert.equal(fallback?.canonicalOwner,LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER);
   assert.deepEqual(fallback?.functions,['applyMechanicsAndDefensives']);
   assert.equal(mechanics?.canonicalOwner,LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER);
   assert.deepEqual(mechanics?.functions,LEGACY_RUNTIME_MECHANICS_WRITERS);
@@ -43,7 +46,26 @@ test('legacy writers are partitioned by screen instead of one mechanics-defensiv
   assert.equal(new Set(classified).size,5,'each remaining writer must have exactly one ownership classification');
 
   const legacy=await read('public/wcl-runtime.js');
-  for(const writer of classified)assert.match(legacy,new RegExp(`function\\s+${writer}\\s*\\(`),`${writer} remains active until its own shadow checkpoint passes`);
+  for(const writer of classified)assert.match(legacy,new RegExp(`function\\s+${writer}\\s*\\(`),`${writer} remains physically present until its own shadow checkpoint passes`);
+});
+
+test('shared fallback binding is shadowed by one passive split-screen bridge',async()=>{
+  assert.equal(LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER,'public/mechanics-defensives-fallback-bridge-v4.js');
+  const asset=ACTIVE_LOCAL_SCRIPTS.find(entry=>entry.id==='mechanics-defensives-fallback-bridge');
+  const legacyIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(entry=>entry.id==='wcl-legacy-runtime');
+  const bridgeIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(entry=>entry.id==='mechanics-defensives-fallback-bridge');
+  assert.equal(asset?.authority,'migration-bridge');
+  assert.equal(asset?.owner,'split-source-owners');
+  assert.ok(bridgeIndex>legacyIndex,'bridge must load after the legacy declaration it shadows');
+
+  const bridge=await read(LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER);
+  assert.match(bridge,/window\.applyMechanicsAndDefensives=applySplitFallback/);
+  assert.match(bridge,/function applyMechanicsFallback\(\)/);
+  assert.match(bridge,/function applyDefensiveAuditFallback\(\)/);
+  assert.match(bridge,/writerPolicy:'split-screen-fallback-writer'/);
+  assert.match(bridge,/mechanicsOwner:'apps\/web\/src\/features\/mechanics\/Mechanics\.js'/);
+  assert.match(bridge,/defensiveAuditOwner:'apps\/web\/src\/features\/defensive-audit\/DefensiveAudit\.js'/);
+  assert.doesNotMatch(bridge,/MutationObserver|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
 });
 
 test('Encounter Corpus owner cannot become Defensive Audit owner by implication',async()=>{
