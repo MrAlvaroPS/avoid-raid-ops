@@ -6,7 +6,7 @@ export const WAGO_DB2_MAX_ROWS=5000;
 
 const FILTER_FIELDS=new Set(['SpellID','EffectTriggerSpell']);
 const positiveId=(value,label='id')=>{const n=Number(value);if(!Number.isInteger(n)||n<=0)throw new Error(`${label} must be a positive integer`);return n;};
-const optionalNumber=value=>{const n=Number(value);return Number.isFinite(n)?n:null;};
+const optionalNumber=value=>{if(value==null||String(value).trim()==='')return null;const n=Number(value);return Number.isFinite(n)?n:null;};
 const clean=value=>String(value??'').trim();
 
 export function normalizeWagoBuildV1(value){
@@ -129,11 +129,20 @@ export async function resolveWagoTriggerRelationsV1(seedAbilityIds,{build,direct
   const normalizedBuild=normalizeWagoBuildV1(build);
   const fields=directions==='outbound'?['SpellID']:directions==='inbound'?['EffectTriggerSpell']:directions==='both'?['SpellID','EffectTriggerSpell']:null;
   if(!fields)throw new Error(`Unsupported Wago relation direction: ${directions}`);
-  const queries=[];const relations=[];const seen=new Set();
+  const queries=[];const relations=[];const errors=[];const seen=new Set();let successfulCalls=0;
   for(const seed of seeds){
     for(const field of fields){
-      const result=await fetchWagoSpellEffectRowsV1({build:normalizedBuild,field,value:seed,fetcher,baseUrl});
-      queries.push({field,value:seed,endpoint:result.endpoint,matchedRows:result.matchedRows,serverFilterVerified:result.serverFilterVerified});
+      let result;
+      try{
+        result=await fetchWagoSpellEffectRowsV1({build:normalizedBuild,field,value:seed,fetcher,baseUrl});
+        successfulCalls++;
+        queries.push({field,value:seed,endpoint:result.endpoint,matchedRows:result.matchedRows,serverFilterVerified:result.serverFilterVerified,status:'resolved'});
+      }catch(error){
+        const message=error instanceof Error?error.message:String(error);
+        errors.push({field,value:seed,error:message,negativeEvidence:false});
+        queries.push({field,value:seed,endpoint:null,matchedRows:null,serverFilterVerified:false,status:'failed',error:message});
+        continue;
+      }
       for(const row of result.rows){
         const sourceAbilityId=row.spellId,targetAbilityId=row.effectTriggerSpell;
         if(!sourceAbilityId||!targetAbilityId||sourceAbilityId===targetAbilityId)continue;
@@ -159,13 +168,14 @@ export async function resolveWagoTriggerRelationsV1(seedAbilityIds,{build,direct
       }
     }
   }
+  if(successfulCalls===0)throw new Error(`Wago DB2 structural resolution failed for every requested query: ${errors.map(row=>row.error).join('; ')}`);
   relations.sort((a,b)=>a.sourceAbilityId-b.sourceAbilityId||a.targetAbilityId-b.targetAbilityId||Number(a.providerRowId||0)-Number(b.providerRowId||0));
   return{
     version:WAGO_DB2_SPELL_EFFECT_PROVIDER_VERSION,
     provider:'wago-db2',build:normalizedBuild,directions,
     seedAbilityIds:seeds,
     relations,
-    usage:{networkCalls:queries.length,queries},
-    evidenceContract:{clientDb2StructuralMetadata:true,officialBlizzardApi:false,observedCombat:false,causalCombatEvidence:false,rawCsvPersisted:false,automaticPromotion:false},
+    usage:{networkCalls:queries.length,successfulCalls,failedCalls:errors.length,partial:errors.length>0,queries,errors},
+    evidenceContract:{clientDb2StructuralMetadata:true,officialBlizzardApi:false,observedCombat:false,causalCombatEvidence:false,providerFailureIsNegativeEvidence:false,rawCsvPersisted:false,automaticPromotion:false},
   };
 }
