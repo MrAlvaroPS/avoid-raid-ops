@@ -15,6 +15,43 @@
     return Number.isFinite(n)?`${n>=0?'+':''}${n.toFixed(1)}pp`:'—';
   };
 
+  function applyCommandCenterProgressCurve(){
+    if(!findOwnText('Command Center'))return;
+    const report=window.__AVOID_WCL__;
+    const curve=document.querySelector('.pullcurve');
+    if(!curve||!Array.isArray(report?.progression)||!report.progression.length)return;
+    const values=report.progression.map(p=>Number(p.fightPercentage)).filter(Number.isFinite);
+    if(!values.length)return;
+
+    const svg=curve.querySelector('svg');
+    if(!svg)return;
+    const points=values.map((value,index)=>{
+      const x=values.length===1?50:3+index/(values.length-1)*94;
+      const y=6+Math.max(0,Math.min(100,value))/100*74;
+      return `${x},${y}`;
+    }).join(' ');
+    const polyline=svg.querySelector('polyline');
+    const polygon=svg.querySelector('polygon');
+    if(polyline)polyline.setAttribute('points',points);
+    if(polygon)polygon.setAttribute('points',`3,80 ${points} 97,80`);
+
+    qsa('circle',svg).forEach(circle=>circle.remove());
+    values.forEach((value,index)=>{
+      const x=values.length===1?50:3+index/(values.length-1)*94;
+      const y=6+Math.max(0,Math.min(100,value))/100*74;
+      const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx',String(x));
+      circle.setAttribute('cy',String(y));
+      circle.setAttribute('r',index===values.length-1?'1.5':'.6');
+      svg.appendChild(circle);
+    });
+
+    const labels=qsa('.pull-labels span',curve);
+    if(labels[0])text(labels[0],'PULL 1');
+    if(labels[1])text(labels[1],`PULL ${Math.max(1,Math.ceil(values.length/2))}`);
+    if(labels[2])text(labels[2],`PULL ${values.length}`);
+  }
+
   function applyCommandCenterHistory(){
     const history=window.__AVOID_WCL_HISTORY__;
     if(!history?.ok||!findOwnText('Command Center'))return;
@@ -44,15 +81,17 @@
     }
   }
 
-  // Transitional v4 ownership bridge. The legacy runtime still declares the
-  // historical mixed writer, but this assignment replaces its global binding
-  // before the canonical Progress runtime installs its active-screen guard.
-  // No timer, observer or network request is introduced here.
+  // Transitional v4 ownership bridge. The legacy runtime still declares both
+  // functions, but these assignments replace the global bindings before the
+  // canonical Progress runtime installs its active-screen guards. This bridge
+  // is passive: no timer, observer or network request is introduced.
+  window.applyProgressCurve=applyCommandCenterProgressCurve;
   window.applyHistoryData=applyCommandCenterHistory;
   window.__AVOID_COMMAND_CENTER_HISTORY_V4__=Object.freeze({
     version:'command-center-history-bridge-v4',
     owner:'command-center',
-    source:'window.__AVOID_WCL_HISTORY__',
+    sources:Object.freeze(['window.__AVOID_WCL__','window.__AVOID_WCL_HISTORY__']),
+    owns:Object.freeze(['applyProgressCurve','applyHistoryData']),
     polling:false,
     observers:false,
   });
