@@ -1,9 +1,17 @@
 (() => {
-  const VERSION='4.0.0-migration1';
-  const legacy=typeof window.applyMechanicsAndDefensives==='function'?window.applyMechanicsAndDefensives:null;
+  const VERSION='4.0.0-migration2';
+  const historicalNames=[
+    'applyMechanicsAndDefensives',
+    'applyTelemetryMechanics',
+    'applyIntelligenceMechanics',
+    'applyTelemetryDefensives',
+    'applyIntelligenceDefensives',
+  ];
+  const legacy=Object.fromEntries(historicalNames.map(name=>[name,typeof window[name]==='function'?window[name]:null]));
 
-  if(!legacy){
-    console.warn('[AvoiD v4] Mechanics/Defensive fallback bridge could not find the legacy writer.');
+  if(historicalNames.some(name=>typeof legacy[name]!=='function')){
+    const missing=historicalNames.filter(name=>typeof legacy[name]!=='function');
+    console.warn(`[AvoiD v4] Mechanics/Defensive bridge missing legacy writers: ${missing.join(', ')}`);
     return;
   }
 
@@ -38,19 +46,32 @@
     applyDefensiveAuditFallback();
   }
 
+  function screenWriter(name,label){
+    return function(...args){
+      if(!active(label))return;
+      return legacy[name].apply(this,args);
+    };
+  }
+
   applySplitFallback.__avoidV4SplitFallback=true;
-  applySplitFallback.__avoidLegacyFallback=legacy;
+  applySplitFallback.__avoidLegacyFallback=legacy.applyMechanicsAndDefensives;
   window.applyMechanicsAndDefensives=applySplitFallback;
+  window.applyTelemetryMechanics=screenWriter('applyTelemetryMechanics','Mechanics Library');
+  window.applyIntelligenceMechanics=screenWriter('applyIntelligenceMechanics','Mechanics Library');
+  window.applyTelemetryDefensives=screenWriter('applyTelemetryDefensives','Defensive Audit');
+  window.applyIntelligenceDefensives=screenWriter('applyIntelligenceDefensives','Defensive Audit');
+
   window.__AVOID_MECHANICS_DEFENSIVES_FALLBACK_OWNER__=Object.freeze({
     version:VERSION,
-    writerPolicy:'split-screen-fallback-writer',
-    mechanicsOwner:'apps/web/src/features/mechanics/Mechanics.js',
-    defensiveAuditOwner:'apps/web/src/features/defensive-audit/DefensiveAudit.js',
-    historicalWriter:'applyMechanicsAndDefensives',
+    writerPolicy:'split-screen-writer-shadow',
+    activeOwner:'public/mechanics-defensives-fallback-bridge-v4.js',
+    mechanicsSourceOwner:'apps/web/src/features/mechanics/Mechanics.js',
+    defensiveAuditSourceOwner:'apps/web/src/features/defensive-audit/DefensiveAudit.js',
+    historicalWriters:Object.freeze([...historicalNames]),
     directRequests:0,
     timers:0,
     observers:0,
   });
 
-  console.info(`[AvoiD Raid Ops] Mechanics/Defensive fallback bridge ${VERSION}`);
+  console.info(`[AvoiD Raid Ops] Mechanics/Defensive ownership bridge ${VERSION}`);
 })();
