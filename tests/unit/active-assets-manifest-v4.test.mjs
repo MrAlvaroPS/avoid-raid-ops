@@ -21,9 +21,10 @@ test('active compatibility asset manifest makes the current production stack exp
   assert.equal(ACTIVE_LOCAL_SCRIPTS[0].src,'/main.js');
   assert.equal(ACTIVE_LOCAL_SCRIPTS.at(-1).src,'/player-intelligence-v392.js?v=3.9.2');
   const fallbackBridge=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='mechanics-defensives-fallback-bridge');
-  assert.equal(fallbackBridge?.src,'/mechanics-defensives-fallback-bridge-v4.js?v=4.0.0-migration1');
+  assert.equal(fallbackBridge?.src,'/mechanics-defensives-fallback-bridge-v4.js?v=4.0.0-migration2');
   assert.equal(fallbackBridge?.owner,'split-source-owners');
   assert.equal(fallbackBridge?.authority,'migration-bridge');
+  assert.equal(fallbackBridge?.role,'screen-scoped-writer-shadow');
   const historyBridge=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
   assert.equal(historyBridge?.src,'/command-center-history-bridge-v4.js?v=4.0.0-migration1');
   assert.equal(historyBridge?.owner,'command-center');
