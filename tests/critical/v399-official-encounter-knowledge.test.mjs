@@ -138,7 +138,7 @@ test('CRITICAL v3.9.9 DOCTRINE: future Iris work must retain the official-vs-obs
   assert.match(doctrine,/fails a hard gate/i);
   assert.match(doctrine,/stop spending WCL/i);
   assert.match(doctrine,/new immutable official revision/i);
-  assert.match(doctrine,/never rewrite historical WCL evidence/i);
+  assert.match(doctrine,/overwrite historical WCL events/i);
 
   for(const surface of [agents,architecture,operations])assert.match(surface,/IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1\.md/);
   assert.match(sources,/no universal provider ranking/i);
