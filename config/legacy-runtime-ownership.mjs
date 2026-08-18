@@ -3,6 +3,12 @@ const responsibility=(id,domain,status,canonicalOwner,retirement,functions)=>Obj
 export const LEGACY_RUNTIME_OWNERSHIP_VERSION='legacy-runtime-ownership-v4';
 export const LEGACY_RUNTIME_PATH='public/wcl-runtime.js';
 
+export const LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER='apps/web/src/features/mechanics/Mechanics.js';
+export const LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER='apps/web/src/features/defensive-audit/DefensiveAudit.js';
+export const LEGACY_RUNTIME_MECHANICS_FALLBACK_WRITERS=Object.freeze(['applyMechanicsAndDefensives']);
+export const LEGACY_RUNTIME_MECHANICS_WRITERS=Object.freeze(['applyTelemetryMechanics','applyIntelligenceMechanics']);
+export const LEGACY_RUNTIME_DEFENSIVES_WRITERS=Object.freeze(['applyTelemetryDefensives','applyIntelligenceDefensives']);
+
 export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('shared-dom-formatting','shared-ui','shared-helper','public/wcl-runtime.js','extract-to-browser-shared-module',[
     'fmtPct','fmtCompact','fmtDuration','fmtSeconds','text','ownText','findOwnText','panelByTitle','statByLabel','setStat','setPendingStat','setCompareCell','fmtDeltaPctPoints','setPanelSubtitle','pullSignalDelta','describePullSignal','renderWclGraph','clearSyntheticChart','refreshWowheadLinks','makeWowheadLink',
@@ -22,8 +28,14 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('players-data-bridge','players','compatibility-support','public/player-intelligence-v392.js','extract-shared-player-data-helpers',[
     'telemetryPlayerNameMap','roleLabel','playerOutput','reliabilityValue','reliabilityText','reliabilityMeta',
   ]),
-  responsibility('mechanics-defensives','mechanics-defensives','compatibility-support','public/encounter-intelligence-v375.js','split-mechanics-and-defensives-before-retirement',[
-    'applyMechanicsAndDefensives','applyTelemetryMechanics','applyTelemetryDefensives','applyIntelligenceMechanics','applyIntelligenceDefensives',
+  responsibility('mechanics-defensives-fallback','mechanics-defensives-fallback','compatibility-writer','split-source-owners','split-fallback-by-active-feature-before-retirement',[
+    'applyMechanicsAndDefensives',
+  ]),
+  responsibility('mechanics-presentation','mechanics','compatibility-writer',LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER,'move-to-mechanics-source-owner',[
+    ...LEGACY_RUNTIME_MECHANICS_WRITERS,
+  ]),
+  responsibility('defensive-audit-presentation','defensive-audit','compatibility-writer',LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,'move-to-defensive-audit-source-owner',[
+    ...LEGACY_RUNTIME_DEFENSIVES_WRITERS,
   ]),
   responsibility('composition','composition','compatibility-writer','public/wcl-runtime.js','move-to-composition-source-owner',[
     'applyComposition','classifyMelee','classKey','cleanTalentName','hasResolvedTalent','classDisplay','rosterCharacterMeta','removeRosterIntelligenceOutsideComposition','buildRosterIntelligencePanel','applyTelemetryComposition',
@@ -60,6 +72,11 @@ export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   version:LEGACY_RUNTIME_OWNERSHIP_VERSION,
   path:LEGACY_RUNTIME_PATH,
   responsibilities:LEGACY_RUNTIME_RESPONSIBILITIES,
+  mechanicsSourceOwner:LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER,
+  defensivesSourceOwner:LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,
+  mechanicsFallbackWriters:LEGACY_RUNTIME_MECHANICS_FALLBACK_WRITERS,
+  mechanicsWriters:LEGACY_RUNTIME_MECHANICS_WRITERS,
+  defensivesWriters:LEGACY_RUNTIME_DEFENSIVES_WRITERS,
   progressHistoricalIntercepts:LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,
   progressActiveIntercepts:LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,
   progressPhysicallyRetired:LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,
