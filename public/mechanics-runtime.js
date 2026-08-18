@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION='4.0.0-migration4-shadow1';
+  const VERSION='4.0.0-migration4-owner1';
   const qsa=(selector,root=document)=>root?[...root.querySelectorAll(selector)]:[];
   const text=(node,value)=>{
     if(!node||value===undefined||value===null)return;
@@ -202,64 +202,26 @@
     }
   }
 
-  const snapshot=()=>{
-    if(!mechanicsActive())return null;
-    const catalogue=panelByTitle('Encounter mechanic catalogue');
-    const chain=qsa('.panel').find(panel=>panel.querySelector('.cause-flow'));
-    const assignment=panelByTitle('Assignment compliance')||panelByTitle('Execution evidence');
-    return JSON.stringify({
-      banner:document.querySelector('.page-banner')?.textContent||'',
-      bannerStat:document.querySelector('.banner-stat')?.textContent||'',
-      catalogue:catalogue?.textContent||'',
-      catalogueDisplay:qsa('.mechanic-table > button',catalogue).map(row=>row.style.display||''),
-      chain:chain?.textContent||'',
-      assignment:assignment?.textContent||'',
-    });
-  };
-
-  let checks=0,mismatches=0,lastMismatch=null;
-  const publish=()=>{
-    window.__AVOID_MECHANICS_SOURCE_RUNTIME_STATE__=Object.freeze({
-      version:VERSION,
-      sourceOwner:'apps/web/src/features/mechanics/runtime.js',
-      transport:'public/mechanics-runtime.js',
-      mode:'parity-shadow',
-      checks,
-      mismatches,
-      lastMismatch,
-      directRequests:0,
-      timers:0,
-      observers:0,
-    });
-  };
-
-  function shadow(){
-    if(!mechanicsActive())return;
-    applyTelemetryMechanics();
-    applyIntelligenceMechanics();
-    const expected=snapshot();
-    queueMicrotask(()=>{
-      if(!mechanicsActive())return;
-      const actual=snapshot();
-      checks+=1;
-      if(actual!==expected){
-        mismatches+=1;
-        lastMismatch={at:Date.now(),expectedLength:expected?.length||0,actualLength:actual?.length||0};
-        console.warn('[AvoiD v4 Mechanics parity] source-runtime output differs from legacy final DOM');
-      }
-      publish();
-    });
-  }
-
   window.applyTelemetryMechanics=applyTelemetryMechanics;
   window.applyIntelligenceMechanics=applyIntelligenceMechanics;
   window.__AVOID_MECHANICS_SOURCE_RUNTIME__=Object.freeze({
     version:VERSION,
     sourceOwner:'apps/web/src/features/mechanics/runtime.js',
     transport:'public/mechanics-runtime.js',
+    mode:'single-source-owner',
+    writerPolicy:'single-mechanics-presentation-owner',
+    historicalWriters:Object.freeze(['applyTelemetryMechanics','applyIntelligenceMechanics']),
     applyTelemetryMechanics,
     applyIntelligenceMechanics,
-    shadow,
+    directRequests:0,
+    timers:0,
+    observers:0,
   });
-  publish();
+  window.__AVOID_MECHANICS_SOURCE_RUNTIME_STATE__=Object.freeze({
+    version:VERSION,
+    mode:'single-source-owner',
+    directRequests:0,
+    timers:0,
+    observers:0,
+  });
 })();

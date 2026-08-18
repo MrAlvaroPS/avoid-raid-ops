@@ -39,7 +39,7 @@ test('CRITICAL DOM LIVENESS: active overlay runtimes cannot construct MutationOb
   }
 });
 
-test('CRITICAL MECHANICS SOURCE SHADOW: feature source and stable public transport are identical and passive', async () => {
+test('CRITICAL MECHANICS SOURCE OWNER: feature source and stable public transport are identical and passive', async () => {
   const [source,transport] = await Promise.all([
     read('apps/web/src/features/mechanics/runtime.js'),
     read('public/mechanics-runtime.js'),
@@ -47,20 +47,22 @@ test('CRITICAL MECHANICS SOURCE SHADOW: feature source and stable public transpo
   assert.equal(transport, source);
   assert.match(source,/window\.applyTelemetryMechanics=applyTelemetryMechanics/);
   assert.match(source,/window\.applyIntelligenceMechanics=applyIntelligenceMechanics/);
-  assert.match(source,/queueMicrotask/);
+  assert.match(source,/mode:'single-source-owner'/);
+  assert.match(source,/writerPolicy:'single-mechanics-presentation-owner'/);
+  assert.doesNotMatch(source,/queueMicrotask|parity-shadow/);
   assert.doesNotMatch(source,OBSERVER_CONSTRUCTION);
   assert.doesNotMatch(source,/\.observe\s*\(/);
   assert.doesNotMatch(source,/setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
 });
 
-test('CRITICAL MECHANICS/DEFENSIVES BRIDGE: source parity delegation and Defensive shadow are passive', async () => {
+test('CRITICAL MECHANICS/DEFENSIVES BRIDGE: only Defensive fallback/shadow remains active', async () => {
   const source = await read('public/mechanics-defensives-fallback-bridge-v4.js');
   assert.match(source,/window\.applyMechanicsAndDefensives=applySplitFallback/);
-  assert.match(source,/__AVOID_MECHANICS_SOURCE_RUNTIME__\?\.shadow\?\.\(\)/);
+  assert.doesNotMatch(source,/__AVOID_MECHANICS_SOURCE_RUNTIME__\?\.shadow/);
   assert.doesNotMatch(source,/window\.applyTelemetryMechanics=|window\.applyIntelligenceMechanics=/);
   assert.match(source,/window\.applyTelemetryDefensives=screenWriter\('applyTelemetryDefensives','Defensive Audit'\)/);
   assert.match(source,/window\.applyIntelligenceDefensives=screenWriter\('applyIntelligenceDefensives','Defensive Audit'\)/);
-  assert.match(source,/writerPolicy:'mechanics-source-parity-shadow-and-defensive-writer-shadow'/);
+  assert.match(source,/writerPolicy:'defensive-fallback-and-writer-shadow'/);
   assert.doesNotMatch(source,OBSERVER_CONSTRUCTION);
   assert.doesNotMatch(source,/\.observe\s*\(/);
   assert.doesNotMatch(source,/setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
@@ -120,8 +122,8 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   const dataHub = index.indexOf('/data-hub-v390.js?v=3.9.0');
   const reindex = index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const legacy = index.indexOf('/wcl-runtime.js?v=3.8.5');
-  const fallbackBridge = index.indexOf('/mechanics-defensives-fallback-bridge-v4.js?v=4.0.0-migration4-shadow1');
-  const mechanicsSource = index.indexOf('/mechanics-runtime.js?v=4.0.0-migration4-shadow1');
+  const fallbackBridge = index.indexOf('/mechanics-defensives-fallback-bridge-v4.js?v=4.0.0-migration4-owner1');
+  const mechanicsSource = index.indexOf('/mechanics-runtime.js?v=4.0.0-migration4-owner1');
   const historyBridge = index.indexOf('/command-center-history-bridge-v4.js?v=4.0.0-migration1');
   const progress = index.indexOf('/progress-runtime-v3713.js?v=3.8.5');
   assert.ok(bootstrap >= 0, 'hotfix bootstrap must be wired into index.html');
@@ -129,7 +131,7 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   assert.ok(reindex > dataHub, 'knowledge reindex guard must listen after the data hub is initialized');
   assert.ok(legacy > reindex, 'legacy compatibility runtime must load after data platform layers');
   assert.ok(fallbackBridge > legacy, 'split bridge must load after legacy global declarations');
-  assert.ok(mechanicsSource > fallbackBridge, 'Mechanics source runtime must replace only its global presentation bindings after the split bridge');
+  assert.ok(mechanicsSource > fallbackBridge, 'Mechanics source owner must install after the split bridge and own the two retired presentation bindings');
   assert.ok(historyBridge > mechanicsSource, 'Command Center history bridge must remain after the Mechanics source shadow');
   assert.ok(progress > historyBridge, 'Progress must install its active-screen wrapper after the Command Center bridge');
   for (const asset of [

@@ -12,10 +12,13 @@ export const LEGACY_RUNTIME_MECHANICS_DEFENSIVES_SHADOW_OWNER='public/mechanics-
 export const LEGACY_RUNTIME_MECHANICS_FALLBACK_HISTORICAL_WRITERS=Object.freeze(['applyMechanicsAndDefensives']);
 export const LEGACY_RUNTIME_MECHANICS_FALLBACK_ACTIVE_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_MECHANICS_FALLBACK_PHYSICALLY_RETIRED=Object.freeze(['applyMechanicsAndDefensives']);
-export const LEGACY_RUNTIME_MECHANICS_WRITERS=Object.freeze(['applyTelemetryMechanics','applyIntelligenceMechanics']);
+export const LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS=Object.freeze(['applyTelemetryMechanics','applyIntelligenceMechanics']);
+export const LEGACY_RUNTIME_MECHANICS_ACTIVE_WRITERS=Object.freeze([]);
+export const LEGACY_RUNTIME_MECHANICS_PHYSICALLY_RETIRED=Object.freeze([...LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS]);
+export const LEGACY_RUNTIME_MECHANICS_WRITERS=LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS;
 export const LEGACY_RUNTIME_DEFENSIVES_WRITERS=Object.freeze(['applyTelemetryDefensives','applyIntelligenceDefensives']);
 export const LEGACY_RUNTIME_MECHANICS_SHADOWED_WRITERS=Object.freeze([]);
-export const LEGACY_RUNTIME_MECHANICS_PARITY_SHADOWED_WRITERS=Object.freeze([...LEGACY_RUNTIME_MECHANICS_WRITERS]);
+export const LEGACY_RUNTIME_MECHANICS_PARITY_SHADOWED_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_DEFENSIVES_SHADOWED_WRITERS=Object.freeze([...LEGACY_RUNTIME_DEFENSIVES_WRITERS]);
 
 export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
@@ -36,9 +39,6 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   ]),
   responsibility('players-data-bridge','players','compatibility-support','public/player-intelligence-v392.js','extract-shared-player-data-helpers',[
     'telemetryPlayerNameMap','roleLabel','playerOutput','reliabilityValue','reliabilityText','reliabilityMeta',
-  ]),
-  responsibility('mechanics-presentation','mechanics','parity-shadow-source-runtime',LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER,'physically-retire-after-green-source-parity',[
-    ...LEGACY_RUNTIME_MECHANICS_WRITERS,
   ]),
   responsibility('defensive-audit-presentation','defensive-audit','compatibility-writer',LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,'move-to-defensive-audit-source-owner',[
     ...LEGACY_RUNTIME_DEFENSIVES_WRITERS,
@@ -87,6 +87,9 @@ export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   mechanicsFallbackHistoricalWriters:LEGACY_RUNTIME_MECHANICS_FALLBACK_HISTORICAL_WRITERS,
   mechanicsFallbackActiveWriters:LEGACY_RUNTIME_MECHANICS_FALLBACK_ACTIVE_WRITERS,
   mechanicsFallbackPhysicallyRetired:LEGACY_RUNTIME_MECHANICS_FALLBACK_PHYSICALLY_RETIRED,
+  mechanicsHistoricalWriters:LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS,
+  mechanicsActiveWriters:LEGACY_RUNTIME_MECHANICS_ACTIVE_WRITERS,
+  mechanicsPhysicallyRetired:LEGACY_RUNTIME_MECHANICS_PHYSICALLY_RETIRED,
   mechanicsWriters:LEGACY_RUNTIME_MECHANICS_WRITERS,
   defensivesWriters:LEGACY_RUNTIME_DEFENSIVES_WRITERS,
   mechanicsShadowedWriters:LEGACY_RUNTIME_MECHANICS_SHADOWED_WRITERS,

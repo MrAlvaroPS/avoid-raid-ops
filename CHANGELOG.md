@@ -31,6 +31,9 @@ All meaningful product changes are recorded here. Git history remains the detail
 - Closed the Corpus migration after the additional post-retirement validation round passed at `1683baf037d50baeadb682d14e68a71eb6ecacb6`: removed the eight dead legacy Corpus state/formatting residues, physically deleted `corpus-ui-stability-v1.js`, and removed the temporary `window.applyCorpusWorkbench` shadow/binding from Encounter Intelligence. `encounter-intelligence-v375.js` now owns Corpus card creation, Mechanics-only visibility, navigation/popstate reconciliation and the single existing 1500 ms polling loop with no extra request sites, observers or animation loops.
 - Split Mechanics and Defensive Audit into independent ownership domains. After a green five-writer screen-scoped shadow checkpoint, physically retired only the shared `applyMechanicsAndDefensives` fallback from `wcl-runtime.js`; the passive migration bridge now owns that fallback and continues to shadow the four screen-specific writers without adding requests, timers, observers or animation loops. The final source owners remain `Mechanics.js` and `DefensiveAudit.js`.
 
+
+- Validated the feature-owned Mechanics parity shadow at `330526c31a5fd979012f587fe2dca18d5f4da3db`, then physically retired `applyTelemetryMechanics` and `applyIntelligenceMechanics` from `wcl-runtime.js`. The stable `public/mechanics-runtime.js` transport is byte-identical to `apps/web/src/features/mechanics/runtime.js`, owns both Mechanics presentation bindings, adds zero requests/timers/observers, and leaves Defensive Audit on its independent legacy-shadow path.
+
 ### Mainline integration — v3.9.0 to v3.9.2
 
 The 4.0.0 refactor baseline was updated to preserve the developments merged to `main` after the Phase 3 branch was created. Their stable release identity at that checkpoint was `3.9.2`; this integration did not claim 4.0.0.

@@ -35,7 +35,7 @@ const declaredSet=new Set(declared);
 const classified=new Map();
 
 expect(LEGACY_RUNTIME_OWNERSHIP_VERSION==='legacy-runtime-ownership-v4','legacy runtime ownership version must stay explicit');
-expect(declared.length===66,`wcl-runtime.js must contain exactly 67 active function declarations after Progress, Players and Corpus retirement; found ${declared.length}`);
+expect(declared.length===64,`wcl-runtime.js must contain exactly 64 active function declarations after Progress, Players, Corpus and Mechanics presentation retirement; found ${declared.length}`);
 expect(declared.length===declaredSet.size,'wcl-runtime.js contains duplicate function declarations');
 
 for(const responsibility of LEGACY_RUNTIME_RESPONSIBILITIES){
@@ -58,6 +58,9 @@ expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='players-presenta
 expect(!declaredSet.has('applyMechanicsAndDefensives'),'shared Mechanics/Defensive fallback declaration must be physically retired');
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='mechanics-defensives-fallback'),'retired shared fallback cannot remain an active legacy responsibility');
 expect((legacy.match(/window\.applyMechanicsAndDefensives\?\.\(\)/g)||[]).length===1,'legacy orchestration must delegate to exactly one optional bridge-owned fallback binding');
+for(const fn of ['applyTelemetryMechanics','applyIntelligenceMechanics'])expect(!declaredSet.has(fn),`${fn} declaration must be physically retired from the legacy monolith`);
+expect((legacy.match(/window\.applyTelemetryMechanics\?\.\(\)/g)||[]).length===1,'supplemental orchestration must delegate Mechanics telemetry to exactly one source-owned binding');
+expect((legacy.match(/window\.applyIntelligenceMechanics\?\.\(\)/g)||[]).length===1,'intelligence orchestration must delegate Mechanics intelligence to exactly one source-owned binding');
 
 const legacyAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
 const commandBridgeAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');

@@ -441,91 +441,6 @@ function reliabilityMeta(p) {
   return "PENDING";
 }
 
-function applyTelemetryMechanics() {
-  if (!telemetry?.mechanics) return;
-  const heading = qsa(".page-banner h2").find(x => x.textContent.trim() === "Mechanics Library");
-  if (!heading) return;
-  const mbanner=document.querySelector(".page-banner"); if(mbanner){text(mbanner.querySelector(".badge"),"OBSERVED ENCOUNTER DATA");text(mbanner.querySelector(":scope > div > p"),"Real WCL encounter abilities, interrupts, debuffs and deaths. Failure and wipe-impact classification waits for the boss rule pack.");}
-
-  const banner = document.querySelector(".banner-stat");
-  if (banner?.querySelector("label")?.textContent.trim() === "MECHANICAL ACCURACY") {
-    text(banner.querySelector("b"), "—");
-    text(banner.querySelector("small"), "boss rule pack pending");
-  }
-
-  setPanelSubtitle("Encounter mechanic catalogue", `${telemetry.encounter?.completedPulls ?? "—"} pulls · observed WCL abilities by damage taken`);
-
-  const rows = qsa(".mechanic-table > button");
-  const items = telemetry.mechanics.observedAbilities || [];
-  rows.forEach((row, idx) => {
-    const m = items[idx];
-    if (!m) { row.style.display = "none"; return; }
-    row.style.display = "";
-    const cells = Array.from(row.children);
-    if (cells[0]) {
-      text(cells[0].querySelector("i"), String(m.name || "?")[0]);
-      text(cells[0].querySelector("b"), m.name);
-    }
-    if (cells[1]) text(cells[1], "Damage taken · WCL");
-    if (cells[2]) text(cells[2], fmtDuration(m.firstCastMs));
-    if (cells[3]) text(cells[3], "—");
-    if (cells[4]) text(cells[4], "—");
-    if (cells[5]) text(cells[5], "OBSERVED");
-  });
-
-  const root = panelByTitle((panelByTitle("Assignment compliance") ? "Assignment compliance" : ""));
-  const chainPanel = qsa(".panel").find(p => p.querySelector(".cause-flow"));
-  if (chainPanel) {
-    const h3 = chainPanel.querySelector(".panel-title h3");
-    const p = chainPanel.querySelector(".panel-title p");
-    text(h3, `${items[0]?.name || "Selected ability"} · classification pending`);
-    text(p, "Observed damage/casts are real; trigger → cascade → wipe causality requires the encounter rule pack.");
-    const boxes = qsa(".cause-flow > div", chainPanel);
-    if (boxes[0]) {
-      text(boxes[0].querySelector("label"), "OBSERVED");
-      text(boxes[0].querySelector("b"), items[0]?.name || "WCL ability");
-      text(boxes[0].querySelector("small"), items[0] ? `${fmtCompact(items[0].totalDamageTaken)} damage taken in selected encounter` : "—");
-    }
-    if (boxes[1]) {
-      text(boxes[1].querySelector("label"), "CAUSALITY");
-      text(boxes[1].querySelector("b"), "Not inferred yet");
-      text(boxes[1].querySelector("small"), "Temporal event graph + boss rules required");
-    }
-    if (boxes[2]) {
-      text(boxes[2].querySelector("label"), "OUTCOME");
-      text(boxes[2].querySelector("b"), `${telemetry.mechanics.firstDeathsDetected ?? telemetry.deaths?.firstDeathCount ?? 0} first deaths`);
-      text(boxes[2].querySelector("small"), `${telemetry.mechanics.meaningfulDeathsDetected ?? telemetry.deaths?.meaningfulCount ?? 0} deaths before WCL wipe cutoff`);
-    }
-    const summary = chainPanel.querySelector(".cause-summary");
-    if (summary) {
-      text(summary.querySelector(".badge"), "EVIDENCE ONLY");
-      text(summary.querySelector("p"), "No wipe-impact percentage is asserted until mechanic failure predicates and death chains are validated.");
-    }
-  }
-
-  const assignment = panelByTitle("Assignment compliance");
-  if (assignment) {
-    const data = [
-      ["Interrupts detected", telemetry.mechanics.interruptsDetected, "WCL Interrupts table"],
-      ["Dispels detected", telemetry.mechanics.dispelsDetected, "WCL Dispels table"],
-      ["Meaningful deaths", telemetry.mechanics.meaningfulDeathsDetected ?? telemetry.deaths?.meaningfulCount, `WCL Death events · wipeCutoff ${telemetry.deaths?.wipeCutoff ?? 5}`],
-      ["Debuff rows", telemetry.mechanics.debuffRows, "WCL Debuffs table"],
-      ["Cast rows", telemetry.mechanics.castRows, "WCL Casts table"]
-    ];
-    const rows2 = qsa(".assignment-list > div", assignment);
-    const max = Math.max(1, ...data.map(x => Number(x[1]) || 0));
-    rows2.forEach((row, idx) => {
-      const d = data[idx];
-      if (!d) return;
-      text(row.querySelector("span b"), d[0]);
-      text(row.querySelector("span small"), d[2]);
-      const bar = row.querySelector("div i, .progress i, i");
-      if (bar?.style) bar.style.width = `${Math.max(4, Math.min(100, (Number(d[1])||0) / max * 100))}%`;
-      text(row.querySelector("strong"), String(d[1] ?? 0));
-    });
-  }
-}
-
 function applyTelemetryDamageHealing() {
   if (!telemetry?.throughput) return;
   const heading = qsa(".page-banner h2").find(x => x.textContent.trim() === "Damage & Healing");
@@ -969,102 +884,6 @@ function applyIntelligenceCommandCenter() {
   }
 }
 
-function applyIntelligenceMechanics() {
-  if(intelligence?.status!=="ready") return;
-  const heading=qsa(".page-banner h2").find(x=>x.textContent.trim()==="Mechanics Library");
-  if(!heading)return;
-  const analysis=intelligence.mechanics;
-  const mechanics=(analysis?.mechanics||[]).slice().sort((a,b)=>
-    (Number(b.linkedDeaths)||0)-(Number(a.linkedDeaths)||0) ||
-    (Number(b.failures)||0)-(Number(a.failures)||0) ||
-    (Number(b.severity)||0)-(Number(a.severity)||0)
-  );
-
-  const banner=document.querySelector(".banner-stat");
-  if(banner?.querySelector("label")?.textContent.trim()==="MECHANICAL ACCURACY"){
-    const v=analysis?.summary?.mechanicalAccuracy;
-    text(banner.querySelector("b"),Number.isFinite(Number(v))?Math.round(Number(v)):"—");
-    text(banner.querySelector("small"),Number.isFinite(Number(v))?`${analysis.summary.failedOccurrences} failed executions · ${analysis.summary.opportunities} normalized opportunities`:analysis?.summary?.pendingDenominators?.length?`Pending denominators: ${analysis.summary.pendingDenominators.length}`:"Insufficient normalized opportunities");
-  }
-
-  const cat=panelByTitle("Encounter mechanic catalogue");
-  if(cat){
-    text(cat.querySelector(".panel-title p"),`${intelligence.encounter?.pulls||0} pulls · Belo'ren rule pack ${intelligence.rulePack?.version||""}`);
-    const heads=qsa(".mt-head span",cat);
-    if(heads[2])text(heads[2],"EXECUTIONS");
-    if(heads[3])text(heads[3],"FAILED");
-    if(heads[4])text(heads[4],"LINKED DEATHS");
-    const rows=qsa(".mechanic-table > button",cat);
-    rows.forEach((row,idx)=>{
-      const m=mechanics[idx];
-      if(!m){row.style.display="none";return;}
-      row.style.display="";
-      const cells=Array.from(row.children);
-      if(cells[0]){text(cells[0].querySelector("i"),String(m.name||"?")[0]);text(cells[0].querySelector("b"),m.name);}
-      if(cells[1])text(cells[1],String(m.category||"mechanic").replaceAll("-"," "));
-      if(cells[2])text(cells[2],m.opportunities>0?String(m.opportunities):"OBSERVED");
-      if(cells[3])text(cells[3],m.scoreable&&m.denominatorStatus==="normalized"?String(m.failedOccurrences??m.failures??0):m.scoreable?"PENDING":"—");
-      if(cells[4])text(cells[4],String(m.linkedDeaths||0));
-      if(cells[5]){
-        const status=(m.linkedDeaths||0)>0&&m.severity>=4?"CRITICAL":m.scoreable&&m.denominatorStatus!=="normalized"?"PENDING":(m.failedOccurrences||m.failures||0)>0?"UNSTABLE":m.scoreable&&m.opportunities>0?"CLEAN":"OBSERVED";
-        text(cells[5],status);
-      }
-    });
-  }
-
-  const blocker=intelligence?.blocker?.blocker;
-  const detail=blocker?intelligenceMechanicMap().get(blocker.key):null;
-  const chainPanel=qsa(".panel").find(p=>p.querySelector(".cause-flow"));
-  if(chainPanel&&blocker){
-    text(chainPanel.querySelector(".panel-title h3"),`${blocker.name} · evidence chain`);
-    text(chainPanel.querySelector(".panel-title p"),"Failed execution → temporal death association → progression blocker signal");
-    const boxes=qsa(".cause-flow > div",chainPanel);
-    if(boxes[0]){
-      text(boxes[0].querySelector("label"),"TRIGGER");
-      text(boxes[0].querySelector("b"),`${blocker.failedOccurrences??blocker.failures} / ${blocker.opportunities||"?"} failed executions`);
-      text(boxes[0].querySelector("small"),`${blocker.recentFailures} occurred in the latest 5 analytical pulls`);
-    }
-    if(boxes[1]){
-      text(boxes[1].querySelector("label"),"DEATH LINK");
-      text(boxes[1].querySelector("b"),`${blocker.linkedDeaths} meaningful deaths`);
-      text(boxes[1].querySelector("small"),"Within the 10s evidence window · temporal association");
-    }
-    if(boxes[2]){
-      text(boxes[2].querySelector("label"),"RECURRENCE");
-      text(boxes[2].querySelector("b"),`${blocker.recurrence} analytical pulls affected`);
-      text(boxes[2].querySelector("small"),detail?.expectedAction||"Expected action loaded from rule pack");
-    }
-    const summary=chainPanel.querySelector(".cause-summary");
-    if(summary){
-      text(summary.querySelector(".badge"),`${confidenceLabel(intelligence.blocker.confidence)} BLOCKER`);
-      text(summary.querySelector("p"),`${blocker.name} is currently the strongest evidence-ranked progression blocker. This is a derived association, not proof of causation.`);
-    }
-  }
-
-  const assignment=panelByTitle("Assignment compliance");
-  if(assignment){
-    text(assignment.querySelector(".panel-title h3"),"Execution evidence");
-    text(assignment.querySelector(".panel-title p"),"Real WCL events classified by the encounter rule pack");
-    const data=[
-      ["Normalized executions",analysis?.summary?.opportunities||0,"Scoreable mechanic opportunities with valid denominators"],
-      ["Failed executions",analysis?.summary?.failedOccurrences||0,"Occurrence-normalized rule-derived WCL evidence"],
-      ["Death-linked chains",analysis?.summary?.linkedDeaths||0,"Meaningful deaths with temporal evidence"],
-      ["Interrupts observed",telemetry?.mechanics?.interruptsDetected||0,"Encounter-level WCL interrupt events"],
-      ["Meaningful deaths",telemetry?.deaths?.meaningfulCount||0,"WCL deaths before wipe cutoff"]
-    ];
-    const rows=qsa(".assignment-list > div",assignment);
-    const max=Math.max(1,...data.map(x=>Number(x[1])||0));
-    rows.forEach((row,idx)=>{
-      const d=data[idx];if(!d)return;
-      text(row.querySelector("span b"),d[0]);
-      text(row.querySelector("span small"),d[2]);
-      const bar=row.querySelector("div i, .progress i, i");
-      if(bar?.style)bar.style.width=`${Math.max(4,Math.min(100,(Number(d[1])||0)/max*100))}%`;
-      text(row.querySelector("strong"),String(d[1]));
-    });
-  }
-}
-
 function applyIntelligenceDefensives() {
   if(intelligence?.status!=="ready")return;
   const heading=qsa(".page-banner h2").find(x=>x.textContent.trim()==="Defensive Audit");
@@ -1182,14 +1001,14 @@ function applyIntelligenceLive() {
 
 function applyIntelligence() {
   applyIntelligenceCommandCenter();
-  applyIntelligenceMechanics();
+  window.applyIntelligenceMechanics?.();
   applyIntelligenceDefensives();
   applyIntelligenceLive();
 }
 
 function applySupplemental() {
   applyTelemetryCoreCorrections();
-  applyTelemetryMechanics();
+  window.applyTelemetryMechanics?.();
   applyTelemetryDamageHealing();
   applyTelemetryComposition();
   applyTelemetryDefensives();

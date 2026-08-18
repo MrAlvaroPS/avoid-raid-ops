@@ -1,5 +1,5 @@
 (() => {
-  const VERSION='4.0.0-migration4-shadow1';
+  const VERSION='4.0.0-migration4-owner1';
   const defensiveWriters=[
     'applyTelemetryDefensives',
     'applyIntelligenceDefensives',
@@ -27,18 +27,12 @@
     if(meta)meta.textContent=reason;
   }
 
-  function applyMechanicsFallback(){
-    if(!active('Mechanics Library'))return;
-    window.__AVOID_MECHANICS_SOURCE_RUNTIME__?.shadow?.();
-  }
-
   function applyDefensiveAuditFallback(){
     if(!active('Defensive Audit'))return;
     stats().forEach(card=>setPending(card,'Cooldown reconstruction required'));
   }
 
   function applySplitFallback(){
-    applyMechanicsFallback();
     applyDefensiveAuditFallback();
   }
 
@@ -57,15 +51,15 @@
 
   window.__AVOID_MECHANICS_DEFENSIVES_FALLBACK_OWNER__=Object.freeze({
     version:VERSION,
-    writerPolicy:'mechanics-source-parity-shadow-and-defensive-writer-shadow',
+    writerPolicy:'defensive-fallback-and-writer-shadow',
     activeOwner:'public/mechanics-defensives-fallback-bridge-v4.js',
     mechanicsSourceOwner:'apps/web/src/features/mechanics/Mechanics.js',
     mechanicsRuntimeSource:'apps/web/src/features/mechanics/runtime.js',
     mechanicsRuntimeTransport:'public/mechanics-runtime.js',
+    mechanicsPresentationOwnerLive:true,
     defensiveAuditSourceOwner:'apps/web/src/features/defensive-audit/DefensiveAudit.js',
     historicalWriters:Object.freeze(['applyMechanicsAndDefensives','applyTelemetryMechanics','applyIntelligenceMechanics',...defensiveWriters]),
     fallbackLegacyPhysicallyRetired:true,
-    mechanicsParityShadow:true,
     defensiveWriterShadow:true,
     directRequests:0,
     timers:0,
