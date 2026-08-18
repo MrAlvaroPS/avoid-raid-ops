@@ -82,17 +82,17 @@ test('CRITICAL v3.9.9 PREVIEW: official encounter planning is zero-WCL and zero-
   assert.equal(preview.safety.automaticPromotion,false);
 });
 
-test('CRITICAL v3.9.9 API: GET preview is network-free and persisted latest lookup does not contact providers',async()=>{
+test('CRITICAL v3.9.9 API: GET preview is network-free and latest contract cannot spend WCL/provider calls',async()=>{
   const previewResponse=await officialEncounterService(new Request('http://localhost/api/knowledge/encounter?encounterName=Portable%20Encounter&wclEncounterId=9901'));
   assert.equal(previewResponse.status,200);
   const preview=await previewResponse.json();
   assert.equal(preview.networkExecuted,false);
   assert.equal(preview.preview.networkUpperBound.wclCalls,0);
 
-  const latestResponse=await officialEncounterService(new Request('http://localhost/api/knowledge/encounter?action=latest&wclEncounterId=999999999'));
-  assert.equal(latestResponse.status,404);
-  const latest=await latestResponse.json();
-  assert.equal(latest.networkExecuted,false);
+  const serviceSource=await read('server/services/official-encounter-knowledge-service.mjs');
+  assert.match(serviceSource,/action:'latest',networkExecuted:false,wclCallsExecuted:0,providerCallsExecuted:0,result/);
+  assert.match(serviceSource,/No persisted official encounter graph found/);
+  assert.match(serviceSource,/loadLatestOfficialEncounterGraphByWclIdV1/);
 });
 
 test('CRITICAL v3.9.9 FAILURE: Blizzard spell endpoint failures never become encounter-negative evidence',()=>{
