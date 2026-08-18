@@ -22,7 +22,7 @@ function syntheticPlanInputs(count=6){
 test('matched null planner balances sources and keeps the full contamination guard inside the same fight',()=>{
   const {evidence,profiles}=syntheticPlanInputs();
   const plan=buildMatchedNullBaselinePlanV1({episode,evidenceRecords:evidence,profiles,config:{maxControls:6,maxControlsPerSource:1,minimumMatchedControls:6,minimumMatchedSources:3}});
-  assert.equal(plan.plannedControls,6);assert.equal(plan.plannedSources,6);assert.equal(plan.sufficientByPlan,true);assert.equal(plan.evidenceContract.localFlankControlsUsed,false);assert.equal(plan.evidenceContract.targetSignalGuardRadiusValidated,true);
+  assert.equal(plan.plannedControls,6);assert.equal(plan.plannedSources,6);assert.equal(plan.sufficientByPlan,true);assert.equal(plan.evidenceContract.localFlankControlsUsed,false);assert.equal(plan.evidenceContract.targetSignalGuardRadiusValidated,true);assert.equal(plan.evidenceContract.controlCoversEpisodeRadius,true);
   for(const control of plan.controls){
     assert.equal(control.match.sameFight,true);assert.equal(control.match.sameOutcome,true);assert.equal(control.match.phaseAvailable,true);assert.equal(control.match.phaseMatched,true);
     assert.ok(control.match.temporalDistanceMs>control.match.episodeExclusionDistanceMs);
@@ -30,6 +30,20 @@ test('matched null planner balances sources and keeps the full contamination gua
     assert.ok(control.contaminationWindowStart>=0&&control.contaminationWindowEnd<=120000);
     assert.ok(control.windowStart>=control.contaminationWindowStart&&control.windowEnd<=control.contaminationWindowEnd);
   }
+});
+
+test('matched null inner radius expands to cover every Episode temporal bucket',()=>{
+  const {evidence,profiles}=syntheticPlanInputs(1),wideEpisode={...episode,buildFingerprint:'episode-build-wide',edges:[{temporalWindowMs:5000}],nodes:[...episode.nodes,{patternKey:'before-5s|buffs|300|applybuff',abilityId:300,displayName:'Wide Pattern',roleInEpisode:'precursor',disposition:'context-only',specificity:{anchorPrevalence:.8},evidence:{windows:8}}]};
+  const plan=buildMatchedNullBaselinePlanV1({episode:wideEpisode,evidenceRecords:evidence,profiles,config:{controlRadiusMs:2500,maxControls:1,maxControlsPerSource:1,minimumMatchedControls:4,minimumMatchedSources:2}}),control=plan.controls[0],center=control.referenceTimestamp;
+  assert.equal(plan.episodeRadiusMs,5000);
+  assert.equal(plan.config.requestedControlRadiusMs,2500);
+  assert.equal(plan.config.controlRadiusMs,5000);
+  assert.equal(control.windowMs,5000);
+  assert.equal(plan.evidenceContract.controlCoversEpisodeRadius,true);
+  const record=buildMatchedNullControlEvidenceRecordV1(plan,control,{streams:{buffs:[{timestamp:center-4000,type:'applybuff',abilityId:300}]},pagination:{complete:true},rateLimit:null});
+  assert.equal(record.validNull,true);
+  assert.equal(record.streams.buffs.length,1,'a before-5s Episode pattern must remain observable in matched-null evidence');
+  assert.equal(record.streams.buffs[0].abilityId,300);
 });
 
 test('matched null planner replaces a previously contaminated control with the next viable deterministic offset',()=>{
@@ -47,7 +61,7 @@ test('matched null planner replaces a previously contaminated control with the n
 test('matched null preview is network-free, bounded, and refuses legacy unguarded cache',()=>{
   const {evidence,profiles}=syntheticPlanInputs();
   const plan=buildMatchedNullBaselinePlanV1({episode,evidenceRecords:evidence,profiles,config:{maxControls:6,maxControlsPerSource:1}}),legacyCache=[{controlId:plan.controls[0].controlId,pagination:{complete:true},validNull:true,evidenceContract:{}}],preview=buildMatchedNullBaselinePreviewV1({plan,cacheRecords:legacyCache,maxWclCalls:12,maxContinuationRounds:1});
-  assert.equal(preview.executesWcl,false);assert.equal(preview.wclCallsExecuted,0);assert.equal(preview.controlsRemaining,6);assert.equal(preview.completeCacheHits,0);assert.equal(preview.networkUpperBound.preflightCalls,1);assert.equal(preview.networkUpperBound.initialControlCalls,6);assert.equal(preview.executionPolicy.exactFightIDsOnly,true);assert.equal(preview.executionPolicy.wholeReportFallback,false);assert.equal(preview.executionPolicy.targetSignalGuardFetch,true);assert.equal(preview.executionPolicy.innerControlEventsOnly,true);assert.equal(preview.executionPolicy.localFlankBaselineIsPromotionBaseline,false);
+  assert.equal(preview.executesWcl,false);assert.equal(preview.wclCallsExecuted,0);assert.equal(preview.controlsRemaining,6);assert.equal(preview.completeCacheHits,0);assert.equal(preview.networkUpperBound.preflightCalls,1);assert.equal(preview.networkUpperBound.initialControlCalls,6);assert.equal(preview.executionPolicy.exactFightIDsOnly,true);assert.equal(preview.executionPolicy.wholeReportFallback,false);assert.equal(preview.executionPolicy.targetSignalGuardFetch,true);assert.equal(preview.executionPolicy.innerControlEventsOnly,true);assert.equal(preview.executionPolicy.controlCoversEpisodeRadius,true);assert.equal(preview.executionPolicy.localFlankBaselineIsPromotionBaseline,false);
 });
 
 test('guarded evidence rejects a target anchor outside the inner control window without polluting stored pattern events',()=>{
