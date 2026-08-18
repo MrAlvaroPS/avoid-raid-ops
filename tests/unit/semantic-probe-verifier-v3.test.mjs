@@ -69,3 +69,30 @@ test('v3 still refuses all specificity claims when the null baseline is missing'
   assert.equal(result.specificity.status,'background-required');
   assert.equal(result.promotion.automatic,false);
 });
+
+test('v3.1 keeps a specific player-origin neighbor as a context marker instead of a native boss mechanic',()=>{
+  const actorProvenance={abilities:[{
+    abilityId:SPECIFIC,
+    dominantSource:{role:'friendly-player',share:1},
+    dominantTarget:{role:'encounter-boss',share:1},
+  }]};
+  const result=verifySemanticProbeEvidenceV3({signalId:TARGET,sourceEvidence:anchors(),backgroundEvidence:controls(),abilityKnowledge:knowledge,actorProvenance});
+  assert.equal(result.bestPattern.abilityId,SPECIFIC);
+  assert.equal(result.specificity.status,'specificity-supported');
+  assert.equal(result.actorProvenance.status,'player-origin');
+  assert.equal(result.mechanical.status,'player-origin-context-marker');
+  assert.equal(result.selectionDiagnostics.playerOriginCandidates,1);
+  assert.equal(result.promotion.eligible,false);
+});
+
+test('v3.1 encounter-origin provenance can independently support a specific mechanical candidate',()=>{
+  const actorProvenance={abilities:[{
+    abilityId:SPECIFIC,
+    dominantSource:{role:'encounter-boss',share:1},
+    dominantTarget:{role:'friendly-player',share:1},
+  }]};
+  const result=verifySemanticProbeEvidenceV3({signalId:TARGET,sourceEvidence:anchors(),backgroundEvidence:controls(),abilityKnowledge:null,actorProvenance});
+  assert.equal(result.actorProvenance.status,'encounter-origin');
+  assert.equal(result.mechanical.status,'mechanically-supported');
+  assert.equal(result.selectionDiagnostics.encounterOriginCandidates,1);
+});
