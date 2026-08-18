@@ -6,9 +6,12 @@ export const LEGACY_RUNTIME_PATH='public/wcl-runtime.js';
 export const LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER='apps/web/src/features/mechanics/Mechanics.js';
 export const LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER='apps/web/src/features/defensive-audit/DefensiveAudit.js';
 export const LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER='public/mechanics-defensives-fallback-bridge-v4.js';
+export const LEGACY_RUNTIME_MECHANICS_DEFENSIVES_SHADOW_OWNER='public/mechanics-defensives-fallback-bridge-v4.js';
 export const LEGACY_RUNTIME_MECHANICS_FALLBACK_WRITERS=Object.freeze(['applyMechanicsAndDefensives']);
 export const LEGACY_RUNTIME_MECHANICS_WRITERS=Object.freeze(['applyTelemetryMechanics','applyIntelligenceMechanics']);
 export const LEGACY_RUNTIME_DEFENSIVES_WRITERS=Object.freeze(['applyTelemetryDefensives','applyIntelligenceDefensives']);
+export const LEGACY_RUNTIME_MECHANICS_SHADOWED_WRITERS=Object.freeze([...LEGACY_RUNTIME_MECHANICS_WRITERS]);
+export const LEGACY_RUNTIME_DEFENSIVES_SHADOWED_WRITERS=Object.freeze([...LEGACY_RUNTIME_DEFENSIVES_WRITERS]);
 
 export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('shared-dom-formatting','shared-ui','shared-helper','public/wcl-runtime.js','extract-to-browser-shared-module',[
@@ -76,9 +79,12 @@ export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   mechanicsSourceOwner:LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER,
   defensivesSourceOwner:LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,
   mechanicsDefensivesFallbackOwner:LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER,
+  mechanicsDefensivesShadowOwner:LEGACY_RUNTIME_MECHANICS_DEFENSIVES_SHADOW_OWNER,
   mechanicsFallbackWriters:LEGACY_RUNTIME_MECHANICS_FALLBACK_WRITERS,
   mechanicsWriters:LEGACY_RUNTIME_MECHANICS_WRITERS,
   defensivesWriters:LEGACY_RUNTIME_DEFENSIVES_WRITERS,
+  mechanicsShadowedWriters:LEGACY_RUNTIME_MECHANICS_SHADOWED_WRITERS,
+  defensivesShadowedWriters:LEGACY_RUNTIME_DEFENSIVES_SHADOWED_WRITERS,
   progressHistoricalIntercepts:LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,
   progressActiveIntercepts:LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,
   progressPhysicallyRetired:LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,
