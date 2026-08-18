@@ -76,12 +76,14 @@ test('v3.7 deep corpus query captures enemy buffs/debuffs for generic failure-si
   assert.match(CORPUS_DEEP_EVENTS_QUERY,/hostilityType:Enemies/);
 });
 
-test('v3.7 UI exposes learned score, no-cost recompile and live resumeAt countdown',async()=>{
-  const runtime=await readFile(new URL('../../public/wcl-runtime.js',import.meta.url),'utf8');
-  assert.match(runtime,/BOSS LEARNED/);
-  assert.match(runtime,/RECOMPILE · 0 WCL/);
-  assert.match(runtime,/learningComponents/);
-  assert.match(runtime,/corpusCountdown\(status\.resumeAt\)/);
+test('canonical Corpus UI exposes learned score, no-cost recompile and live resumeAt countdown',async()=>{
+  const owner=await readFile(new URL('../../public/encounter-intelligence-v375.js',import.meta.url),'utf8');
+  assert.match(owner,/function learned\(/);
+  assert.match(owner,/learningComponents/);
+  assert.match(owner,/RECOMPILE · 0 WCL/);
+  assert.match(owner,/const resume=num\(status\?\.resumeAt\)/);
+  assert.match(owner,/formatResume\(status\)/);
+  assert.match(owner,/writerPolicy:'single-corpus-writer'/);
   const api=await readFile(new URL('../../routes/api/wcl/corpus.js',import.meta.url),'utf8');
   assert.match(api,/action === 'recompile'/);
   assert.match(api,/recompileCorpusModel/);
