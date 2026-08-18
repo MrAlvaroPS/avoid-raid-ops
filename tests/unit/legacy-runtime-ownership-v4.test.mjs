@@ -32,15 +32,16 @@ test('Progress execution retirement is narrower than interception and precedes s
   assert.match(progress.retirement,/delete-from-legacy-runtime-after-green-browser-regression/);
   assert.deepEqual(progress.functions,LEGACY_RUNTIME_PROGRESS_EXECUTION_RETIRED);
 
-  const source=await read('public/progress-runtime-v3713.js');
-  assert.match(source,/const EXECUTION_RETIRED=Object\.freeze\(\['applyProgressPage','applyRealProgressMatrix'\]\)/);
-  assert.match(source,/const ACTIVE_ONLY_INTERCEPTED=Object\.freeze\(\['applyProgressCurve','applyHistoryData'\]\)/);
-  assert.match(source,/if\(executionRetired\|\|active\(\)\)return/);
-  assert.match(source,/for\(const fn of EXECUTION_RETIRED\)wrap\(fn,true\)/);
-  assert.match(source,/for\(const fn of ACTIVE_ONLY_INTERCEPTED\)wrap\(fn,false\)/);
-  assert.match(source,/migrationPolicy:'execution-retire-shadowed-progress-writers-before-source-deletion'/);
+  const [guard,source]=await Promise.all([read('public/progress-legacy-retirement-v4.js'),read('public/progress-runtime-v3713.js')]);
+  assert.match(guard,/const EXECUTION_RETIRED=Object\.freeze\(\['applyProgressPage','applyRealProgressMatrix'\]\)/);
+  assert.doesNotMatch(guard,/applyProgressCurve|applyHistoryData/,'guard may not disable shared Command Center behavior');
+  assert.match(guard,/retired\.__avoidExecutionRetired=true/);
+  assert.match(guard,/retired\.__irisProgressOwner=true/,'canonical Progress wrapper must skip already hard-retired writers');
+  assert.match(guard,/temporary-guard-until-physical-source-deletion/);
+  assert.match(source,/for\(const fn of \['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix'\]\)wrap\(fn\)/,'historical canonical owner remains byte-stable and keeps shared active-only interception');
+  assert.match(source,/if\(active\(\)\)return/);
   assert.match(source,/setInterval\(\(\)=>renderFull\(false\),750\)/,'canonical Progress owner must repaint independently of legacy writer execution');
-  assert.match(source,/&quot;/,'HTML escaping contract must retain a terminated quote entity');
+  assert.match(source,/&quot;/,'historical HTML escaping contract remains intact');
 });
 
 test('applyProgressCurve stays shared until Command Center is extracted from the compatibility monolith',()=>{
