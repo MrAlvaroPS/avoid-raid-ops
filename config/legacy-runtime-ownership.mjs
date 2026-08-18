@@ -19,9 +19,6 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('damage-healing','damage-healing','compatibility-writer','public/wcl-runtime.js','move-to-damage-healing-source-owner',[
     'applyDamageHealing','applyTelemetryDamageHealing',
   ]),
-  responsibility('players-presentation-shadow','players','compatibility-shadowed-writer','public/player-intelligence-v392.js','remove-after-shadow-validation',[
-    'applyPlayers','applyTelemetryPlayers',
-  ]),
   responsibility('players-data-bridge','players','compatibility-support','public/player-intelligence-v392.js','extract-shared-player-data-helpers',[
     'telemetryPlayerNameMap','roleLabel','playerOutput','reliabilityValue','reliabilityText','reliabilityMeta',
   ]),
@@ -50,9 +47,9 @@ export const LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS=Object.freeze([]);
 export const LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED=Object.freeze(['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix','neutralizeMissingHistory']);
 
 export const LEGACY_RUNTIME_PLAYERS_HISTORICAL_WRITERS=Object.freeze(['applyPlayers','applyTelemetryPlayers']);
-export const LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS=Object.freeze(['applyPlayers','applyTelemetryPlayers']);
-export const LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS=Object.freeze(['applyPlayers','applyTelemetryPlayers']);
-export const LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED=Object.freeze([]);
+export const LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS=Object.freeze([]);
+export const LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS=Object.freeze([]);
+export const LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED=Object.freeze(['applyPlayers','applyTelemetryPlayers']);
 
 export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   version:LEGACY_RUNTIME_OWNERSHIP_VERSION,
