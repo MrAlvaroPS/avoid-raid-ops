@@ -7,13 +7,18 @@ import {
   LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,
   LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,
   LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,
+  LEGACY_RUNTIME_PLAYERS_HISTORICAL_WRITERS,
+  LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS,
+  LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS,
+  LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED,
 } from '../config/legacy-runtime-ownership.mjs';
 
 const root=new URL('../',import.meta.url);
-const [legacy,progress,commandBridge]=await Promise.all([
+const [legacy,progress,commandBridge,players]=await Promise.all([
   readFile(new URL(LEGACY_RUNTIME_PATH,root),'utf8'),
   readFile(new URL('public/progress-runtime-v3713.js',root),'utf8'),
   readFile(new URL('public/command-center-history-bridge-v4.js',root),'utf8'),
+  readFile(new URL('public/player-intelligence-v392.js',root),'utf8'),
 ]);
 const fail=[];
 const expect=(condition,message)=>{if(!condition)fail.push(message)};
@@ -45,11 +50,14 @@ expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='progress-compati
 const legacyAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
 const commandBridgeAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
 const progressAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='progress-runtime');
+const playersAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='player-intelligence');
 expect(legacyAsset?.authority==='compatibility','wcl-runtime.js must remain compatibility-only in active asset ownership');
 expect(commandBridgeAsset?.authority==='migration-bridge'&&commandBridgeAsset?.owner==='command-center','Command Center bridge must remain an explicit migration-only owner');
 expect(progressAsset?.authority==='primary'&&progressAsset?.owner==='progress','Progress runtime must remain the primary Progress owner');
+expect(playersAsset?.authority==='primary'&&playersAsset?.owner==='players','Player Intelligence runtime must remain the primary Players owner');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(commandBridgeAsset),'Command Center bridge must load after the compatibility runtime call sites');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(commandBridgeAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Command Center bridge must load before Progress installs its historical active-screen guards');
+expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(playersAsset),'canonical Players owner must load after the compatibility runtime so it can shadow historical globals');
 expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),'temporary Progress retirement guard must not return');
 
 const retiredProgressNames=['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix','neutralizeMissingHistory'];
@@ -65,6 +73,27 @@ expect(/const wrapped=function\(\.\.\.args\)\{if\(active\(\)\)return;return lega
 expect(/writerPolicy:'single-progress-writer'/.test(progress),'Progress owner must retain single-writer policy');
 expect(/setInterval\(\(\)=>renderFull\(false\),750\)/.test(progress),'canonical Progress owner must repaint independently of legacy writer execution');
 expect(/&quot;/.test(progress),'historical Progress runtime HTML escaping must remain intact');
+
+const historicalPlayers=['applyPlayers','applyTelemetryPlayers'];
+expect(JSON.stringify(LEGACY_RUNTIME_PLAYERS_HISTORICAL_WRITERS)===JSON.stringify(historicalPlayers),'historical Players writer inventory changed unexpectedly');
+expect(JSON.stringify(LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS)===JSON.stringify(historicalPlayers),'both Players legacy writers must remain physically present during the shadow checkpoint');
+expect(JSON.stringify(LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS)===JSON.stringify(historicalPlayers),'both Players legacy writers must be shadowed by the canonical owner');
+expect(JSON.stringify(LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED)===JSON.stringify([]),'Players writers may not be marked physically retired before the green shadow checkpoint');
+for(const fn of LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS){
+  expect(new RegExp(`function\\s+${fn}\\s*\\(`).test(legacy),`${fn} must remain physically present during Players shadow validation`);
+  expect(new RegExp(`['\"]${fn}['\"]`).test(players),`canonical Players owner must retain historical writer knowledge for ${fn}`);
+}
+const playersPresentation=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='players-presentation-shadow');
+const playersBridge=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='players-data-bridge');
+expect(playersPresentation?.status==='compatibility-shadowed-writer','Players presentation writers must be explicitly classified as shadowed');
+expect(playersPresentation?.canonicalOwner==='public/player-intelligence-v392.js','Players presentation must point to the canonical dossier owner');
+expect(playersBridge?.status==='compatibility-support'&&playersBridge?.functions.includes('playerOutput'),'shared Players data/helper bridge must remain active during presentation retirement');
+expect(/window\.__AVOID_PLAYER_INTELLIGENCE_OWNER__=PLAYER_OWNER/.test(players),'canonical Players owner must publish explicit ownership metadata');
+expect(/writerPolicy:'single-player-writer'/.test(players),'canonical Players owner must declare single-writer policy');
+expect(/function shadowLegacyPlayerWriter\(name\)/.test(players),'canonical Players owner must install an active-screen legacy shadow');
+expect(/if\(isPage\(\)\)return;return legacy\.apply\(this,args\)/.test(players),'Players shadow must suppress legacy presentation only on the active Players screen and delegate elsewhere');
+expect((players.match(/setInterval\s*\(/g)||[]).length===1&&/setInterval\(\(\)=>render\(\),750\)/.test(players),'Players shadow must add no polling beyond the existing 750ms canonical repaint');
+expect(!/MutationObserver|fetch\s*\(/.test(players),'Players shadow may not add observers or direct network requests');
 
 expect((legacy.match(/window\.applyProgressCurve\?\.\(\)/g)||[]).length===1,'Command Center must call the extracted curve through exactly one optional global bridge binding');
 expect((legacy.match(/window\.applyHistoryData\?\.\(\)/g)||[]).length===1,'supplemental orchestration must call extracted history through exactly one optional global bridge binding');
@@ -103,6 +132,7 @@ console.log('LEGACY RUNTIME OWNERSHIP VERIFICATION: PASS');
 console.log(` - ${declared.length} active function declarations are explicitly classified; 0 unowned`);
 console.log(` - ${LEGACY_RUNTIME_RESPONSIBILITIES.length} active responsibilities have named domains and retirement paths`);
 console.log(` - ${LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED.length} historical Progress compatibility targets are physically absent from wcl-runtime.js`);
+console.log(` - ${LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS.length} historical Players presentation writers are shadowed on the active Players screen`);
 console.log(' - Command Center owns extracted progression-curve and cross-night history bindings through one passive bridge');
 console.log(' - missing-History presentation is now exclusively owned by canonical Progress; the legacy body and call are physically absent');
 console.log(` - status distribution ${JSON.stringify(statusCounts)}`);
