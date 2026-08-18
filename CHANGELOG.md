@@ -17,9 +17,9 @@ All meaningful product changes are recorded here. Git history remains the detail
 - Detached Golden, Data Truth and unit/regression verification from `deploy-preview/`; active verification now targets the Vercel/runtime asset tree.
 - Promoted Golden, architecture, reconstruction and browser Data Truth checks into the normal CI gate and pinned the browser verifier dependency for reproducibility.
 - Fixed a Linux case-sensitive Golden reconstruction check by falling back to the immutable Golden bundle when a historical extracted symbol collides by case.
-- Reconciled the legacy WCL runtime ownership audit into the canonical refactor branch. Every legacy writer/helper now has an explicit domain, owner and retirement state; `applyProgressCurve` remains intentionally shared because Command Center still consumes it.
+- Reconciled the legacy WCL runtime ownership audit into the canonical refactor branch. Every legacy writer/helper now has an explicit domain, owner and retirement state.
 - Established one active-asset manifest and one generated compatibility CSS transport while retaining the reviewed historical CSS source layers for visual-equivalence verification.
-- Began physical legacy-runtime decomposition with a passive Command Center history ownership bridge. The bridge consumes the already-loaded shared History payload, owns only Command Center `What changed?`, adds no network request/timer/observer, and shadows the mixed legacy `applyHistoryData` binding before the canonical Progress owner installs its active-screen guard. The old mixed function body remains temporarily present until this checkpoint is fully validated and explicit deletion is approved.
+- Began physical legacy-runtime decomposition with one passive Command Center bridge. It consumes the already-loaded report and History payloads, owns only Command Center `What changed?` plus the Command Center progression curve, adds no network request/timer/observer/animation loop, and shadows the mixed legacy `applyHistoryData` and `applyProgressCurve` bindings before the canonical Progress owner installs its active-screen guards. Both old function bodies remain temporarily present only for the validated shadow checkpoint; their physical deletion requires explicit approval.
 
 ### Mainline integration — v3.9.0 to v3.9.2
 
