@@ -2,7 +2,8 @@
 
 **Release:** v3.9.9  
 **Model:** `official-encounter-knowledge-v1`  
-**Graph schema:** `official-encounter-semantic-graph-v1`
+**Graph schema:** `official-encounter-semantic-graph-v1`  
+**Parent doctrine:** [`IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1.md`](./IRIS-KNOWLEDGE-EVIDENCE-DOCTRINE-V1.md)
 
 ## Purpose
 
@@ -19,6 +20,16 @@ encounter
 ```
 
 This graph is a semantic prior for raid analysis. It does **not** replace Warcraft Logs as the empirical record of what actually happened in a pull.
+
+The operating order is deliberately:
+
+```text
+1. reuse current persisted Blizzard graph when possible
+2. refresh Blizzard if the static semantic model is missing/stale/build-changed
+3. use WCL only for the remaining empirical combat question
+```
+
+That order protects WCL budget and reduces false semantic neighbors without weakening any empirical gate.
 
 ## Source roles
 
@@ -116,6 +127,23 @@ GET /api/knowledge/encounter?action=latest&journalEncounterId={id}
 A latest lookup executes 0 WCL calls and 0 provider calls.
 
 Every persisted revision records the previous fingerprint and whether the newly fetched graph changed. A future refresh can therefore detect an official Blizzard change and rederive affected interpretations without rewriting historical WCL evidence.
+
+## Refresh rule
+
+A new patch/build or suspected encounter hotfix should trigger the following decision path:
+
+```text
+current persisted official graph
+        ↓
+compare provider namespace/build/fingerprint after bounded refresh
+        ↓
+unchanged -> keep using existing derived interpretation
+changed   -> persist new immutable revision
+             + diff/reconcile affected spell/mechanic paths
+             + mark dependent derived interpretation for re-evaluation
+```
+
+A refresh never rewrites old WCL events. If Blizzard changes IDs, hierarchy, wording or mechanic behavior, Iris versions the semantic input rather than pretending the encounter has always had the new structure.
 
 ## Graph model
 
@@ -220,11 +248,11 @@ A 403/404 from `/data/wow/spell/{id}` never means that an ability is not part of
 The updated learning direction is:
 
 ```text
-Acquisition
+Official encounter knowledge reuse / bounded refresh
+  -> Canonical WCL acquisition or persisted-evidence reuse
   -> Signal discovery
   -> Origin triage
-  -> Local mechanic synthesis
-  -> Official encounter knowledge resolution / stored reconciliation
+  -> Local mechanic synthesis + official reconciliation
   -> Semantic evidence planning
   -> Surgical semantic probe
   -> Specificity verification
@@ -233,6 +261,7 @@ Acquisition
   -> Episode Graph
   -> Matched Null
   -> later promotion gates
+  -> AvoiD application/evaluation
 ```
 
 Official knowledge should reduce unnecessary WCL spend and reduce false semantic neighbors. It does not weaken empirical gates.
@@ -251,10 +280,38 @@ promote a mechanic automatically
 
 The DB2/Wago structural provider is not claimed as integrated until its own reviewed source/provider contract and ingestion path exist.
 
+## AvoiD application
+
+The official graph becomes most useful when combined with our own WCL data:
+
+```text
+Blizzard official mechanic/spell path
+        +
+AvoiD observed casts/auras/damage/actors/timing/outcomes
+        +
+versioned Iris evaluation rules
+        ↓
+raid-specific execution diagnosis
+        ↓
+comparison across pulls / assignments / players
+        ↓
+1–3 next-pull actions
+```
+
+Official semantics explain what the mechanic is. WCL proves what AvoiD actually did. Iris must never reverse those roles.
+
 ## Belo'ren validation fixture
 
 Belo'ren is a validation encounter, not a code special case.
 
 A real Blizzard Journal query for the current build produced a multi-level encounter tree with dozens of spell-bearing sections. It independently places `Void Feather` and `Voidlight Rupture` under different first-stage mechanic branches. That is exactly the kind of official semantic separation that can explain why two abilities may co-occur in WCL while failing a matched-specificity gate.
+
+The lesson retained by the doctrine is not those two specific spell IDs. It is the procedure:
+
+```text
+WCL co-occurrence -> observed proximity
+Matched Null      -> empirical specificity check
+Blizzard Journal  -> official semantic branch
+```
 
 Boss-specific IDs may appear in documentation/tests as fixtures, but never in generic learning logic.
