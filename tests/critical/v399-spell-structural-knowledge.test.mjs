@@ -42,6 +42,18 @@ test('CRITICAL v3.9.9 STRUCTURAL EVIDENCE: DB2 relation never becomes combat tru
   assert.match(doc,/automaticPromotion = false/);
 });
 
+test('CRITICAL v3.9.9 STRUCTURAL PERSISTENCE: latest accumulates only within one exact build and preserves immutable request/aggregate revisions',async()=>{
+  const [store,doc]=await Promise.all([read('server/knowledge/spell-structural-store-v1.mjs'),read('docs/IRIS-SPELL-STRUCTURAL-KNOWLEDGE-V1.md')]);
+  assert.match(store,/SPELL_STRUCTURAL_STORE_VERSION='spell-structural-store-v2'/);
+  assert.match(store,/sameBuild=previous\?\.provider\?\.build===build/);
+  assert.match(store,/aggregate-revisions/);
+  assert.match(store,/request-revision/);
+  assert.match(store,/resetForNewBuild/);
+  assert.match(store,/A later failure must not erase a previously successful coverage proof/);
+  assert.match(doc,/cumulative \*\*within one exact client build\*\*/i);
+  assert.match(doc,/new latest snapshot starts from the new build/i);
+});
+
 test('CRITICAL v3.9.9 STRUCTURAL API: preview/latest remain zero-network and resolve stays explicit/fingerprinted',async()=>{
   const service=await read('server/services/spell-structural-knowledge-service.mjs');
   assert.match(service,/action:'preview',networkExecuted:false,preview/);
