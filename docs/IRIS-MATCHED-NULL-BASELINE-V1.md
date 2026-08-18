@@ -47,17 +47,23 @@ No synthetic phase is invented when phase data is absent.
 Default policy:
 
 ```text
-control radius             2500 ms
-episode guard              2500 ms
-offset candidates          ±12s, ±18s, ±24s, ±30s
-max controls               10
-max controls per source     2
-max normalized fight delta  0.20
-minimum controls             6
-minimum matched sources      3
+requested control radius     2500 ms
+episode guard                2500 ms
+offset candidates            ±12s, ±18s, ±24s, ±30s
+max controls                 10
+max controls per source       2
+max normalized fight delta    0.20
+minimum controls               6
+minimum matched sources        3
 ```
 
-The Episode temporal radius is added to the control radius and guard when excluding target-anchor neighborhoods.
+The effective inner control radius is always **at least the Episode temporal radius**. A `before-5s` or `after-5s` Episode pattern must therefore remain observable in its matched-null window; a 2.5 s control may never manufacture zero background prevalence for a 5 s pattern.
+
+```text
+effectiveControlRadius = max(requestedControlRadius, episodeTemporalRadius)
+```
+
+The Episode temporal radius is also added to the effective control radius and guard when excluding target-anchor neighborhoods.
 
 A control is rejected by the planner when it:
 
@@ -71,7 +77,7 @@ A control is rejected by the planner when it:
 
 ### Full guard contamination validation
 
-The zero-WCL planner only knows target anchors that have already been persisted. That is not enough to prove a control is truly null because an unobserved occurrence of the target signal could sit just outside the inner ±2.5 s control while still placing that control inside the same Episode neighborhood.
+The zero-WCL planner only knows target anchors that have already been persisted. That is not enough to prove a control is truly null because an unobserved occurrence of the target signal could sit just outside the inner control while still placing that control inside the same Episode neighborhood.
 
 Execution therefore queries the **full Episode exclusion guard** around each selected control center. If the target signal is observed anywhere inside that guard, the control is persisted as contaminated and does **not** count toward the baseline.
 
