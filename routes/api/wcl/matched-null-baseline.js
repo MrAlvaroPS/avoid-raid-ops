@@ -39,7 +39,7 @@ async function context(input){
     config:{
       controlRadiusMs:input.controlRadiusMs,
       episodeGuardMs:input.episodeGuardMs,
-      candidateOffsetsMs:input.candidateOffsetsMs,
+      candidateOffsetMagnitudesMs:input.candidateOffsetMagnitudesMs,
       maxControls:input.maxControls,
       maxControlsPerSource:input.maxControlsPerSource,
       maxNormalizedFightDistance:input.maxNormalizedFightDistance,
@@ -75,18 +75,15 @@ export default defineHandler(async event=>{
       const preview=await previewFor(ctx,input);
       return json({ok:true,apiVersion:API_VERSION,networkExecuted:false,wclCallsExecuted:0,preview});
     }
-
     if(action==='evaluate'){
       const cacheRecords=await loadMatchedNullCacheV1({plan:ctx.plan}),evaluation=evaluateMatchedNullBaselineV1({episode:ctx.episode,controlRecords:cacheRecords,config:ctx.plan.config});
       return json({ok:true,apiVersion:API_VERSION,networkExecuted:false,wclCallsExecuted:0,evaluation});
     }
-
     if(action==='result'){
       const previewFingerprint=String(body.previewFingerprint||body.fingerprint||'').trim();if(!previewFingerprint)return json({ok:false,error:'previewFingerprint is required for result'},400);
       const result=await corpusGet(matchedNullRunKey(ctx.plan,previewFingerprint));
       return json({ok:Boolean(result),apiVersion:API_VERSION,networkExecuted:false,wclCallsExecuted:0,result},result?200:404);
     }
-
     if(action!=='execute')return json({ok:false,error:`Unsupported action: ${action}`},400);
     if(body.confirmExecution!==true)return json({ok:false,error:'confirmExecution:true is required; no WCL call was made',wclCallsExecuted:0},400);
     const preview=await previewFor(ctx,input),supplied=String(body.previewFingerprint||body.fingerprint||'');
