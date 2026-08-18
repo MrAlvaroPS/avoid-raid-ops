@@ -24,13 +24,15 @@ test('successful keyed Lorrgs boss catalogue distinguishes tracked marker from w
     encounterId:9876,
     bossSlug:'synthetic-boss',
     providers:{lorrgs:true,parseWowhead:false,wcl:false},
-  },{fetcher});
+  },{fetcher,officialGraph:null});
 
   assert.equal(result.providers.lorrgs.bossCatalogResolved,true);
   assert.equal(result.providers.lorrgs.catalogSemantics,'curated-boss-timeline-markers-not-exhaustive');
   assert.equal(result.usage.lorrgsBossCatalogResolved,true);
   assert.equal(result.usage.lorrgsCallsAttempted,2);
   assert.equal(result.usage.lorrgsCallsSucceeded,1);
+  assert.equal(result.usage.officialJournalReadsAttempted,0);
+  assert.equal(result.usage.officialJournalInjected,true);
 
   const listed=result.abilities.find(row=>row.abilityId===700001);
   assert.equal(listed.encounterAssociation.status,'supported');
@@ -59,9 +61,45 @@ test('failed boss catalogue remains unknown rather than claiming absence',async(
   };
   const result=await resolveAbilityKnowledgeV1({
     abilityIds:[700003],encounterId:9876,bossSlug:'synthetic-boss',providers:{lorrgs:true,parseWowhead:false,wcl:false},
-  },{fetcher});
+  },{fetcher,officialGraph:null});
   const row=result.abilities[0];
   assert.equal(result.providers.lorrgs.bossCatalogResolved,false);
   assert.equal(row.encounterAssociation.status,'unknown');
   assert.equal(row.providerSignals.lorrgs.status,'not-requested-or-unresolved');
+});
+
+test('injected official Journal graph enriches ability semantics without provider network or promotion',async()=>{
+  const officialGraph={
+    fingerprint:'0123456789abcdef0123456789abcdef01234567',
+    source:{namespace:'static-99.9.9_12345-eu'},
+    encounter:{journalEncounterId:9001,wclEncounterId:9876,name:'Synthetic Boss'},
+    abilities:[{
+      abilityId:700004,
+      name:'Official Mechanic',
+      officialEncounterAssociation:true,
+      memberships:[{sectionId:44,title:'Official Mechanic',structuralRole:'mechanic',path:['Stage One','Official Mechanic']}],
+    }],
+  };
+  const result=await resolveAbilityKnowledgeV1({
+    abilityIds:[700004,700005],encounterId:9876,providers:{lorrgs:false,parseWowhead:false,wcl:false},
+  },{officialGraph});
+
+  assert.equal(result.usage.officialJournalReadsAttempted,0);
+  assert.equal(result.usage.officialJournalCacheHit,true);
+  assert.equal(result.providers.blizzardJournal.networkRequested,false);
+  assert.equal(result.providers.blizzardJournal.journalEncounterId,9001);
+
+  const listed=result.abilities.find(row=>row.abilityId===700004);
+  assert.equal(listed.semanticClass,'official-encounter-ability');
+  assert.equal(listed.encounterAssociation.status,'supported');
+  assert.equal(listed.providerSignals.blizzardJournal.status,'resolved');
+  assert.equal(listed.providerSignals.blizzardJournal.memberships[0].path[1],'Official Mechanic');
+  assert.equal(listed.interpretation.officialEncounterMembership,true);
+  assert.equal(listed.interpretation.canonicalCombatEvidence,false);
+  assert.equal(listed.interpretation.promotionEligible,false);
+  assert.equal(listed.interpretation.automaticPromotion,false);
+
+  const absent=result.abilities.find(row=>row.abilityId===700005);
+  assert.equal(absent.providerSignals.blizzardJournal.status,'not-listed-in-journal');
+  assert.equal(absent.providerSignals.blizzardJournal.negativeEvidence,false);
 });
