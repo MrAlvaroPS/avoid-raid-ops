@@ -19,7 +19,7 @@ const declared=[...legacy.matchAll(/(?:^|\n)\s*(?:async\s+)?function\s+([A-Za-z_
 const declaredSet=new Set(declared);
 const classified=new Map();
 
-expect(LEGACY_RUNTIME_OWNERSHIP_VERSION==='legacy-runtime-ownership-v1','legacy runtime ownership version must stay explicit');
+expect(LEGACY_RUNTIME_OWNERSHIP_VERSION==='legacy-runtime-ownership-v2','legacy runtime ownership version must stay explicit');
 expect(declared.length===declaredSet.size,'wcl-runtime.js contains duplicate function declarations');
 
 for(const responsibility of LEGACY_RUNTIME_RESPONSIBILITIES){
@@ -58,6 +58,16 @@ expect(curveEntry?.status==='shared-compatibility-helper','applyProgressCurve is
 expect(curveEntry?.canonicalOwner==='public/wcl-runtime.js','applyProgressCurve must stay owned by compatibility runtime until its Command Center use is extracted');
 expect((legacy.match(/applyProgressCurve\s*\(\s*\)/g)||[]).length>=2,'applyProgressCurve no longer has the known cross-screen call pattern; review ownership before changing it');
 
+const historyEntry=classified.get('applyHistoryData');
+expect(historyEntry?.id==='shared-history-writer','applyHistoryData must remain classified as shared until its Command Center branch is split');
+expect(historyEntry?.status==='shared-compatibility-writer','applyHistoryData is not currently safe Progress-only dead code');
+expect(!LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES.includes('applyHistoryData'),'applyHistoryData cannot be a physical-retirement candidate while Command Center consumes it');
+const historyStart=legacy.indexOf('function applyHistoryData()');
+const historyEnd=legacy.indexOf('\nfunction applyLiveStatus',historyStart);
+const historyBody=historyStart>=0&&historyEnd>historyStart?legacy.slice(historyStart,historyEnd):'';
+expect(/Are we actually getting better\?/.test(historyBody),'applyHistoryData known Progress branch disappeared; review ownership');
+expect(/findOwnText\("Command Center"\)/.test(historyBody),'applyHistoryData known Command Center branch disappeared; review ownership');
+
 const applyAll=classified.get('applyAll');
 expect(applyAll?.status==='compatibility-orchestrator','applyAll must stay classified as orchestration, not a product-domain owner');
 for(const forbidden of ['primary','canonical'])expect(!applyAll?.status.includes(forbidden),`applyAll may not become ${forbidden} ownership`);
@@ -74,4 +84,5 @@ console.log(` - ${declared.length} function declarations are explicitly classifi
 console.log(` - ${LEGACY_RUNTIME_RESPONSIBILITIES.length} responsibilities have named domains and retirement paths`);
 console.log(` - Progress intercepts ${LEGACY_RUNTIME_PROGRESS_INTERCEPTED.length} legacy functions but only ${LEGACY_RUNTIME_PROGRESS_RETIREMENT_CANDIDATES.length} are currently physical-retirement candidates`);
 console.log(' - applyProgressCurve remains shared with Command Center and cannot be removed as Progress-only code');
+console.log(' - applyHistoryData also remains shared until its Command Center history writer is split');
 console.log(` - status distribution ${JSON.stringify(statusCounts)}`);
