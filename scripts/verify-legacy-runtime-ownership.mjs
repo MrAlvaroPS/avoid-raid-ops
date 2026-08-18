@@ -11,14 +11,20 @@ import {
   LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS,
   LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS,
   LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED,
+  LEGACY_RUNTIME_CORPUS_HISTORICAL_WRITERS,
+  LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS,
+  LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS,
+  LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED,
 } from '../config/legacy-runtime-ownership.mjs';
 
 const root=new URL('../',import.meta.url);
-const [legacy,progress,commandBridge,players]=await Promise.all([
+const [legacy,progress,commandBridge,players,encounter,corpusGuard]=await Promise.all([
   readFile(new URL(LEGACY_RUNTIME_PATH,root),'utf8'),
   readFile(new URL('public/progress-runtime-v3713.js',root),'utf8'),
   readFile(new URL('public/command-center-history-bridge-v4.js',root),'utf8'),
   readFile(new URL('public/player-intelligence-v392.js',root),'utf8'),
+  readFile(new URL('public/encounter-intelligence-v375.js',root),'utf8'),
+  readFile(new URL('public/corpus-ui-stability-v1.js',root),'utf8'),
 ]);
 const fail=[];
 const expect=(condition,message)=>{if(!condition)fail.push(message)};
@@ -27,7 +33,7 @@ const declaredSet=new Set(declared);
 const classified=new Map();
 
 expect(LEGACY_RUNTIME_OWNERSHIP_VERSION==='legacy-runtime-ownership-v4','legacy runtime ownership version must stay explicit');
-expect(declared.length===75,`wcl-runtime.js must contain exactly 75 active function declarations after Progress and Players presentation retirement; found ${declared.length}`);
+expect(declared.length===75,`wcl-runtime.js must contain exactly 75 active function declarations after Progress and Players presentation retirement; Corpus remains in shadow validation; found ${declared.length}`);
 expect(declared.length===declaredSet.size,'wcl-runtime.js contains duplicate function declarations');
 
 for(const responsibility of LEGACY_RUNTIME_RESPONSIBILITIES){
@@ -50,13 +56,19 @@ expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='players-presenta
 
 const legacyAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
 const commandBridgeAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
+const encounterAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='encounter-intelligence');
+const corpusGuardAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='corpus-ui-stability');
 const progressAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='progress-runtime');
 const playersAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='player-intelligence');
 expect(legacyAsset?.authority==='compatibility','wcl-runtime.js must remain compatibility-only in active asset ownership');
 expect(commandBridgeAsset?.authority==='migration-bridge'&&commandBridgeAsset?.owner==='command-center','Command Center bridge must remain an explicit migration-only owner');
+expect(encounterAsset?.authority==='primary'&&encounterAsset?.owner==='mechanics-corpus','Encounter Intelligence must remain the primary Mechanics/Corpus owner');
+expect(corpusGuardAsset?.authority==='guard','Corpus stability runtime must remain an explicit guard during this checkpoint');
 expect(progressAsset?.authority==='primary'&&progressAsset?.owner==='progress','Progress runtime must remain the primary Progress owner');
 expect(playersAsset?.authority==='primary'&&playersAsset?.owner==='players','Player Intelligence runtime must remain the primary Players owner');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(commandBridgeAsset),'Command Center bridge must load after the compatibility runtime call sites');
+expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(encounterAsset),'canonical Corpus owner must load after the legacy writer so it can shadow the historical global');
+expect(ACTIVE_LOCAL_SCRIPTS.indexOf(encounterAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(corpusGuardAsset),'Corpus stability guard must wrap the already-installed canonical shadow during validation');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(commandBridgeAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Command Center bridge must load before Progress installs its historical active-screen guards');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(playersAsset),'canonical Players owner must load after the compatibility runtime and consume its shared data/helper bridge');
 expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),'temporary Progress retirement guard must not return');
@@ -94,6 +106,32 @@ expect(/writerPolicy:'single-player-writer'/.test(players),'canonical Players ow
 expect(/function shadowLegacyPlayerWriter\(name\)/.test(players),'canonical Players owner may retain passive historical interception knowledge during migration');
 expect((players.match(/setInterval\s*\(/g)||[]).length===1&&/setInterval\(\(\)=>render\(\),750\)/.test(players),'Players retirement must add no polling beyond the existing 750ms canonical repaint');
 expect(!/MutationObserver|fetch\s*\(/.test(players),'Players canonical owner may not add observers or direct network requests');
+
+const historicalCorpus=['applyCorpusWorkbench'];
+expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_HISTORICAL_WRITERS)===JSON.stringify(historicalCorpus),'historical Corpus writer inventory changed unexpectedly');
+expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS)===JSON.stringify(historicalCorpus),'legacy Corpus writer must remain physically present during the shadow checkpoint');
+expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS)===JSON.stringify(historicalCorpus),'legacy Corpus writer must be explicitly shadowed on Mechanics');
+expect(JSON.stringify(LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED)===JSON.stringify([]),'Corpus presentation may not be marked physically retired before the green shadow checkpoint');
+expect(/function\s+applyCorpusWorkbench\s*\(/.test(legacy),'legacy applyCorpusWorkbench must remain physically present during validation');
+expect((legacy.match(/applyCorpusWorkbench\s*\(\s*\)\s*;/g)||[]).length===1,'legacy orchestration must retain exactly one intercepted applyCorpusWorkbench call during shadow validation');
+const corpusPresentation=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-presentation-shadow');
+const corpusBridge=LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='corpus-workflow-bridge');
+expect(corpusPresentation?.status==='compatibility-shadowed-writer'&&corpusPresentation?.canonicalOwner==='public/encounter-intelligence-v375.js','Corpus presentation must be classified as shadowed by Encounter Intelligence');
+expect(JSON.stringify(corpusPresentation?.functions)===JSON.stringify(historicalCorpus),'Corpus presentation responsibility must contain only the historical writer');
+expect(corpusBridge?.status==='compatibility-support'&&corpusBridge?.functions.includes('pollCorpus')&&corpusBridge?.functions.includes('corpusRequest'),'legacy Corpus workflow helpers must remain classified separately during presentation validation');
+expect(/function ensureCorpusPanel\(\)/.test(encounter),'canonical Encounter owner must be able to create the Corpus card without the legacy renderer');
+expect(/catalogue\.insertAdjacentElement\('beforebegin',panel\)/.test(encounter),'canonical Corpus card must retain the legacy placement immediately before the mechanic catalogue');
+expect(/dataset\.avoidCorpusOwner='encounter-intelligence-v375'/.test(encounter),'canonical card must publish explicit DOM ownership');
+expect(/function shadowLegacyCorpusWriter\(\)/.test(encounter),'Encounter owner must install a dedicated legacy Corpus presentation shadow');
+expect(/if\(mechanicsPage\(\)\)\{ensureCorpusPanel\(\);return;\}return legacy\.apply\(this,args\);/.test(encounter),'Corpus shadow must suppress legacy presentation only on Mechanics and delegate elsewhere');
+expect(/window\.__AVOID_ENCOUNTER_CORPUS_OWNER__=Object\.freeze/.test(encounter),'Encounter owner must publish explicit Corpus ownership metadata');
+expect(/writerPolicy:'single-corpus-writer'/.test(encounter),'Encounter owner must declare the single-Corpus-writer policy');
+expect(/legacyRendererPolicy:'shadow-on-mechanics-delegate-elsewhere'/.test(encounter),'Corpus owner must record its scoped migration interception policy');
+expect((encounter.match(/setInterval\s*\(/g)||[]).length===1&&/setInterval\(\(\)=>tick\(false\),1500\)/.test(encounter),'Corpus shadow must add no polling beyond the existing Encounter 1500ms loop');
+expect((encounter.match(/\bfetch\s*\(/g)||[]).length===2,'Corpus shadow must add zero request call sites beyond the two existing Encounter Corpus fetch paths');
+expect(!/MutationObserver/.test(encounter),'Corpus shadow may not add mutation observers');
+expect(/const nativeCorpusRenderer = window\.applyCorpusWorkbench/.test(corpusGuard),'existing Corpus stability guard must remain in place for the shadow checkpoint');
+expect(/legacyPollingRendererSuppressed: true/.test(corpusGuard),'Corpus stability guard must continue declaring legacy renderer suppression');
 
 expect((legacy.match(/window\.applyProgressCurve\?\.\(\)/g)||[]).length===1,'Command Center must call the extracted curve through exactly one optional global bridge binding');
 expect((legacy.match(/window\.applyHistoryData\?\.\(\)/g)||[]).length===1,'supplemental orchestration must call extracted history through exactly one optional global bridge binding');
@@ -133,6 +171,8 @@ console.log(` - ${declared.length} active function declarations are explicitly c
 console.log(` - ${LEGACY_RUNTIME_RESPONSIBILITIES.length} active responsibilities have named domains and retirement paths`);
 console.log(` - ${LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED.length} historical Progress compatibility targets are physically absent from wcl-runtime.js`);
 console.log(` - ${LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED.length} historical Players presentation writers are physically absent from wcl-runtime.js`);
+console.log(` - ${LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS.length} historical Corpus presentation writer is shadowed on Mechanics while remaining physically present`);
+console.log(' - canonical Encounter Intelligence can create/place the Corpus card and retains the existing 1500ms polling owner');
 console.log(' - shared Players data/helper bridge remains active for the canonical dossier owner');
 console.log(' - Command Center owns extracted progression-curve and cross-night history bindings through one passive bridge');
 console.log(' - missing-History presentation is now exclusively owned by canonical Progress; the legacy body and call are physically absent');
