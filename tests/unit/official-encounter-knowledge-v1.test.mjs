@@ -83,6 +83,22 @@ test('resolver uses official search href/build and does not spend WCL',async()=>
   assert.equal(journalUrl.searchParams.get('locale'),'en_US');
 });
 
+test('direct Journal ID resolution preserves build-specific namespace from Blizzard self link',async()=>{
+  resetBlizzardTokenCacheV1();
+  const selfHref='https://eu.api.blizzard.com/data/wow/journal-encounter/9001?namespace=static-12.1.0_99999-eu';
+  const directJournal={...syntheticJournal,_links:{self:{href:selfHref}}};
+  const fetcher=async (url)=>{
+    if(String(url)==='https://oauth.battle.net/token')return json({access_token:'test-token',token_type:'bearer',expires_in:86399});
+    if(String(url).includes('/data/wow/journal-encounter/9001?namespace=static-eu'))return json(directJournal);
+    throw new Error(`Unexpected URL ${url}`);
+  };
+  const result=await resolveOfficialEncounterKnowledgeV1({journalEncounterId:9001,wclEncounterId:4321,region:'eu',locale:'en_US'},{fetcher,clientId:'id',clientSecret:'secret',persist:false});
+  assert.equal(result.source.namespace,'static-12.1.0_99999-eu');
+  assert.ok(result.source.endpoint.startsWith(selfHref));
+  assert.equal(result.usage.blizzardGameDataCalls,1);
+  assert.equal(result.usage.wclCalls,0);
+});
+
 test('Blizzard spell 403 is provider-unavailable state, never negative spell evidence',async()=>{
   const row=await fetchBlizzardSpellV1(700001,{accessToken:'token',region:'eu',locale:'en_US',fetcher:async()=>json({code:403,detail:'Forbidden'},403)});
   assert.equal(row.status,'provider-forbidden-or-unavailable');
