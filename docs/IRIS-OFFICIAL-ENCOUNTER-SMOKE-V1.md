@@ -18,6 +18,8 @@ Alternative when the Blizzard Journal encounter ID is already known:
 npm run validate:official-encounter -- --journal 2739 --wcl 3182 --abilities 1241163,1243866,1243560
 ```
 
+Direct Journal-ID resolution may request the moving `static-<region>` namespace, but the provider must retain Blizzard's canonical build-specific namespace from the Journal `_links.self.href` when Blizzard publishes it. This keeps persisted graph provenance build-aware without requiring an extra provider request.
+
 ## What it validates
 
 The script performs five sequential checks:
@@ -29,6 +31,8 @@ The script performs five sequential checks:
 5. Compare every supplied ability pair using the official hierarchy reconciler.
 
 The smoke command never requests WCL combat events.
+
+The graph summary deliberately reports both `uniqueSpellCount` and `spellMembershipCount`. A spell ID may occur under more than one Journal section, so these counts are not required to be equal. Do not confuse spell-bearing Journal memberships with unique spell IDs.
 
 ## Belo'ren expected semantic checks
 
@@ -58,6 +62,7 @@ A successful run should show:
 
 ```text
 resolved graph fingerprint == stored graph fingerprint
+build-specific namespace retained when Blizzard exposes one
 providerCalls during stored reload = 0
 WCL calls during stored reload = 0
 Ability Knowledge officialJournalCacheHit = true
