@@ -353,71 +353,6 @@ function applyCommandCenter() {
   }
 }
 
-function applyProgressPage() {
-  const heading = qsa(".page-banner h2").find(x => x.textContent.trim() === "Are we actually getting better?");
-  if (!heading) return;
-
-  const o = payload.overview;
-
-  // A single report is not "the whole reset"; don't fabricate it.
-  setPendingStat("PULLS THIS RESET", "Guild multi-report ingestion required");
-  const medianCard=statByLabel("MEDIAN BOSS HP"); if(medianCard) text(medianCard.querySelector(":scope > label"),"MEDIAN WCL PROGRESS");
-  setStat("MEDIAN WCL PROGRESS", {
-    value: fmtPct(o.medianFightPercentage),
-    delta: "REPORT",
-    meta: "Median WCL fightPercentage"
-  });
-  setStat("PULLS WITHOUT EARLY DEATH", {
-    value: o.earlyDeaths == null ? "—" : Math.max(0, payload.encounter.completedPulls - o.earlyDeaths),
-    delta: o.earlyDeaths == null ? "PENDING" : "WCL",
-    meta: o.earlyDeathDefinition || "Death table unavailable"
-  });
-  setStat("P3 SURVIVAL", {
-    value: fmtSeconds(o.p3SurvivalMedianMs),
-    delta: o.p3SurvivalMedianMs == null ? "PENDING" : "MEDIAN",
-    meta: "Time survived after P3 transition"
-  });
-  setPendingStat("MATABLE PULLS", "Kill-readiness model not enabled");
-
-  applyProgressCurve();
-  const legend=qsa(".legend-row span"); if(legend[0]){const i=legend[0].querySelector("i");legend[0].textContent="";if(i)legend[0].append(i);legend[0].append(document.createTextNode("WCL progress"));} if(legend[1]){const i=legend[1].querySelector("i");legend[1].textContent="";if(i)legend[1].append(i);legend[1].append(document.createTextNode("Pull sequence"));} if(legend[2]){const i=legend[2].querySelector("i");legend[2].textContent="";if(i)legend[2].append(i);legend[2].append(document.createTextNode("Stage reach"));}
-
-  const velocity = document.querySelector(".banner-stat");
-  if (velocity?.querySelector("label")?.textContent.trim() === "PROGRESSION VELOCITY") {
-    text(velocity.querySelector("b"), "—");
-    text(velocity.querySelector("small"), "peer benchmark not loaded");
-  }
-
-  const night = panelByTitle("Night-over-night");
-  if (night) {
-    qsa(".night-table > div", night).forEach((row, idx) => {
-      const span = row.querySelector("span");
-      const b = row.querySelector("b");
-      const em = row.querySelector("em");
-      if (idx === 0) {
-        if (span) {
-          const next = `CURRENT REPORT · ${payload.encounter.completedPulls} PULLS<small>Best ${fmtPct(o.bestPull?.fightPercentage)}</small>`;
-          if (span.innerHTML !== next) span.innerHTML = next;
-        }
-        text(b, "WCL connected");
-        text(em, `${fmtPct(o.medianFightPercentage)} median`);
-        row.classList.add("active");
-      } else {
-        if (span) {
-          const next = `PREVIOUS REPORT<small>Not ingested</small>`;
-          if (span.innerHTML !== next) span.innerHTML = next;
-        }
-        text(b, "Pending");
-        text(em, "—");
-        row.classList.remove("active");
-      }
-    });
-    const insight = night.querySelector(".insight-box p");
-    text(insight, "Load previous Avoid raid nights before making a cross-night recommendation.");
-  }
-  applyRealProgressMatrix();
-}
-
 function setCompareCell(row, colIndex, value) {
   const children = Array.from(row.children);
   if (children[colIndex]) text(children[colIndex], value);
@@ -1208,26 +1143,6 @@ function clearSyntheticChart(root, message) {
   if (message) root.title=message;
 }
 
-function applyRealProgressMatrix() {
-  if (!qsa(".page-banner h2").some(x=>x.textContent.trim()==="Are we actually getting better?")) return;
-  const matrix=document.querySelector(".matrix"); if(!matrix)return;
-  const nodes=Array.from(matrix.children); if(nodes.length<6)return;
-  const maxStage=Math.max(1,Number(payload?.encounter?.maxObservedStage||payload?.encounter?.maxObservedPhase||1));
-  for(let c=1;c<=5;c++) text(nodes[c], c<=maxStage?`S${c}`:"N/A");
-  const pulls=(payload?.progression||[]).slice(-8);
-  for(let r=0;r<8;r++){
-    const offset=6+r*6; const pull=pulls[r]; const label=nodes[offset];
-    if(label) text(label,pull?`PULL ${pull.pullNumber}`:"—");
-    for(let c=1;c<=5;c++){
-      const cell=nodes[offset+c]; if(!cell)continue;
-      if(!pull||c>maxStage){cell.className="";cell.style.opacity=".12";cell.title="Not applicable";continue;}
-      const reached=Number(pull.stageCount||pull.maxPhase||1)>=c;
-      cell.className=reached?"clean":"fail";cell.style.opacity="";cell.title=reached?`Pull ${pull.pullNumber} reached stage ${c}`:`Pull ${pull.pullNumber} did not reach stage ${c}`;
-    }
-  }
-  const p=matrix.closest("article.panel")?.querySelector(".panel-title p"); if(p)text(p,"Last 8 real pulls · square = absolute stage reached");
-}
-
 function applyPullIntelligenceToCommand() {
   if (!findOwnText("Command Center")) return;
   const pi=telemetry?.pullIntelligence; const cmp=pi?.currentVsPrevious; const what=panelByTitle("What changed?");
@@ -1768,7 +1683,7 @@ function applyAll() {
   if (!payload?.ok || applying) return;
   applying = true;
   try {
-    removeRosterIntelligenceOutsideComposition();applyShell();applyCommandCenter();applyProgressPage();applyPullLab();applyDamageHealing();applyPlayers();applyMechanicsAndDefensives();applyComposition();applyLive();applySupplemental();applyIntelligence();applyCorpusWorkbench();removeRosterIntelligenceOutsideComposition();applyRealProgressMatrix();applyDataTruthScrub();
+    removeRosterIntelligenceOutsideComposition();applyShell();applyCommandCenter();applyPullLab();applyDamageHealing();applyPlayers();applyMechanicsAndDefensives();applyComposition();applyLive();applySupplemental();applyIntelligence();applyCorpusWorkbench();removeRosterIntelligenceOutsideComposition();applyDataTruthScrub();
   } finally { applying = false; }
 }
 
