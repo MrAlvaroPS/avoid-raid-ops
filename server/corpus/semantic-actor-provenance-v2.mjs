@@ -115,9 +115,12 @@ function aggregateEvidenceV2({records,abilityIds,roleMaps}){
       const sourceRole=Number.isFinite(sourceId)?(roles.get(sourceId)||'unknown'):'none';
       const targetRole=Number.isFinite(targetId)?(roles.get(targetId)||'unknown'):'none';
 
+      const ability=abilities.get(abilityId);
+      ability.reports.add(reportCode);
+      ability.windows.add(anchorKey);
       if(!seenAbilityEvents.has(eventKey)){
         seenAbilityEvents.add(eventKey);
-        const ability=abilities.get(abilityId);ability.events++;ability.reports.add(reportCode);ability.windows.add(anchorKey);increment(ability.streams,String(stream));increment(ability.eventTypes,String(event?.type||'event'));increment(ability.sourceRoles,sourceRole);increment(ability.targetRoles,targetRole);
+        ability.events++;increment(ability.streams,String(stream));increment(ability.eventTypes,String(event?.type||'event'));increment(ability.sourceRoles,sourceRole);increment(ability.targetRoles,targetRole);
       }
 
       if(seenPatternEvents.has(patternEventKey))continue;
