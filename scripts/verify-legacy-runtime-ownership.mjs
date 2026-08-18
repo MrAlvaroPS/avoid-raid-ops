@@ -65,7 +65,8 @@ const curveEntry=classified.get('applyProgressCurve');
 expect(curveEntry?.id==='shared-progression-curve','applyProgressCurve must remain separately classified');
 expect(curveEntry?.status==='shared-compatibility-helper','applyProgressCurve is still shared compatibility behavior');
 expect(curveEntry?.canonicalOwner==='public/wcl-runtime.js','applyProgressCurve must stay owned by compatibility runtime until Command Center extraction');
-expect((legacy.match(/applyProgressCurve\s*\(\s*\)/g)||[]).length===1,'after Progress writer deletion, applyProgressCurve must have exactly the Command Center call site');
+const legacyWithoutCurveDeclaration=legacy.replace(/function\s+applyProgressCurve\s*\(\s*\)/,'function __applyProgressCurveDeclaration()');
+expect((legacyWithoutCurveDeclaration.match(/applyProgressCurve\s*\(\s*\)/g)||[]).length===1,'after Progress writer deletion, applyProgressCurve must have exactly the Command Center call site');
 
 const historyEntry=classified.get('applyHistoryData');
 expect(historyEntry?.id==='shared-history-writer','applyHistoryData must remain classified as shared until its Command Center branch is split');
