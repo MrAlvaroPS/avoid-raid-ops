@@ -34,8 +34,11 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('intelligence-bridge','iris-intelligence','compatibility-support','public/iris-runtime-v3713.js','split-domain-intelligence-bridges-before-retirement',[
     'confidenceLabel','intelligenceMechanicMap','playerNameById','applyIntelligence','applySupplemental',
   ]),
-  responsibility('corpus-workbench','mechanics-corpus','compatibility-writer','public/encounter-intelligence-v375.js','move-workbench-controls-to-mechanics-owner-without-resuming-corpus',[
-    'corpusCountdown','corpusContext','corpusRequest','refreshCorpusStatus','pollCorpus','corpusCell','corpusButton','applyCorpusWorkbench',
+  responsibility('corpus-workflow-bridge','mechanics-corpus','compatibility-support','public/encounter-intelligence-v375.js','retire-after-canonical-corpus-workflow-validation',[
+    'corpusCountdown','corpusContext','corpusRequest','refreshCorpusStatus','pollCorpus','corpusCell','corpusButton',
+  ]),
+  responsibility('corpus-presentation-shadow','mechanics-corpus','compatibility-shadowed-writer','public/encounter-intelligence-v375.js','remove-after-canonical-corpus-shadow-validation',[
+    'applyCorpusWorkbench',
   ]),
   responsibility('network-orchestration','wcl-data-orchestration','compatibility-orchestrator','public/wcl-runtime.js','replace-with-domain-data-clients-after-writers-exit',[
     'applyAll','fetchJson','fetchData',
@@ -51,6 +54,11 @@ export const LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED=Object.freeze(['applyPlayers','applyTelemetryPlayers']);
 
+export const LEGACY_RUNTIME_CORPUS_HISTORICAL_WRITERS=Object.freeze(['applyCorpusWorkbench']);
+export const LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS=Object.freeze(['applyCorpusWorkbench']);
+export const LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS=Object.freeze(['applyCorpusWorkbench']);
+export const LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED=Object.freeze([]);
+
 export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   version:LEGACY_RUNTIME_OWNERSHIP_VERSION,
   path:LEGACY_RUNTIME_PATH,
@@ -62,4 +70,8 @@ export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   playersActiveWriters:LEGACY_RUNTIME_PLAYERS_ACTIVE_WRITERS,
   playersShadowedWriters:LEGACY_RUNTIME_PLAYERS_SHADOWED_WRITERS,
   playersPhysicallyRetired:LEGACY_RUNTIME_PLAYERS_PHYSICALLY_RETIRED,
+  corpusHistoricalWriters:LEGACY_RUNTIME_CORPUS_HISTORICAL_WRITERS,
+  corpusActiveWriters:LEGACY_RUNTIME_CORPUS_ACTIVE_WRITERS,
+  corpusShadowedWriters:LEGACY_RUNTIME_CORPUS_SHADOWED_WRITERS,
+  corpusPhysicallyRetired:LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED,
 });
