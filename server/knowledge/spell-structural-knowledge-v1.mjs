@@ -87,7 +87,14 @@ export async function resolveSpellStructuralKnowledgeV1(input={},options={}){
     observations,
     actorProvenance:options.actorProvenance||[],
   });
-  const fingerprint=digest({version:SPELL_STRUCTURAL_KNOWLEDGE_VERSION,previewFingerprint:preview.fingerprint,providerBuild:resolved.build,relations:observations.map(row=>({sourceAbilityId:row.sourceAbilityId,targetAbilityId:row.targetAbilityId,providerRowId:row.providerRowId,relationKind:row.relationKind,structuralEvidence:row.structuralEvidence,officialContext:row.officialContext.status}))});
+  const coverage={
+    requestedCalls:resolved.usage.networkCalls,
+    successfulCalls:resolved.usage.successfulCalls,
+    failedCalls:resolved.usage.failedCalls,
+    partial:Boolean(resolved.usage.partial),
+    failedQueries:(resolved.usage.errors||[]).map(row=>({field:row.field,value:row.value,error:row.error,negativeEvidence:false})),
+  };
+  const fingerprint=digest({version:SPELL_STRUCTURAL_KNOWLEDGE_VERSION,previewFingerprint:preview.fingerprint,providerBuild:resolved.build,coverage,relations:observations.map(row=>({sourceAbilityId:row.sourceAbilityId,targetAbilityId:row.targetAbilityId,providerRowId:row.providerRowId,relationKind:row.relationKind,structuralEvidence:row.structuralEvidence,officialContext:row.officialContext.status}))});
   const result={
     version:SPELL_STRUCTURAL_KNOWLEDGE_VERSION,
     fingerprint,
@@ -99,7 +106,8 @@ export async function resolveSpellStructuralKnowledgeV1(input={},options={}){
     directions:preview.request.directions,
     relations:observations,
     graph,
-    usage:{wagoCalls:resolved.usage.networkCalls,blizzardCalls:0,wclCalls:0,queries:resolved.usage.queries},
+    coverage,
+    usage:{wagoCalls:resolved.usage.networkCalls,wagoCallsSucceeded:resolved.usage.successfulCalls,wagoCallsFailed:resolved.usage.failedCalls,partial:resolved.usage.partial,blizzardCalls:0,wclCalls:0,queries:resolved.usage.queries},
     summary:{relations:observations.length,officialToOfficial:observations.filter(row=>row.officialContext.status==='official-to-official-structural-link').length,unlistedSourceToOfficial:observations.filter(row=>row.officialContext.status==='unlisted-source-to-official-target').length,officialSourceToUnlisted:observations.filter(row=>row.officialContext.status==='official-source-to-unlisted-target').length,unresolved:observations.filter(row=>row.officialContext.status==='official-context-unresolved').length},
     evidenceContract:{
       clientDb2StructuralMetadata:true,
@@ -107,6 +115,7 @@ export async function resolveSpellStructuralKnowledgeV1(input={},options={}){
       officialEncounterContextFromBlizzard:true,
       observedCombat:false,
       causalCombatEvidence:false,
+      providerFailureIsNegativeEvidence:false,
       providerRelationsCannotSatisfyExactPatternProvenance:true,
       providerRelationsCannotPromoteMechanic:true,
       rawCsvPersisted:false,
