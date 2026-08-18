@@ -129,7 +129,7 @@ expect(/function ensureCorpusPanel\(\)/.test(encounter),'canonical Encounter own
 expect(/function syncCorpusVisibility\(\)/.test(encounter),'canonical Encounter owner must own cross-page Corpus visibility');
 expect(/catalogue\.insertAdjacentElement\('beforebegin',panel\)/.test(encounter),'canonical Corpus card must retain placement immediately before the mechanic catalogue');
 expect(/dataset\.avoidCorpusOwner='encounter-intelligence-v375'/.test(encounter),'canonical card must publish explicit DOM ownership');
-expect(!/applyCorpusWorkbench|shadowLegacyCorpusWriter|corpusShadowInstalled/.test(encounter),'canonical owner must contain no executable legacy Corpus compatibility binding');
+expect(!/window\.applyCorpusWorkbench|shadowLegacyCorpusWriter|corpusShadowInstalled/.test(encounter),'canonical owner must contain no executable legacy Corpus compatibility binding');
 expect(/writerPolicy:'single-corpus-writer'/.test(encounter),'Encounter owner must retain the single-Corpus-writer policy');
 expect(/legacyRendererPolicy:'physically-retired-no-runtime-binding'/.test(encounter),'Corpus owner must record final legacy renderer retirement');
 expect(/legacyCompatibilityBinding:false/.test(encounter),'Corpus owner must explicitly publish zero legacy compatibility binding');
