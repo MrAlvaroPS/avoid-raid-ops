@@ -28,9 +28,8 @@ jobs:
             python3 scripts/v4-fix-corpus-verifier-once.py
             git config user.name 'AvoiD v4 migration'
             git config user.email 'actions@users.noreply.github.com'
-            git show f1ca6089236f4d972a23cce1549ce4d2a3ee37c5:.github/workflows/validate.yml > .github/workflows/validate.yml
             rm scripts/v4-fix-corpus-verifier-once.py .github/v4-corpus-verifier.trigger
-            git add scripts/verify-legacy-runtime-ownership.mjs .github/workflows/validate.yml scripts/v4-fix-corpus-verifier-once.py .github/v4-corpus-verifier.trigger
+            git add scripts/verify-legacy-runtime-ownership.mjs scripts/v4-fix-corpus-verifier-once.py .github/v4-corpus-verifier.trigger
             git diff --cached --check
             git commit -m 'test(v4): fix Corpus retirement verifier escape'
             git push origin HEAD:refactor/reorganizacion-2026-08-17
