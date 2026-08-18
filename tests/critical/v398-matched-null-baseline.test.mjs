@@ -15,12 +15,15 @@ test('CRITICAL v3.9.8 MATCHED NULL: preview/evaluate are zero-WCL and execution 
   assert.doesNotMatch(route,/wholeReport|startCorpus|launchCorpusExecution|improveModel/);
 });
 
-test('CRITICAL v3.9.8 MATCHED NULL: nulls cover every Episode pattern and validate the full Episode guard',async()=>{
+test('CRITICAL v3.9.8 MATCHED NULL: nulls are paired, cover every Episode pattern and validate the full Episode guard',async()=>{
   const [module,executor,doc]=await Promise.all([
     read('server/corpus/matched-null-baseline-v1.mjs'),
     read('server/corpus/matched-null-baseline-executor-v1.mjs'),
     read('docs/IRIS-MATCHED-NULL-BASELINE-V1.md'),
   ]);
+  assert.match(module,/pairedAnchorComparison:true/);
+  assert.match(module,/anchorObservedPatternKeys/);
+  assert.match(module,/anchorContextCoversEpisodeRadius:true/);
   assert.match(module,/localFlankControlsUsed:false/);
   assert.match(module,/localFlankBaselineIsPromotionBaseline:false/);
   assert.match(module,/controlCoversEpisodeRadius:true/);
@@ -28,6 +31,8 @@ test('CRITICAL v3.9.8 MATCHED NULL: nulls cover every Episode pattern and valida
   assert.match(module,/targetSignalContaminationMustBeRejected:true/);
   assert.match(module,/targetSignalGuardRadiusValidated:true/);
   assert.match(module,/innerControlEventsOnly:true/);
+  assert.match(executor,/pairedAnchorComparison:true/);
+  assert.match(executor,/anchorObservedPatternKeys/);
   assert.match(executor,/target-signal-observed-inside-episode-guard/);
   assert.match(executor,/windowStart:control\.contaminationWindowStart/);
   assert.match(executor,/windowEnd:control\.contaminationWindowEnd/);
@@ -37,6 +42,8 @@ test('CRITICAL v3.9.8 MATCHED NULL: nulls cover every Episode pattern and valida
   assert.match(doc,/full Episode exclusion guard/i);
   assert.match(doc,/only the inner control window/i);
   assert.match(doc,/at least the Episode temporal radius/i);
+  assert.match(doc,/paired anchor/i);
+  assert.match(doc,/same valid pairs/i);
 });
 
 test('CRITICAL v3.9.8 RELEASE: package overlay remains the integer v3.9 counter',async()=>{
