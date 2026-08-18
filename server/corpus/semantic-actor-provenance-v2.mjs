@@ -27,14 +27,14 @@ export function buildSemanticActorProvenancePreviewV2({signalId,abilityIds=[],ev
   const records=signalRecords(evidenceRecords,signalId);
   const reportCodes=reportCodesFor(records).slice(0,Math.max(1,Math.min(8,Number(maxReports)||8)));
   if(!reportCodes.length)throw new Error('No persisted semantic evidence reports are available for actor provenance');
-  const payload={version:SEMANTIC_ACTOR_PROVENANCE_V2_VERSION,signalId:Number(signalId),abilityIds:ids.sort((a,b)=>a-b),reportCodes,maxReports:Number(maxReports)||8};
+  const payload={version:SEMANTIC_ACTOR_PROVENANCE_V2_VERSION,dedupeScope:'anchor-occurrence',signalId:Number(signalId),abilityIds:ids.sort((a,b)=>a-b),reportCodes,maxReports:Number(maxReports)||8};
   return{
     version:SEMANTIC_ACTOR_PROVENANCE_V2_PREVIEW_VERSION,
     fingerprint:fingerprint(payload),
     signalId:Number(signalId),abilityIds:payload.abilityIds,
     reports:reportCodes.length,
     networkUpperBound:{wclCalls:1+reportCodes.length,preflightCalls:1,reportMetadataCalls:reportCodes.length,combatEventCalls:0},
-    safety:{manualConfirmationRequired:true,matchingFingerprintRequired:true,combatEventsFetched:false,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false,rawActorIdsPersisted:false,patternLevelAggregation:true},
+    safety:{manualConfirmationRequired:true,matchingFingerprintRequired:true,combatEventsFetched:false,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false,rawActorIdsPersisted:false,patternLevelAggregation:true,deduplicationScope:'anchor-occurrence'},
     _execution:{reportCodes},
   };
 }
@@ -100,25 +100,29 @@ function finalize(row){
 function aggregateEvidenceV2({records,abilityIds,roleMaps}){
   const wanted=new Set(abilityIds.map(Number));
   const abilities=new Map(abilityIds.map(id=>[Number(id),blankAbility(id)]));
-  const patterns=new Map(),seenEvents=new Set();
+  const patterns=new Map(),seenAbilityEvents=new Set(),seenPatternEvents=new Set();
   for(const record of records){
     if(record?.kind!=='context'||record?.pagination?.complete!==true)continue;
     const reportCode=String(record.reportCode||''),roles=roleMaps.get(reportCode);if(!roles)continue;
     const anchorTimestamp=finite(record.anchorTimestamp);if(anchorTimestamp==null)continue;
-    const windowKey=[reportCode,record.fightID,record.anchorTimestamp,record.windowMs].join(':');
+    const anchorKey=[reportCode,record.fightID,record.anchorTimestamp].join(':');
     for(const [stream,events] of Object.entries(record.streams||{}))for(const event of events||[]){
       const abilityId=Number(eventAbilityId(event));if(!wanted.has(abilityId))continue;
       const identity=patternIdentity({event,stream,anchorTimestamp});if(!identity)continue;
       const sourceId=Number(eventSourceId(event)),targetId=Number(eventTargetId(event));
       const eventKey=[reportCode,record.fightID,event?.timestamp,abilityId,event?.type,sourceId,targetId,stream].join(':');
-      if(seenEvents.has(eventKey))continue;
-      seenEvents.add(eventKey);
+      const patternEventKey=[anchorKey,eventKey].join(':');
       const sourceRole=Number.isFinite(sourceId)?(roles.get(sourceId)||'unknown'):'none';
       const targetRole=Number.isFinite(targetId)?(roles.get(targetId)||'unknown'):'none';
 
-      const ability=abilities.get(abilityId);ability.events++;ability.reports.add(reportCode);ability.windows.add(windowKey);increment(ability.streams,String(stream));increment(ability.eventTypes,String(event?.type||'event'));increment(ability.sourceRoles,sourceRole);increment(ability.targetRoles,targetRole);
+      if(!seenAbilityEvents.has(eventKey)){
+        seenAbilityEvents.add(eventKey);
+        const ability=abilities.get(abilityId);ability.events++;ability.reports.add(reportCode);ability.windows.add(anchorKey);increment(ability.streams,String(stream));increment(ability.eventTypes,String(event?.type||'event'));increment(ability.sourceRoles,sourceRole);increment(ability.targetRoles,targetRole);
+      }
 
-      const pattern=patterns.get(identity.key)||blankPattern(identity);pattern.events++;pattern.reports.add(reportCode);pattern.windows.add(windowKey);increment(pattern.sourceRoles,sourceRole);increment(pattern.targetRoles,targetRole);patterns.set(identity.key,pattern);
+      if(seenPatternEvents.has(patternEventKey))continue;
+      seenPatternEvents.add(patternEventKey);
+      const pattern=patterns.get(identity.key)||blankPattern(identity);pattern.events++;pattern.reports.add(reportCode);pattern.windows.add(anchorKey);increment(pattern.sourceRoles,sourceRole);increment(pattern.targetRoles,targetRole);patterns.set(identity.key,pattern);
     }
   }
   return{abilities:[...abilities.values()].map(finalize),patterns:[...patterns.values()].map(finalize)};
@@ -153,6 +157,6 @@ export async function executeSemanticActorProvenanceV2({signalId,abilityIds=[],e
     version:SEMANTIC_ACTOR_PROVENANCE_V2_VERSION,previewFingerprint:preview.fingerprint,signalId:Number(signalId),
     reportsRequested:preview.reports,reportsResolved:roleMaps.size,wclCallsExecuted:calls,rateLimit:rate,
     abilities:aggregated.abilities,patterns:aggregated.patterns,errors,
-    evidenceContract:{combatEventsFetched:false,classificationSource:'WCL ReportMasterData actors + already-persisted semantic event actor IDs',aggregationGranularity:'pattern-key-with-ability-fallback',rawActorIdsPersisted:false,rawActorNamesPersisted:false,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false},
+    evidenceContract:{combatEventsFetched:false,classificationSource:'WCL ReportMasterData actors + already-persisted semantic event actor IDs',aggregationGranularity:'pattern-key-with-ability-fallback',deduplicationScope:'anchor-occurrence',rawActorIdsPersisted:false,rawActorNamesPersisted:false,canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false},
   };
 }
