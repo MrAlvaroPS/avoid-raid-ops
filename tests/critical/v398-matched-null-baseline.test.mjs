@@ -46,7 +46,7 @@ test('CRITICAL v3.9.8 MATCHED NULL: nulls are paired, cover every Episode patter
   assert.match(doc,/same valid pairs/i);
 });
 
-test('CRITICAL v3.9.8 RELEASE: package overlay remains the integer v3.9 counter',async()=>{
+test('CRITICAL v3.9.8 RELEASE: package overlay remains an integer v3.9 counter at or beyond v3.9.8',async()=>{
   const pkg=JSON.parse(await read('package.json'));
-  assert.equal(pkg.version,'0.3.9-8-vercel.0');
+  assert.match(pkg.version,/^0\.3\.9-(?:[89]|\d{2,})-vercel\.0$/);
 });
