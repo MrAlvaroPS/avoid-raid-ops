@@ -1,7 +1,7 @@
-# Iris Semantic Actor Provenance v1
+# Iris Semantic Actor Provenance
 
 **Status:** diagnostic semantic evidence enrichment  
-**Version:** `semantic-actor-provenance-v1`
+**Current version:** `semantic-actor-provenance-v2`
 
 ## Purpose
 
@@ -28,6 +28,23 @@ The already-persisted semantic evidence contains compact source/target report id
 
 These labels describe actor provenance only. They do not by themselves prove causality or mechanic ownership.
 
+## Pattern-scoped provenance contract
+
+Actor provenance **must not** be applied at ability-ID scope. A single ability can appear in several streams, event types and temporal positions with different actor ownership. Aggregating all occurrences of one ability can therefore contaminate one semantic candidate with another.
+
+v2 persists derived provenance for the exact verifier signature:
+
+`relation | stream | abilityId | eventType`
+
+Examples:
+
+- `before-2.5s | enemyDebuffs | 123 | removedebuff`
+- `after-1s | debuffs | 123 | removedebuff`
+
+Those are separate provenance records even though they share the same ability ID.
+
+The verifier may use actor provenance only when the persisted pattern key exactly matches the candidate key it is evaluating. Legacy v1 ability-level summaries are diagnostic history only and **must not** be silently reused as exact-pattern provenance.
+
 ## Privacy boundary
 
 GLOBAL BOSS persisted output must never contain player names, actor names, raw source ids, raw target ids or a reusable actor-id map.
@@ -35,10 +52,12 @@ GLOBAL BOSS persisted output must never contain player names, actor names, raw s
 Persisted output contains only aggregated counts such as:
 
 - number of reports/windows/events;
-- stream and event-type counts;
+- exact pattern signature;
 - source-role distribution;
 - target-role distribution;
 - dominant source/target role and share.
+
+An ability-level aggregate may be retained for diagnostics, but it is never authoritative for candidate classification.
 
 ## Execution contract
 
@@ -51,6 +70,8 @@ Execution is manual-only and requires the matching preview fingerprint. Network 
 where `N` is the number of independent semantic evidence reports selected, capped by configuration.
 
 No new ReportData combat-event query is made.
+
+Changing the provenance schema/version changes the preview fingerprint. A v1 snapshot therefore cannot masquerade as v2 evidence.
 
 ## Interpretation
 
@@ -70,3 +91,4 @@ Actor provenance is an evidence layer. Promotion still requires the separately v
 - no automatic promotion.
 - no boss-specific IDs or names in generic logic/tests.
 - provider identity metadata cannot override observed WCL event structure.
+- no ability-level provenance may be used to classify an exact semantic pattern.
