@@ -89,6 +89,34 @@ static-12.1.0_68914-eu
 
 The graph preserves that namespace as source revision/provenance.
 
+## Persistent revisions and WCL alias
+
+A successful resolve persists the **compiled graph**, not OAuth credentials/tokens and not an opaque provider-page dump.
+
+```text
+knowledge/official-encounters/blizzard/{journalEncounterId}/latest.json
+knowledge/official-encounters/blizzard/{journalEncounterId}/revisions/{fingerprint}.json
+```
+
+When the caller supplies the canonical WCL encounter ID, Iris also stores a deterministic alias:
+
+```text
+knowledge/official-encounters/blizzard/by-wcl/{wclEncounterId}.json
+```
+
+The alias points to the current Blizzard Journal encounter ID, fingerprint and revision/latest keys. This is what lets report/corpus logic start from an observed WCL encounter ID and retrieve the official semantic graph at **0 network calls**.
+
+Stored lookup:
+
+```text
+GET /api/knowledge/encounter?action=latest&wclEncounterId={id}
+GET /api/knowledge/encounter?action=latest&journalEncounterId={id}
+```
+
+A latest lookup executes 0 WCL calls and 0 provider calls.
+
+Every persisted revision records the previous fingerprint and whether the newly fetched graph changed. A future refresh can therefore detect an official Blizzard change and rederive affected interpretations without rewriting historical WCL evidence.
+
 ## Graph model
 
 The canonical node types are deliberately generic:
@@ -104,7 +132,7 @@ Every journal section also carries a structural role derived from its position a
 ```text
 stage
 mechanic
-a submechanic
+submechanic
 mechanic-group
 overview-or-root-section
 ```
@@ -196,7 +224,7 @@ Acquisition
   -> Signal discovery
   -> Origin triage
   -> Local mechanic synthesis
-  -> Official encounter knowledge resolution
+  -> Official encounter knowledge resolution / stored reconciliation
   -> Semantic evidence planning
   -> Surgical semantic probe
   -> Specificity verification
@@ -208,6 +236,20 @@ Acquisition
 ```
 
 Official knowledge should reduce unnecessary WCL spend and reduce false semantic neighbors. It does not weaken empirical gates.
+
+## Spell relation graph boundary
+
+v3.9.9 also contains a generic provider spell-relation graph foundation. It keeps structural relations such as trigger/apply/cancel relationships separate from Journal hierarchy and from WCL actor provenance.
+
+A structural relation can support a semantic-origin candidate such as `encounter-applied-player-state-candidate`, but it explicitly cannot:
+
+```text
+satisfy exact-pattern WCL provenance
+become empirical combat evidence
+promote a mechanic automatically
+```
+
+The DB2/Wago structural provider is not claimed as integrated until its own reviewed source/provider contract and ingestion path exist.
 
 ## Belo'ren validation fixture
 
