@@ -105,13 +105,17 @@ test('v375 corpus stability guard is release-wiring ready',async()=>{
   assert.match(guard,/legacyPollingRendererSuppressed: true/);
 });
 
-test('compatibility runtime polls hosted workflow and keeps corpus panel above mechanic catalogue',async()=>{
-  const runtime=await read('../../public/wcl-runtime.js');
-  assert.match(runtime,/pollCorpus/);
-  assert.doesNotMatch(runtime,/corpusRequest\("step"\)/);
-  assert.match(runtime,/insertAdjacentElement\("beforebegin", panel\)/);
-  assert.match(runtime,/\[1000, 5000, 10000\]/);
-  assert.match(runtime,/Math\.min\(1500, Math\.max\(200/);
+test('canonical Encounter owner polls Corpus status and keeps the panel above mechanic catalogue',async()=>{
+  const owner=await read('../../public/encounter-intelligence-v375.js');
+  const legacy=await read('../../public/wcl-runtime.js');
+  assert.match(owner,/fetchStatus/);
+  assert.match(owner,/setInterval\(\(\)=>tick\(false\),1500\)/);
+  assert.match(owner,/catalogue\.insertAdjacentElement\('beforebegin',panel\)/);
+  assert.match(owner,/corpusAction\('improve',improve\)/);
+  assert.match(owner,/method:'POST'/);
+  assert.doesNotMatch(owner,/corpusRequest\("step"\)/);
+  assert.doesNotMatch(legacy,/function\s+pollCorpus\s*\(/);
+  assert.doesNotMatch(legacy,/function\s+applyCorpusWorkbench\s*\(/);
 });
 
 
