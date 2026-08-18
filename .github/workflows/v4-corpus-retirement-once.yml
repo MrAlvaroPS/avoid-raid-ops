@@ -72,11 +72,12 @@ jobs:
           assert 'function applyAll()' in text
           assert 'function fetchJson(' in text
           PY
-      - name: Commit physical retirement and remove one-shot workflow
+      - name: Commit physical retirement and remove one-shot trigger
         run: |
           rm .github/workflows/v4-corpus-retirement-once.yml
+          rm -f .github/v4-corpus-retirement.trigger
           git config user.name 'AvoiD v4 migration'
           git config user.email 'actions@users.noreply.github.com'
-          git add public/wcl-runtime.js .github/workflows/v4-corpus-retirement-once.yml
+          git add public/wcl-runtime.js .github/workflows/v4-corpus-retirement-once.yml .github/v4-corpus-retirement.trigger
           git commit -m 'refactor(v4): physically retire legacy Corpus runtime'
           git push origin HEAD:refactor/reorganizacion-2026-08-17
