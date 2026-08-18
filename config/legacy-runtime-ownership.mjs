@@ -13,7 +13,7 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('command-center','command-center','compatibility-writer','public/wcl-runtime.js','move-to-command-center-source-owner',[
     'applyCommandCenter','applyTelemetryCoreCorrections','applyPullIntelligenceToCommand','applyIntelligenceCommandCenter',
   ]),
-  responsibility('shared-progression-curve','command-center-progress','shared-compatibility-helper','public/wcl-runtime.js','extract-shared-curve-before-removing-progress-wrapper',[
+  responsibility('shared-progression-curve','command-center-progress','shadowed-compatibility-helper','public/command-center-history-bridge-v4.js','physically-delete-legacy-curve-body-after-browser-validation',[
     'applyProgressCurve',
   ]),
   responsibility('shared-history-writer','command-center-progress','shadowed-compatibility-writer','public/command-center-history-bridge-v4.js','physically-delete-mixed-legacy-body-after-browser-validation',[
