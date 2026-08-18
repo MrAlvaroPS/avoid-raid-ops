@@ -2,9 +2,9 @@ import { defineHandler } from 'nitro/h3';
 import { loadAnyEncounterModel } from '../../../server/corpus/service.mjs';
 import { corpusId } from '../../../server/corpus/keys.mjs';
 import { corpusGet,corpusList,corpusSet,corpusStorageErrorInfo } from '../../../server/corpus/storage.mjs';
-import { buildSemanticActorProvenancePreview,executeSemanticActorProvenance } from '../../../server/corpus/semantic-actor-provenance-v1.mjs';
+import { buildSemanticActorProvenancePreviewV2,executeSemanticActorProvenanceV2 } from '../../../server/corpus/semantic-actor-provenance-v2.mjs';
 
-const API_VERSION='semantic-actor-provenance-api-v1';
+const API_VERSION='semantic-actor-provenance-api-v2';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 const ids=value=>[...new Set((Array.isArray(value)?value:String(value||'').split(',')).map(Number).filter(Number.isInteger).filter(n=>n>0))];
 
@@ -29,7 +29,7 @@ export default defineHandler(async event=>{
     const signalId=Number(body.signalId||0),abilityIds=ids(body.abilityIds),action=String(body.action||'preview');
     if(!input.encounterId||!signalId||!abilityIds.length)return json({ok:false,error:'encounterId, signalId and abilityIds are required'},400);
     const args=await scope(input),records=await evidence(args,signalId);
-    const preview=buildSemanticActorProvenancePreview({signalId,abilityIds,evidenceRecords:records,maxReports:body.maxReports});
+    const preview=buildSemanticActorProvenancePreviewV2({signalId,abilityIds,evidenceRecords:records,maxReports:body.maxReports});
     if(action==='preview')return json({ok:true,apiVersion:API_VERSION,networkExecuted:false,wclCallsExecuted:0,scope:args,preview:{...preview,_execution:undefined}});
     if(action==='result'){
       const fp=String(body.previewFingerprint||body.fingerprint||'');if(!fp)return json({ok:false,error:'fingerprint is required'},400);
@@ -39,7 +39,7 @@ export default defineHandler(async event=>{
     if(body.confirmExecution!==true)return json({ok:false,error:'confirmExecution:true is required; no WCL call was made',wclCallsExecuted:0},400);
     const supplied=String(body.previewFingerprint||body.fingerprint||'');
     if(!supplied||supplied!==preview.fingerprint)return json({ok:false,error:'Preview fingerprint is missing or stale; regenerate preview before execution',wclCallsExecuted:0,currentPreview:{...preview,_execution:undefined}},409);
-    const result=await executeSemanticActorProvenance({signalId,abilityIds,evidenceRecords:records,previewFingerprint:supplied,confirmExecution:true,maxReports:body.maxReports,reservePct:body.minimumRateLimitReservePct,reservePoints:body.minimumRateLimitReservePoints});
+    const result=await executeSemanticActorProvenanceV2({signalId,abilityIds,evidenceRecords:records,previewFingerprint:supplied,confirmExecution:true,maxReports:body.maxReports,reservePct:body.minimumRateLimitReservePct,reservePoints:body.minimumRateLimitReservePoints});
     await corpusSet(storageKey(args,signalId,preview.fingerprint),result);
     return json({ok:true,apiVersion:API_VERSION,wclCallsExecuted:Number(result.wclCallsExecuted||0),result});
   }catch(error){
