@@ -920,7 +920,7 @@ function applyAll() {
   if (!payload?.ok || applying) return;
   applying = true;
   try {
-    removeRosterIntelligenceOutsideComposition();applyShell();applyCommandCenter();applyPullLab();applyDamageHealing();window.applyMechanicsAndDefensives?.();applyComposition();applyLive();applySupplemental();applyIntelligence();removeRosterIntelligenceOutsideComposition();applyDataTruthScrub();
+    removeRosterIntelligenceOutsideComposition();applyShell();applyCommandCenter();applyPullLab();applyDamageHealing();applyComposition();applyLive();applySupplemental();applyIntelligence();removeRosterIntelligenceOutsideComposition();applyDataTruthScrub();
   } finally { applying = false; }
 }
 

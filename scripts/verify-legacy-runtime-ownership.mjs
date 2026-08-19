@@ -4,6 +4,7 @@ import {
   LEGACY_RUNTIME_OWNERSHIP_VERSION,
   LEGACY_RUNTIME_PATH,
   LEGACY_RUNTIME_RESPONSIBILITIES,
+  LEGACY_RUNTIME_MECHANICS_DEFENSIVES_BRIDGES_PHYSICALLY_RETIRED,
   LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,
   LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,
   LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,
@@ -57,7 +58,7 @@ expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='progress-compati
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='players-presentation-shadow'),'physically retired Players presentation functions must not remain active ownership responsibilities');
 expect(!declaredSet.has('applyMechanicsAndDefensives'),'shared Mechanics/Defensive fallback declaration must be physically retired');
 expect(!LEGACY_RUNTIME_RESPONSIBILITIES.some(entry=>entry.id==='mechanics-defensives-fallback'),'retired shared fallback cannot remain an active legacy responsibility');
-expect((legacy.match(/window\.applyMechanicsAndDefensives\?\.\(\)/g)||[]).length===1,'legacy orchestration must delegate to exactly one optional bridge-owned fallback binding');
+expect((legacy.match(/window\.applyMechanicsAndDefensives\?\.\(\)/g)||[]).length===0,'retired split fallback call site must be physically absent from legacy orchestration');
 for(const fn of ['applyTelemetryMechanics','applyIntelligenceMechanics'])expect(!declaredSet.has(fn),`${fn} declaration must be physically retired from the legacy monolith`);
 expect((legacy.match(/window\.applyTelemetryMechanics\?\.\(\)/g)||[]).length===1,'supplemental orchestration must delegate Mechanics telemetry to exactly one source-owned binding');
 expect((legacy.match(/window\.applyIntelligenceMechanics\?\.\(\)/g)||[]).length===1,'intelligence orchestration must delegate Mechanics intelligence to exactly one source-owned binding');
@@ -78,6 +79,11 @@ expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(en
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(commandBridgeAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Command Center bridge must load before Progress installs its historical active-screen guards');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(playersAsset),'canonical Players owner must load after the compatibility runtime and consume its shared data/helper bridge');
 expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),'temporary Progress retirement guard must not return');
+expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='mechanics-defensives-fallback-bridge'),'retired Mechanics/Defensive split bridge must not remain active');
+for(const retired of LEGACY_RUNTIME_MECHANICS_DEFENSIVES_BRIDGES_PHYSICALLY_RETIRED){
+  try{await access(new URL(retired,root));fail.push(`${retired} physically retired bridge file still exists`)}
+  catch(error){if(error?.code!=='ENOENT')fail.push(`${retired} retirement check failed: ${error?.message||error}`)}
+}
 
 const retiredProgressNames=['applyProgressPage','applyProgressCurve','applyHistoryData','applyRealProgressMatrix','neutralizeMissingHistory'];
 expect(JSON.stringify(LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS)===JSON.stringify(retiredProgressNames),'historical Progress interception inventory changed unexpectedly');
