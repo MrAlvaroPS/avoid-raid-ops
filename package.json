@@ -1,7 +1,7 @@
 {
   "name": "avoid-raid-ops-vercel",
   "private": true,
-  "version": "0.3.9-13-vercel.1",
+  "version": "0.3.9-13-vercel.2",
   "type": "module",
   "workspaces": ["apps/web"],
   "scripts": {
@@ -12,6 +12,7 @@
     "sync:home-roster": "node --env-file=.env.local scripts/iris-home-roster-smoke.mjs --refresh",
     "validate:home-roster": "node --env-file=.env.local scripts/iris-home-roster-smoke.mjs",
     "validate:loot-roster": "node --env-file=.env.local scripts/loot-roster-smoke.mjs",
+    "validate:loot-catalog": "node --env-file=.env.local scripts/loot-raid-catalog-smoke.mjs",
     "iris": "node --env-file=.env.local scripts/iris-local-worker.mjs",
     "prepare:boss": "node --env-file=.env.local scripts/iris-prepare-boss.mjs",
     "validate:raid-catalog": "node --env-file=.env.local scripts/iris-raid-catalog-smoke.mjs",
