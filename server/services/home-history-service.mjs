@@ -1,4 +1,4 @@
-import { jsonResponse,readJsonBody } from '../api/http.mjs';
+import { jsonResponse } from '../api/http.mjs';
 import { getPersistedAvoidHistoryIndexV1,getPersistedAvoidHistoryScopeV1,refreshPersistedAvoidHistoryV1 } from '../engines/home-history-engine-v1.mjs';
 
 const positive=value=>{const n=Number(value);return Number.isInteger(n)&&n>0?n:null;};
@@ -15,7 +15,7 @@ export default async req=>{
   }
   if(req.method==='POST'){
     try{
-      const body=await readJsonBody(req);if(body?.action!=='refresh')return jsonResponse(400,{ok:false,error:'action must be refresh'},'no-store');
+      const body=await req.json();if(body?.action!=='refresh')return jsonResponse(400,{ok:false,error:'action must be refresh'},'no-store');
       if(body?.confirmExecution!==true)return jsonResponse(400,{ok:false,error:'confirmExecution:true is required because refresh performs WCL network calls'},'no-store');
       const result=await refreshPersistedAvoidHistoryV1({days:body.days,maxPages:body.maxPages,maxChangedReports:body.maxChangedReports,concurrency:body.concurrency});
       return jsonResponse(200,result,'private, no-store');
