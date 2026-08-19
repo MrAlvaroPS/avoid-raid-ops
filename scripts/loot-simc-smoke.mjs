@@ -1,5 +1,3 @@
-import { access } from 'node:fs/promises';
-import { isAbsolute } from 'node:path';
 import { simcWorkerStatusV1, simulateLootForPlayerV1 } from '../server/loot/simc-runner-v1.mjs';
 import { fetchLootItemV1 } from '../server/loot/item-provider-v1.mjs';
 
@@ -8,11 +6,22 @@ const player=arg('--player'),realm=arg('--realm'),itemId=Number(arg('--item')),i
 const status=await simcWorkerStatusV1();
 console.log('\n[1/2] Official SimulationCraft worker');
 console.log(JSON.stringify(status,null,2));
-if(!process.env.SIMC_PATH){console.error('\nSIMC_PATH is not configured. For tonight, point it at the official SimulationCraft executable, e.g. SIMC_PATH=C:\\SimulationCraft\\simc.exe in .env.local.');process.exitCode=2;}
-else if(isAbsolute(process.env.SIMC_PATH)){try{await access(process.env.SIMC_PATH);}catch{console.error(`\nSIMC_PATH does not exist: ${process.env.SIMC_PATH}`);process.exit(2);}}
 
-if(!player&&!realm&&!itemId){console.log('\n[2/2] Real character/item simulation');console.log('SKIPPED · worker path validation only. Add --player NAME --realm REALM --item ID [--ilevel N] to run a real raid-only test.');if(!process.exitCode)console.log('\nOK: Loot SimulationCraft v0.1 local worker path is configured.');}
-else{
+if(!status.available){
+  console.error('\nSimulationCraft CLI is OFFLINE. Download/extract the official Windows nightly and set SIMC_PATH to its simc.exe, or add that folder to PATH.');
+  console.error('Example .env.local: SIMC_PATH=C:\\SimulationCraft\\simc.exe');
+  if(player||realm||itemId)process.exit(2);
+  console.log('\n[2/2] Real character/item simulation');
+  console.log('SKIPPED · worker unavailable.');
+  process.exit(2);
+}
+
+console.log(`\nResolved SimulationCraft CLI: ${status.path} (${status.source})`);
+if(!player&&!realm&&!itemId){
+  console.log('\n[2/2] Real character/item simulation');
+  console.log('SKIPPED · worker path validation only. Add --player NAME --realm REALM --item ID [--ilevel N] to run a real raid-only test.');
+  console.log('\nOK: Loot SimulationCraft v0.1 worker is resolved.');
+}else{
   if(!player||!realm||!Number.isInteger(itemId)||itemId<=0){console.error('\nTo run a real simulation provide --player NAME --realm REALM --item ID together.');process.exit(2);}
   console.log('\n[2/2] Real raid-only character/item simulation');
   const fetched=await fetchLootItemV1(itemId),result=await simulateLootForPlayerV1({player:{name:player,server:realm,region:process.env.BLIZZARD_REGION||'eu',role:'DPS'},item:fetched.item,itemLevel,iterations,scenario:'raid_st'});
