@@ -51,7 +51,10 @@ test('CRITICAL v3.9.10 SOURCE DISCOVERY: automatic source selection is fingerpri
   assert.match(discovery,/sourceIdentityOnly:true/);
   assert.match(discovery,/fetchRankingPage/);
   assert.match(discovery,/fetchReportIdentity/);
-  assert.doesNotMatch(discovery,/CORPUS_(?:WIDE|DEEP)|events\(|table\(/i,'source discovery must not query combat evidence');
+  // Word boundaries matter: `stable(` is a local hashing helper and must not be mistaken
+  // for a WCL `table(` combat query by this static guard.
+  assert.doesNotMatch(discovery,/CORPUS_(?:WIDE|DEEP)|\bevents\s*\(|\btable\s*\(/i,'source discovery must not query combat evidence');
+  assert.doesNotMatch(discovery,/semantic-probe|CORPUS_WIDE_TABLES_QUERY|CORPUS_DEEP_EVENTS_QUERY/i,'source discovery must not import combat-query infrastructure');
   assert.match(pool,/unknownLineageCannotBecomeUntouched:true/);
   assert.match(pool,/metadataOnlyBeforeReservation:true/);
   assert.match(pool,/homeAvoidDataUsed:false/);
