@@ -11,6 +11,7 @@
     "status:simc": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --status",
     "sync:home-roster": "node --env-file=.env.local scripts/iris-home-roster-smoke.mjs --refresh",
     "validate:home-roster": "node --env-file=.env.local scripts/iris-home-roster-smoke.mjs",
+    "validate:loot-roster": "node --env-file=.env.local scripts/loot-roster-smoke.mjs",
     "iris": "node --env-file=.env.local scripts/iris-local-worker.mjs",
     "prepare:boss": "node --env-file=.env.local scripts/iris-prepare-boss.mjs",
     "validate:raid-catalog": "node --env-file=.env.local scripts/iris-raid-catalog-smoke.mjs",
