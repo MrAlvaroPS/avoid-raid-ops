@@ -1,12 +1,13 @@
 {
   "name": "avoid-raid-ops-vercel",
   "private": true,
-  "version": "0.3.9-11-vercel.0",
+  "version": "0.3.9-12-vercel.0",
   "type": "module",
   "workspaces": ["apps/web"],
   "scripts": {
     "dev": "vite",
     "iris": "node --env-file=.env.local scripts/iris-local-worker.mjs",
+    "prepare:boss": "node --env-file=.env.local scripts/iris-prepare-boss.mjs",
     "validate:raid-catalog": "node --env-file=.env.local scripts/iris-raid-catalog-smoke.mjs",
     "validate:raid-learning": "node --env-file=.env.local scripts/iris-raid-learning-plan-smoke.mjs",
     "validate:raid-corpus-bootstrap": "node --env-file=.env.local scripts/iris-raid-corpus-bootstrap.mjs",
