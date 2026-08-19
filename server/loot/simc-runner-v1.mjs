@@ -4,13 +4,15 @@ import { tmpdir } from 'node:os';
 import { join, isAbsolute } from 'node:path';
 import { simcSlotsForItemV1 } from './eligibility-v1.mjs';
 
-export const LOOT_SIMC_RUNNER_VERSION='loot-simc-runner-v1';
+export const LOOT_SIMC_RUNNER_VERSION='loot-simc-runner-v1.1';
 const executable=()=>String(process.env.SIMC_PATH||'simc').trim()||'simc';
 const clean=value=>String(value||'').trim();
-const safeToken=value=>clean(value).toLowerCase().replace(/[^a-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'');
+const safeToken=value=>clean(value).toLowerCase().normalize('NFKD').replace(/[^a-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'');
 const finite=value=>Number.isFinite(Number(value))?Number(value):null;
 const metricMean=row=>finite(row?.mean??row?.dps?.mean??row?.metric?.mean??row?.data?.mean);
 const metricError=row=>finite(row?.mean_std_dev??row?.mean_stddev??row?.stddev??row?.dps?.mean_std_dev??row?.dps?.mean_stddev);
+const CLASS_TOKEN={deathknight:'death_knight',demonhunter:'demon_hunter',druid:'druid',evoker:'evoker',hunter:'hunter',mage:'mage',monk:'monk',paladin:'paladin',priest:'priest',rogue:'rogue',shaman:'shaman',warlock:'warlock',warrior:'warrior'};
+const WCL_SLOT={head:'head',neck:'neck',shoulders:'shoulder',shoulder:'shoulder',back:'back',chest:'chest',waist:'waist',legs:'legs',feet:'feet',wrists:'wrist',wrist:'wrist',hands:'hands','ring 1':'finger1','ring 2':'finger2','trinket 1':'trinket1','trinket 2':'trinket2','main hand':'main_hand','off hand':'off_hand'};
 
 export async function simcWorkerStatusV1(){
   const path=executable();
@@ -18,15 +20,27 @@ export async function simcWorkerStatusV1(){
   return{version:LOOT_SIMC_RUNNER_VERSION,available:true,path,source:'PATH',availability:'command-resolution-deferred-until-run'};
 }
 
+function gearOption(row){
+  const parts=[`id=${Number(row.id)}`];if(finite(row.itemLevel))parts.push(`ilevel=${Number(row.itemLevel)}`);if((row.gems||[]).length)parts.push(`gem_id=${row.gems.map(Number).filter(Number.isFinite).join('/')}`);if((row.enchants||[]).length)parts.push(`enchant_id=${Number(row.enchants[0])}`);return parts.join(',');
+}
+function wclProfile(player){
+  const gear=(player?.character?.gear||[]).filter(row=>Number(row?.id)>0),talents=clean(player?.character?.talentImportCode),classKey=safeToken(player.className).replaceAll('_',''),classToken=CLASS_TOKEN[classKey],name=clean(player.name),spec=safeToken(player.spec);
+  const mapped=gear.map(row=>({slot:WCL_SLOT[clean(row.slot).toLowerCase()]||null,row})).filter(x=>x.slot);
+  if(!classToken||!name||mapped.length<10||!talents)return null;
+  const lines=[`${classToken}="${name.replaceAll('"','')}"`];if(spec)lines.push(`spec=${spec}`);lines.push(`talents=${talents}`);for(const {slot,row} of mapped)lines.push(`${slot}=${gearOption(row)}`);
+  return{lines,source:'wcl-combatantinfo',profileCompleteness:{gearRows:gear.length,mappedGearRows:mapped.length,talents:true,bonusIdsPreserved:false,craftedOptionsPreserved:false}};
+}
+function armoryProfile(player){
+  const region=safeToken(player.region||process.env.BLIZZARD_REGION||'eu'),realm=safeToken(player.server||player.realm),name=clean(player.name);if(!realm||!name)throw new Error(`Profile identity incomplete for ${name||'player'}: realm/server is required`);return{lines:[`armory=${region},${realm},${name}`],source:'battle-net-armory',profileCompleteness:{gearRows:null,mappedGearRows:null,talents:null,bonusIdsPreserved:true,craftedOptionsPreserved:true}};
+}
+function baseProfile(player){return wclProfile(player)||armoryProfile(player);}
+
 function profileText({player,item,itemLevel,slots,iterations=1000,scenario='raid_st',jsonPath}){
-  if(scenario!=='raid_st')throw new Error('Loot v0.1 only supports raid_st; DungeonSlice/M+ profiles are forbidden');
-  const region=safeToken(player.region||process.env.BLIZZARD_REGION||'eu'),realm=safeToken(player.server||player.realm),name=clean(player.name);if(!realm||!name)throw new Error(`Armory identity incomplete for ${name||'player'}: realm/server is required`);
-  const itemOpt=`id=${Number(item.id)}${finite(itemLevel)?`,ilevel=${Number(itemLevel)}`:''}`;
-  const lines=[
-    'fight_style=Patchwerk','max_time=300','vary_combat_length=0.20',`iterations=${Math.max(250,Math.min(10000,Number(iterations)||1000))}`,'threads=4','profileset_work_threads=1','profileset_metric=dps','report_details=0',`json2=${jsonPath.replaceAll('\\','/')}`,`armory=${region},${realm},${name}`
-  ];
+  if(scenario!=='raid_st')throw new Error('Loot v0.1 only supports raid_st; Mythic+/dungeon profiles are forbidden');
+  const profile=baseProfile(player),itemOpt=`id=${Number(item.id)}${finite(itemLevel)?`,ilevel=${Number(itemLevel)}`:''}`;
+  const lines=['fight_style=Patchwerk','max_time=300','vary_combat_length=0.20',`iterations=${Math.max(250,Math.min(10000,Number(iterations)||1000))}`,'threads=4','profileset_work_threads=1','profileset_metric=dps','report_details=0',`json2=${jsonPath.replaceAll('\\','/')}`,...profile.lines];
   slots.forEach((slot,index)=>lines.push(`profileset.loot_${index+1}=${slot}=${itemOpt}`));
-  return lines.join('\n')+'\n';
+  return{text:lines.join('\n')+'\n',profile};
 }
 
 function parseResult(raw,{player,item,slots}){
@@ -42,9 +56,9 @@ function runProcess(command,args,{cwd,timeoutMs=180000}={}){return new Promise((
 export async function simulateLootForPlayerV1({player,item,itemLevel=null,iterations=1000,scenario='raid_st',timeoutMs=180000}={}){
   if(!player?.name)throw new Error('player is required');if(!item?.id)throw new Error('item is required');const role=String(player.role||'DPS').toUpperCase();if(role==='HEAL'||role==='HEALER')return{playerName:player.name,itemId:item.id,status:'role-model-pending',gainPct:null,reason:'Healing raid value is not modeled safely by Loot v0.1'};if(role==='TANK')return{playerName:player.name,itemId:item.id,status:'role-model-pending',gainPct:null,reason:'Tank survival raid value is not modeled safely by Loot v0.1'};
   const slots=simcSlotsForItemV1(item);if(!slots.length)return{playerName:player.name,itemId:item.id,status:'unsupported-slot',gainPct:null,reason:'No SimulationCraft slot mapping'};
-  const dir=await mkdtemp(join(tmpdir(),'avoid-loot-simc-')),input=join(dir,'loot.simc'),output=join(dir,'result.json');
-  try{await writeFile(input,profileText({player,item,itemLevel,slots,iterations,scenario,jsonPath:output}),'utf8');await runProcess(executable(),[input],{cwd:dir,timeoutMs});const raw=JSON.parse(await readFile(output,'utf8'));return{version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',scenario:'raid_st',iterations:Math.max(250,Math.min(10000,Number(iterations)||1000)),...parseResult(raw,{player,item,slots})};}
-  catch(error){return{version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',playerName:player.name,itemId:item.id,status:'sim-failed',gainPct:null,reason:error instanceof Error?error.message:String(error)};}
+  const dir=await mkdtemp(join(tmpdir(),'avoid-loot-simc-')),input=join(dir,'loot.simc'),output=join(dir,'result.json');let profile=null;
+  try{const built=profileText({player,item,itemLevel,slots,iterations,scenario,jsonPath:output});profile=built.profile;await writeFile(input,built.text,'utf8');await runProcess(executable(),[input],{cwd:dir,timeoutMs});const raw=JSON.parse(await readFile(output,'utf8'));return{version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',scenario:'raid_st',iterations:Math.max(250,Math.min(10000,Number(iterations)||1000)),profileSource:profile.source,profileCompleteness:profile.profileCompleteness,...parseResult(raw,{player,item,slots})};}
+  catch(error){return{version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',playerName:player.name,itemId:item.id,status:'sim-failed',gainPct:null,profileSource:profile?.source||null,profileCompleteness:profile?.profileCompleteness||null,reason:error instanceof Error?error.message:String(error)};}
   finally{await rm(dir,{recursive:true,force:true}).catch(()=>{});}
 }
 
