@@ -11,13 +11,13 @@ if source.count(legacy_root) != 1:
 adapted = source.replace(legacy_root, active_root)
 
 runtime_anchor = '''runtime=(root/'wcl-runtime.js').read_text().replace('location.origin','"https://test.local"')'''
-runtime_replacement = runtime_anchor + "\nbridge=(root/'mechanics-defensives-fallback-bridge-v4.js').read_text()\ndefensive_runtime=(root/'defensive-audit-runtime.js').read_text()\nmechanics_runtime=(root/'mechanics-runtime.js').read_text()"
+runtime_replacement = runtime_anchor + "\ndefensive_runtime=(root/'defensive-audit-runtime.js').read_text()\nmechanics_runtime=(root/'mechanics-runtime.js').read_text()"
 if adapted.count(runtime_anchor) != 1:
     raise SystemExit("DATA TRUTH ADAPTER: expected exactly one active WCL runtime anchor")
 adapted = adapted.replace(runtime_anchor, runtime_replacement, 1)
 
 html_anchor = "<script type=\"module\">{runtime}</script></body></html>'''"
-html_replacement = "<script type=\"module\">{runtime}</script><script type=\"module\">{bridge}</script><script type=\"module\">{defensive_runtime}</script><script type=\"module\">{mechanics_runtime}</script></body></html>'''"
+html_replacement = "<script type=\"module\">{runtime}</script><script type=\"module\">{defensive_runtime}</script><script type=\"module\">{mechanics_runtime}</script></body></html>'''"
 if adapted.count(html_anchor) != 1:
     raise SystemExit("DATA TRUTH ADAPTER: expected exactly one active runtime HTML anchor")
 adapted = adapted.replace(html_anchor, html_replacement, 1)
