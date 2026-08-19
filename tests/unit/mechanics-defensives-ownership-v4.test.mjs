@@ -22,6 +22,7 @@ import {
 } from '../../config/legacy-runtime-ownership.mjs';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
+const functionDeclaration=writer=>new RegExp(String.raw`function\s+${writer}\s*\(`);
 
 test('Mechanics and Defensive Audit retain separate canonical source owners',async()=>{
   assert.equal(LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER,'apps/web/src/features/mechanics/Mechanics.js');
@@ -63,10 +64,10 @@ test('Mechanics presentation is physically retired while Defensive Audit remains
   assert.equal(defensives?.canonicalOwner,LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER);
 
   const legacy=await read('public/wcl-runtime.js');
-  for(const writer of LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS)assert.doesNotMatch(legacy,new RegExp(`function\s+${writer}\s*\(`));
+  for(const writer of LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS)assert.doesNotMatch(legacy,functionDeclaration(writer));
   assert.equal((legacy.match(/window\.applyTelemetryMechanics\?\.\(\)/g)||[]).length,1);
   assert.equal((legacy.match(/window\.applyIntelligenceMechanics\?\.\(\)/g)||[]).length,1);
-  for(const writer of LEGACY_RUNTIME_DEFENSIVES_WRITERS)assert.match(legacy,new RegExp(`function\s+${writer}\s*\(`),`${writer} stays until Defensive Audit has its own green source-owner checkpoint`);
+  for(const writer of LEGACY_RUNTIME_DEFENSIVES_WRITERS)assert.match(legacy,functionDeclaration(writer),`${writer} stays until Defensive Audit has its own green source-owner checkpoint`);
 });
 
 test('bridge owns only the remaining Defensive fallback/shadow responsibilities',async()=>{
