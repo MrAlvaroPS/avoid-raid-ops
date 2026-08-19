@@ -83,12 +83,22 @@ test('CRITICAL MECHANICS/DEFENSIVES BRIDGE: post-owner retirement bridge is phys
   assert.doesNotMatch(legacy,/window\.applyMechanicsAndDefensives\?\.\(\)/,'retired split fallback call site must not remain in legacy orchestration');
 });
 
-test('CRITICAL COMMAND CENTER TRANSPORT: stable transport is passive and request-free', async () => {
-  const source = await read('public/command-center-runtime.js');
+test('CRITICAL COMMAND CENTER SOURCE OWNER: stable transport is source-owned, passive and request-free', async () => {
+  const [source,transport] = await Promise.all([
+    read('apps/web/src/features/command-center/runtime.js'),
+    read('public/command-center-runtime.js'),
+  ]);
+  assert.equal(transport,source);
   assert.match(source,/window\.applyHistoryData=applyCommandCenterHistory/);
   assert.match(source,/window\.applyProgressCurve=applyCommandCenterProgressCurve/);
   assert.match(source,/window\.__AVOID_WCL_HISTORY__/);
   assert.match(source,/window\.__AVOID_WCL__/);
+  assert.match(source,/window\.__AVOID_COMMAND_CENTER_SOURCE_RUNTIME__/);
+  assert.match(source,/mode:'single-source-owner'/);
+  assert.match(source,/writerPolicy:'single-command-center-progression-history-owner'/);
+  assert.match(source,/directRequests:0/);
+  assert.match(source,/timers:0/);
+  assert.match(source,/observers:0/);
   assert.doesNotMatch(source,OBSERVER_CONSTRUCTION);
   assert.doesNotMatch(source,/\.observe\s*\(/);
   assert.doesNotMatch(source,/setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
@@ -141,7 +151,7 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   const legacy = index.indexOf('/wcl-runtime.js?v=3.8.5');
   const defensiveSource = index.indexOf('/defensive-audit-runtime.js?v=4.0.0-migration5-owner1');
   const mechanicsSource = index.indexOf('/mechanics-runtime.js?v=4.0.0-migration4-owner1');
-  const commandCenter = index.indexOf('/command-center-runtime.js?v=4.0.0-migration6-transport1');
+  const commandCenter = index.indexOf('/command-center-runtime.js?v=4.0.0-migration6-owner1');
   const progress = index.indexOf('/progress-runtime-v3713.js?v=3.8.5');
   assert.ok(bootstrap >= 0, 'hotfix bootstrap must be wired into index.html');
   assert.ok(dataHub > bootstrap, 'data hub must wrap the bootstrap fetch layer, not bypass it');
@@ -149,8 +159,8 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   assert.ok(legacy > reindex, 'legacy compatibility runtime must load after data platform layers');
   assert.ok(defensiveSource > legacy, 'Defensive Audit source owner must load directly after the legacy compatibility layer');
   assert.ok(mechanicsSource > defensiveSource, 'Mechanics source owner must remain after the Defensive Audit source owner');
-  assert.ok(commandCenter > mechanicsSource, 'Command Center stable transport must remain after the Mechanics source owner');
-  assert.ok(progress > commandCenter, 'Progress must install its active-screen wrapper after the Command Center transport');
+  assert.ok(commandCenter > mechanicsSource, 'Command Center source owner must remain after the Mechanics source owner');
+  assert.ok(progress > commandCenter, 'Progress must install its active-screen wrapper after the Command Center source owner');
   for (const asset of [
     '/encounter-intelligence-v375.js?v=3.8.5',
     '/iris-runtime-v3713.js?v=3.8.9.1',
