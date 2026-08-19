@@ -3,10 +3,10 @@ import { resolveOfficialEncounterKnowledgeV1 } from './official-encounter-knowle
 import { compileOfficialEncounterDifficultyViewV1 } from './official-encounter-difficulty-v1.mjs';
 import { persistOfficialEncounterDifficultyViewV1 } from './official-encounter-difficulty-store-v1.mjs';
 import { loadLatestJournalDifficultySnapshotV1,persistJournalDifficultySnapshotV1 } from './journal-difficulty-store-v1.mjs';
-import { fetchWagoJournalDifficultySnapshotV1 } from './providers/wago-db2-journal-difficulty-v1.mjs';
+import { fetchWagoJournalDifficultySnapshotV1,WAGO_DB2_JOURNAL_DIFFICULTY_PROVIDER_VERSION } from './providers/wago-db2-journal-difficulty-v1.mjs';
 import { wagoBuildFromBlizzardNamespaceV1 } from './providers/wago-db2-spell-effect-v1.mjs';
 
-export const RAID_OFFICIAL_BOOTSTRAP_VERSION='raid-official-bootstrap-v2';
+export const RAID_OFFICIAL_BOOTSTRAP_VERSION='raid-official-bootstrap-v3';
 
 async function loadGraph(encounter,{loadByWcl=loadLatestOfficialEncounterGraphByWclIdV1,loadByJournal=loadLatestOfficialEncounterGraphV1}={}){
   if(encounter.wclEncounterId){const graph=await loadByWcl(encounter.wclEncounterId).catch(()=>null);if(graph)return graph;}
@@ -27,7 +27,10 @@ export async function ensureRaidOfficialKnowledgeV1(catalog,{region='eu',locale=
   if(namespace){
     try{
       const build=wagoBuildFromBlizzardNamespaceV1(namespace);
-      if(!force)difficultySnapshot=await loadDifficultySnapshot(build).catch(()=>null);
+      if(!force){
+        difficultySnapshot=await loadDifficultySnapshot(build).catch(()=>null);
+        if(difficultySnapshot?.version!==WAGO_DB2_JOURNAL_DIFFICULTY_PROVIDER_VERSION)difficultySnapshot=null;
+      }
       if(difficultySnapshot)difficultySource='cache';
       else{difficultySnapshot=await fetchDifficultySnapshot({build});wagoCalls+=Number(difficultySnapshot?.usage?.networkCalls||0);difficultySnapshot=await persistDifficultySnapshot(difficultySnapshot);difficultySource='wago-db2';}
     }catch{difficultySnapshot=null;difficultySource='unavailable';}
@@ -39,16 +42,21 @@ export async function ensureRaidOfficialKnowledgeV1(catalog,{region='eu',locale=
     for(const difficulty of encounter.difficulties||raid.difficulties||[]){
       const view=compileOfficialEncounterDifficultyViewV1({officialGraph:graph,difficulty,journalDifficultySnapshot:difficultySnapshot});
       const stored=await persistDifficultyView(view);
-      difficulties.push({id:Number(difficulty.id),name:difficulty.name||`Difficulty ${difficulty.id}`,fingerprint:stored.fingerprint,applicability:stored.applicability,sectionCount:Number(stored.graph?.sectionCount||0),spellCount:Number(stored.graph?.spellCount||0),spellMembershipCount:Number(stored.graph?.officialMembershipEdges||0),abilities:stored.abilities.map(row=>({abilityId:Number(row.abilityId),name:row.name||null,difficultyApplicability:row.difficultyApplicability,memberships:row.memberships||[]}))});
+      difficulties.push({
+        id:Number(difficulty.id),name:difficulty.name||`Difficulty ${difficulty.id}`,fingerprint:stored.fingerprint,applicability:stored.applicability,
+        db2DifficultyId:stored.difficulty?.db2DifficultyId||null,mappingStatus:stored.difficulty?.mappingStatus||null,
+        sectionCount:Number(stored.graph?.sectionCount||0),spellCount:Number(stored.graph?.spellCount||0),spellMembershipCount:Number(stored.graph?.officialMembershipEdges||0),
+        abilities:stored.abilities.map(row=>({abilityId:Number(row.abilityId),name:row.name||null,difficultyApplicability:row.difficultyApplicability,memberships:row.memberships||[]})),
+      });
     }
     bosses.push({wclEncounterId:encounter.wclEncounterId||null,journalEncounterId:encounter.journalEncounterId,name:graph?.encounter?.name||encounter.name||null,officialStatus:graph?'ready':'unavailable',source,fingerprint:graph?.fingerprint||null,namespace:graph?.source?.namespace||null,sectionCount:Number(graph?.graph?.sectionCount||0),spellCount:Number(graph?.graph?.spellCount||0),spellMembershipCount:Number(graph?.graph?.officialMembershipEdges||0),maxDepth:Number(graph?.graph?.maxDepth||0),difficulties});
   }
   return{
     version:RAID_OFFICIAL_BOOTSTRAP_VERSION,
     raid:{zoneId:raid.zoneId,journalInstanceId:raid.journalInstanceId||null,name:raid.name,expansion:raid.expansion,partition:raid.defaultPartition||null,difficulties:raid.difficulties||[]},
-    difficultyApplicability:{status:difficultySnapshot?'ready':'unresolved',source:difficultySource,provider:'wago-db2',build:difficultySnapshot?.build||null,fingerprint:difficultySnapshot?.fingerprint||null},
+    difficultyApplicability:{status:difficultySnapshot?'ready':'unresolved',source:difficultySource,provider:'wago-db2',providerVersion:difficultySnapshot?.version||null,build:difficultySnapshot?.build||null,fingerprint:difficultySnapshot?.fingerprint||null},
     bosses,
-    summary:{bosses:bosses.length,officialReady:bosses.filter(row=>row.officialStatus==='ready').length,difficultyViews:bosses.reduce((sum,row)=>sum+row.difficulties.length,0),difficultyScopedAbilities:bosses.reduce((sum,row)=>sum+row.difficulties.reduce((s,d)=>s+d.abilities.length,0),0)},
+    summary:{bosses:bosses.length,officialReady:bosses.filter(row=>row.officialStatus==='ready').length,difficultyViews:bosses.reduce((sum,row)=>sum+row.difficulties.length,0),difficultyMappedViews:bosses.reduce((sum,row)=>sum+row.difficulties.filter(d=>d.applicability?.difficultyVerified===true).length,0),difficultyScopedAbilities:bosses.reduce((sum,row)=>sum+row.difficulties.reduce((s,d)=>s+d.abilities.length,0),0)},
     usage:{oauthCalls,blizzardGameDataCalls,wagoCalls,wclMetadataCalls:0,wclCombatEventCalls:0},
     evidenceContract:{officialPublishedSemantics:true,difficultyScoped:true,crossDifficultyComparisonForbidden:true,normalHeroicCannotCountAsMythicEvidence:true,observedOccurrence:false,combatTruth:'WCL observed combat remains separate and difficulty scoped.',reportRequired:false,automaticPromotion:false},
   };
