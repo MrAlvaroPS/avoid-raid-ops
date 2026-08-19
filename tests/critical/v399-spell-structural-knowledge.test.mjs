@@ -26,8 +26,8 @@ test('CRITICAL v3.9.9 STRUCTURAL BOUNDS: runtime cannot become a bulk DB2 crawle
   assert.equal(WAGO_DB2_MAX_SEEDS,12);
   assert.equal(WAGO_DB2_MAX_RESPONSE_BYTES,2_000_000);
   assert.match(provider,/WAGO_DB2_MAX_ROWS=5000/);
-  assert.match(provider,/filter\[SpellID\]/);
-  assert.match(provider,/EffectTriggerSpell/);
+  assert.ok(provider.includes("FILTER_FIELDS=new Set(['SpellID','EffectTriggerSpell'])"),'SpellEffect filters must remain allow-listed');
+  assert.ok(provider.includes('filter[${field}]'),'provider must construct the Wago filter from the reviewed allow-listed field');
   assert.ok(provider.includes('text.trim()'),'empty-body handling must remain explicit');
   assert.ok(provider.includes('rows:[],responseRows:0,matchedRows:0,serverFilterVerified:true,emptyResponse:true'),'HTTP-200 empty CSV must remain successful zero-row coverage');
   assert.doesNotMatch(provider,/downloadAll|recursiveCrawl|wholeTableFallback/);
