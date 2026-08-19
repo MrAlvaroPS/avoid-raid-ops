@@ -8,8 +8,9 @@ console.log('\n[1/2] Official SimulationCraft worker');
 console.log(JSON.stringify(status,null,2));
 
 if(!status.available){
-  console.error('\nSimulationCraft CLI is OFFLINE. Download/extract the official Windows nightly and set SIMC_PATH to its simc.exe, or add that folder to PATH.');
-  console.error('Example .env.local: SIMC_PATH=C:\\SimulationCraft\\simc.exe');
+  console.error('\nSimulationCraft CLI is OFFLINE. Run: npm run sync:simc');
+  console.error('The managed updater downloads the latest official Windows nightly, verifies/extracts it and records its commit/hash.');
+  console.error('Manual override remains available with SIMC_PATH=C:\\path\\to\\simc.exe.');
   if(player||realm||itemId)process.exit(2);
   console.log('\n[2/2] Real character/item simulation');
   console.log('SKIPPED · worker unavailable.');
@@ -17,6 +18,7 @@ if(!status.available){
 }
 
 console.log(`\nResolved SimulationCraft CLI: ${status.path} (${status.source})`);
+if(status.nightly)console.log(`Nightly provenance: ${status.nightly.filename} · commit ${status.nightly.commit} · sha256 ${status.nightly.archiveSha256}`);
 if(!player&&!realm&&!itemId){
   console.log('\n[2/2] Real character/item simulation');
   console.log('SKIPPED · worker path validation only. Add --player NAME --realm REALM --item ID [--ilevel N] to run a real raid-only test.');
