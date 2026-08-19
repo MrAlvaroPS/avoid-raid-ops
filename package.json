@@ -9,6 +9,8 @@
     "iris": "node --env-file=.env.local scripts/iris-local-worker.mjs",
     "validate:raid-catalog": "node --env-file=.env.local scripts/iris-raid-catalog-smoke.mjs",
     "validate:raid-learning": "node --env-file=.env.local scripts/iris-raid-learning-plan-smoke.mjs",
+    "validate:raid-corpus-bootstrap": "node --env-file=.env.local scripts/iris-raid-corpus-bootstrap.mjs",
+    "bootstrap:raid-corpus": "node --env-file=.env.local scripts/iris-raid-corpus-bootstrap.mjs --start",
     "validate:official-encounter": "node --env-file=.env.local scripts/iris-official-encounter-smoke.mjs",
     "validate:spell-structure": "node --env-file=.env.local scripts/iris-spell-structure-smoke.mjs",
     "validate:evidence-groups": "node --env-file=.env.local scripts/iris-evidence-groups-smoke.mjs",
