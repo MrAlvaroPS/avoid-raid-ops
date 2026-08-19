@@ -41,11 +41,36 @@ encounterId + difficulty + partition
 
 Production Holdout code must never contain a current-boss encounter ID, Journal ID, spell ID, spell name, phase name or boss-specific interpretation. Known encounter values are allowed only in regression fixtures, smoke commands and documentation.
 
-The CLI arguments used by development smoke tests are **validation controls**, not the intended production orchestration model. In production, Iris must derive the active scope, candidate set and source lineage from persisted products and provider metadata. An operator must not need to hand-author a source list or teach Iris a boss-specific rule.
+The CLI arguments used by development smoke tests are **validation controls**, not the intended production orchestration model. In production, Iris derives the active scope, candidate set and source lineage from persisted products and provider metadata. An operator does not hand-author a source list or teach Iris a boss-specific rule.
 
 Source discovery for reservation may inspect metadata needed to establish independent source identity and scope membership, but it must not inspect the candidate's combat outcome before the reservation is frozen. If Iris cannot prove that a candidate source is unseen because the learning/source lineage is incomplete, the source is ineligible rather than assumed clean.
 
-The current v1 reservation/evaluator is complete. The bounded metadata-source discovery and WCL holdout-evidence acquisition executor are separate orchestration components; until those are implemented, Iris must report that acquisition automation is unavailable rather than silently asking for boss-specific manual inputs in production.
+### Automatic source discovery now implemented
+
+`untouched-holdout-source-discovery-v1` provides a bounded, fingerprinted metadata-only discovery step:
+
+```text
+discover-sources-preview
+  -> 0 network
+  -> frozen Stability + lineage fingerprint
+  -> conservative WCL-call upper bound
+
+discover-sources
+  -> confirmExecution:true + matching previewFingerprint
+  -> fightRankings seed report codes only
+  -> lightweight report identity only
+  -> guild/uploader source identity
+  -> ranking metrics discarded
+  -> seeds reordered by a hash of the frozen Stability fingerprint + report code
+  -> HOME + all prior-learning lineage automatically excluded
+  -> persisted source pool
+```
+
+This phase makes **zero WCL combat-event/table calls**. It may spend bounded WCL metadata calls only after explicit confirmation. If Stability has no Holdout-ready pattern, or source lineage is incomplete, its network budget collapses to zero.
+
+The source pool records explicit `homeSource`, `preexistingCorpusMember`, `priorLearningUse` and `combatEvidenceObservedBeforeReservation` states. Unknown is never converted to false.
+
+The remaining unfinished orchestration component is the bounded **holdout combat-evidence acquisition executor**. It will be allowed to run only after a reservation is frozen and may query only the precommitted candidates/sources. Until that executor exists, Iris must report combat acquisition as unavailable rather than ask for boss-specific manual logic.
 
 ## Why the historical `validation` split is not automatically an Untouched Holdout
 
@@ -53,7 +78,7 @@ The older corpus has a deterministic source-isolated `train` / `validation` spli
 
 However, those validation sources have already been available to previous compiler/learning decisions. v1 therefore refuses to relabel an existing corpus/validation source as untouched merely because it belonged to the validation split.
 
-A source is eligible for a new Untouched Holdout reservation only when the caller can explicitly establish all of the following before holdout combat evidence is inspected:
+A source is eligible for a new Untouched Holdout reservation only when the lineage establishes all of the following before holdout combat evidence is inspected:
 
 - `homeSource === false`
 - `preexistingCorpusMember === false`
@@ -133,7 +158,7 @@ Promotion remains a later explicit contract.
 
 ## Network and truth boundaries
 
-The reservation builder and evaluator themselves execute:
+Reservation and evaluation execute:
 
 ```text
 WCL      0
@@ -141,7 +166,9 @@ Blizzard 0
 Wago     0
 ```
 
-A later bounded acquisition executor may collect the precommitted holdout evidence from WCL. That executor must not change the frozen candidates or reserved sources.
+Automatic source discovery may execute bounded **WCL metadata** calls after a fingerprinted preview, but has an explicit zero budget for combat-event/table calls.
+
+A later bounded acquisition executor may collect the precommitted holdout combat evidence from WCL. That executor must not change the frozen candidates or reserved sources.
 
 WCL combat evidence remains canonical empirical truth. Blizzard and DB2 may provide semantic/structural context but cannot satisfy this Holdout gate.
 
@@ -158,4 +185,4 @@ reservedSources = []
 acquisitionRequired = false
 ```
 
-No holdout WCL acquisition should be spent on that hypothesis.
+No source-discovery or holdout-combat WCL acquisition should be spent on that hypothesis.
