@@ -32,7 +32,7 @@ jobs:
       - name: Install Data Truth browser dependencies
         run: |
           python3 -m pip install --disable-pip-version-check playwright==1.54.0
-          python3 -m playwright install --with-deps chromium
+          python3 -m playwright install chromium
       - name: Golden integrity
         run: npm run verify:golden
       - name: Architecture and quarantine
