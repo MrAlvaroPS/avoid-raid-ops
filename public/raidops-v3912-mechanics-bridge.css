@@ -1,5 +1,7 @@
 /* Longitudinal Raid Execution is selected boss+difficulty HOME state, not the open report.
-   The legacy Mechanics runtime may still mark this node as report-scoped execution; these
-   final author rules deliberately give the v3.9.12 operational root independent tab ownership. */
+   The operational root is the single Raid Execution surface; legacy Golden execution blocks
+   and the old banner are hidden to avoid duplicate/contradictory mechanics views. */
 .canvas[data-avoid-operational-mechanics="1"]:has(.iris-mechanics-tabs [data-tab="execution"].active)>.avoid-operational-root[data-kind="mechanics"]{display:block!important}
 .canvas[data-avoid-operational-mechanics="1"]:has(.iris-mechanics-tabs [data-tab="knowledge"].active)>.avoid-operational-root[data-kind="mechanics"]{display:none!important}
+.canvas[data-avoid-operational-mechanics="1"]>.page-banner{display:none!important}
+.canvas[data-avoid-operational-mechanics="1"]>[data-iris-mechanics-execution="1"]:not(.avoid-operational-root){display:none!important}
