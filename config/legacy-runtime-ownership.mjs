@@ -7,6 +7,8 @@ export const LEGACY_RUNTIME_MECHANICS_SOURCE_OWNER='apps/web/src/features/mechan
 export const LEGACY_RUNTIME_MECHANICS_RUNTIME_SOURCE='apps/web/src/features/mechanics/runtime.js';
 export const LEGACY_RUNTIME_MECHANICS_RUNTIME_TRANSPORT='public/mechanics-runtime.js';
 export const LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER='apps/web/src/features/defensive-audit/DefensiveAudit.js';
+export const LEGACY_RUNTIME_DEFENSIVES_RUNTIME_SOURCE='apps/web/src/features/defensive-audit/runtime.js';
+export const LEGACY_RUNTIME_DEFENSIVES_RUNTIME_TRANSPORT='public/defensive-audit-runtime.js';
 export const LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER='public/mechanics-defensives-fallback-bridge-v4.js';
 export const LEGACY_RUNTIME_MECHANICS_DEFENSIVES_SHADOW_OWNER='public/mechanics-defensives-fallback-bridge-v4.js';
 export const LEGACY_RUNTIME_MECHANICS_FALLBACK_HISTORICAL_WRITERS=Object.freeze(['applyMechanicsAndDefensives']);
@@ -16,10 +18,14 @@ export const LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS=Object.freeze(['applyTe
 export const LEGACY_RUNTIME_MECHANICS_ACTIVE_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_MECHANICS_PHYSICALLY_RETIRED=Object.freeze([...LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS]);
 export const LEGACY_RUNTIME_MECHANICS_WRITERS=LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS;
-export const LEGACY_RUNTIME_DEFENSIVES_WRITERS=Object.freeze(['applyTelemetryDefensives','applyIntelligenceDefensives']);
+export const LEGACY_RUNTIME_DEFENSIVES_HISTORICAL_WRITERS=Object.freeze(['applyTelemetryDefensives','applyIntelligenceDefensives']);
+export const LEGACY_RUNTIME_DEFENSIVES_ACTIVE_WRITERS=Object.freeze([...LEGACY_RUNTIME_DEFENSIVES_HISTORICAL_WRITERS]);
+export const LEGACY_RUNTIME_DEFENSIVES_PHYSICALLY_RETIRED=Object.freeze([]);
+export const LEGACY_RUNTIME_DEFENSIVES_WRITERS=LEGACY_RUNTIME_DEFENSIVES_HISTORICAL_WRITERS;
 export const LEGACY_RUNTIME_MECHANICS_SHADOWED_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_MECHANICS_PARITY_SHADOWED_WRITERS=Object.freeze([]);
-export const LEGACY_RUNTIME_DEFENSIVES_SHADOWED_WRITERS=Object.freeze([...LEGACY_RUNTIME_DEFENSIVES_WRITERS]);
+export const LEGACY_RUNTIME_DEFENSIVES_SHADOWED_WRITERS=Object.freeze([]);
+export const LEGACY_RUNTIME_DEFENSIVES_PARITY_SHADOWED_WRITERS=Object.freeze([...LEGACY_RUNTIME_DEFENSIVES_HISTORICAL_WRITERS]);
 
 export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('shared-dom-formatting','shared-ui','shared-helper','public/wcl-runtime.js','extract-to-browser-shared-module',[
@@ -40,7 +46,7 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('players-data-bridge','players','compatibility-support','public/player-intelligence-v392.js','extract-shared-player-data-helpers',[
     'telemetryPlayerNameMap','roleLabel','playerOutput','reliabilityValue','reliabilityText','reliabilityMeta',
   ]),
-  responsibility('defensive-audit-presentation','defensive-audit','compatibility-writer',LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,'move-to-defensive-audit-source-owner',[
+  responsibility('defensive-audit-presentation','defensive-audit','parity-shadow-source-runtime',LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,'retire-legacy-writers-after-green-source-parity',[
     ...LEGACY_RUNTIME_DEFENSIVES_WRITERS,
   ]),
   responsibility('composition','composition','compatibility-writer','public/wcl-runtime.js','move-to-composition-source-owner',[
@@ -82,6 +88,8 @@ export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   mechanicsRuntimeSource:LEGACY_RUNTIME_MECHANICS_RUNTIME_SOURCE,
   mechanicsRuntimeTransport:LEGACY_RUNTIME_MECHANICS_RUNTIME_TRANSPORT,
   defensivesSourceOwner:LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,
+  defensivesRuntimeSource:LEGACY_RUNTIME_DEFENSIVES_RUNTIME_SOURCE,
+  defensivesRuntimeTransport:LEGACY_RUNTIME_DEFENSIVES_RUNTIME_TRANSPORT,
   mechanicsDefensivesFallbackOwner:LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER,
   mechanicsDefensivesShadowOwner:LEGACY_RUNTIME_MECHANICS_DEFENSIVES_SHADOW_OWNER,
   mechanicsFallbackHistoricalWriters:LEGACY_RUNTIME_MECHANICS_FALLBACK_HISTORICAL_WRITERS,
@@ -91,10 +99,14 @@ export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   mechanicsActiveWriters:LEGACY_RUNTIME_MECHANICS_ACTIVE_WRITERS,
   mechanicsPhysicallyRetired:LEGACY_RUNTIME_MECHANICS_PHYSICALLY_RETIRED,
   mechanicsWriters:LEGACY_RUNTIME_MECHANICS_WRITERS,
+  defensivesHistoricalWriters:LEGACY_RUNTIME_DEFENSIVES_HISTORICAL_WRITERS,
+  defensivesActiveWriters:LEGACY_RUNTIME_DEFENSIVES_ACTIVE_WRITERS,
+  defensivesPhysicallyRetired:LEGACY_RUNTIME_DEFENSIVES_PHYSICALLY_RETIRED,
   defensivesWriters:LEGACY_RUNTIME_DEFENSIVES_WRITERS,
   mechanicsShadowedWriters:LEGACY_RUNTIME_MECHANICS_SHADOWED_WRITERS,
   mechanicsParityShadowedWriters:LEGACY_RUNTIME_MECHANICS_PARITY_SHADOWED_WRITERS,
   defensivesShadowedWriters:LEGACY_RUNTIME_DEFENSIVES_SHADOWED_WRITERS,
+  defensivesParityShadowedWriters:LEGACY_RUNTIME_DEFENSIVES_PARITY_SHADOWED_WRITERS,
   progressHistoricalIntercepts:LEGACY_RUNTIME_PROGRESS_HISTORICAL_INTERCEPTS,
   progressActiveIntercepts:LEGACY_RUNTIME_PROGRESS_ACTIVE_INTERCEPTS,
   progressPhysicallyRetired:LEGACY_RUNTIME_PROGRESS_PHYSICALLY_RETIRED,
