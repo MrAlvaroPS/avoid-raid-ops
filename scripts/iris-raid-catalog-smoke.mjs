@@ -2,25 +2,39 @@ import { resolveRaidCatalogV1 } from '../server/knowledge/raid-catalog-v1.mjs';
 import { persistRaidCatalogV1 } from '../server/knowledge/raid-catalog-store-v1.mjs';
 import { ensureRaidOfficialKnowledgeV1 } from '../server/knowledge/raid-official-bootstrap-v1.mjs';
 
-console.log('\n[1/3] Discover current raid from WCL WorldData metadata (no reports / no combat events)');
+console.log('\n[1/4] Discover current official raid + WCL operational IDs (metadata only)');
 const resolved=await resolveRaidCatalogV1();
 console.log(JSON.stringify({
   fingerprint:resolved.fingerprint,
-  currentRaid:resolved.currentRaid?{zoneId:resolved.currentRaid.zoneId,name:resolved.currentRaid.name,frozen:resolved.currentRaid.frozen,expansion:resolved.currentRaid.expansion,defaultPartition:resolved.currentRaid.defaultPartition,bosses:resolved.currentRaid.encounters}:null,
-  raidCandidates:resolved.zones.length,
-  selection:resolved.selection,
-  diagnostics:resolved.diagnostics,
-  usage:resolved.usage,
+  currentRaid:resolved.currentRaid?{
+    zoneId:resolved.currentRaid.zoneId,journalInstanceId:resolved.currentRaid.journalInstanceId,name:resolved.currentRaid.name,frozen:resolved.currentRaid.frozen,expansion:resolved.currentRaid.expansion,
+    difficulties:resolved.currentRaid.difficulties,
+    bosses:resolved.currentRaid.encounters.map(row=>({order:row.order,name:row.name,wclEncounterId:row.wclEncounterId,journalEncounterId:row.journalEncounterId,difficulties:row.difficulties.map(d=>({id:d.id,name:d.name,source:d.source}))})),
+  }:null,
+  raidCandidates:resolved.zones.length,selection:resolved.selection,officialRaidClassification:resolved.officialRaidClassification,diagnostics:resolved.diagnostics,usage:resolved.usage,
 },null,2));
-if(!resolved.currentRaid?.encounters?.length)throw new Error('No current raid with journal-linked encounters was discovered. Inspect diagnostics.recentZones above; this is intentionally not replaced by a hard-coded zone ID.');
+if(!resolved.currentRaid?.encounters?.length)throw new Error('No current official Blizzard raid could be cross-walked to WCL WorldData. Inspect diagnostics; no zone ID fallback is permitted.');
+if(Number(resolved.usage.wclCombatEventCalls)!==0)throw new Error('Raid catalog must not request combat events');
 
-console.log('\n[2/3] Persist raid catalog');
+console.log('\n[2/4] Verify every boss exposes independent difficulties');
+const invalidScopes=resolved.currentRaid.encounters.filter(row=>!row.journalEncounterId||!(row.difficulties||[]).length);
+console.log(JSON.stringify({bosses:resolved.currentRaid.encounters.length,bossesWithDifficultyScopes:resolved.currentRaid.encounters.length-invalidScopes.length,invalidScopes:invalidScopes.map(row=>({name:row.name,journalEncounterId:row.journalEncounterId,wclEncounterId:row.wclEncounterId}))},null,2));
+if(invalidScopes.length)throw new Error('Every boss must expose at least one difficulty scope before Mechanics can render it');
+
+console.log('\n[3/4] Persist raid catalog');
 const catalog=await persistRaidCatalogV1(resolved);
 console.log(JSON.stringify({latestKey:catalog.storage.latestKey,revisionKey:catalog.storage.revisionKey,changedFromPrevious:catalog.storage.changedFromPrevious,currentZoneId:catalog.currentZoneId},null,2));
 
-console.log('\n[3/3] Bootstrap official Blizzard knowledge for every boss');
+console.log('\n[4/4] Bootstrap official Blizzard + DB2 difficulty knowledge for every boss');
 const official=await ensureRaidOfficialKnowledgeV1(catalog);
-console.log(JSON.stringify({raid:official.raid,summary:official.summary,usage:official.usage,bosses:official.bosses.map(row=>({wclEncounterId:row.wclEncounterId,journalEncounterId:row.journalEncounterId,name:row.name,officialStatus:row.officialStatus,source:row.source,namespace:row.namespace,sectionCount:row.sectionCount,spellCount:row.spellCount,spellMembershipCount:row.spellMembershipCount,maxDepth:row.maxDepth,abilities:row.abilities.slice(0,12).map(ability=>({abilityId:ability.abilityId,name:ability.name,path:ability.memberships?.[0]?.path||[]}))}))},null,2));
-if(official.summary.officialReady!==official.summary.bosses)throw new Error('Not every discovered raid boss has official Blizzard knowledge ready');
+console.log(JSON.stringify({
+  raid:official.raid,difficultyApplicability:official.difficultyApplicability,summary:official.summary,usage:official.usage,
+  bosses:official.bosses.map(row=>({
+    wclEncounterId:row.wclEncounterId,journalEncounterId:row.journalEncounterId,name:row.name,officialStatus:row.officialStatus,namespace:row.namespace,
+    difficulties:row.difficulties.map(d=>({id:d.id,name:d.name,fingerprint:d.fingerprint,encounterStatus:d.applicability?.encounterStatus,sectionDifficultyMetadataAvailable:d.applicability?.sectionDifficultyMetadataAvailable,sectionCount:d.sectionCount,spellCount:d.spellCount,spellMembershipCount:d.spellMembershipCount,abilities:d.abilities.slice(0,8).map(a=>({abilityId:a.abilityId,name:a.name,applicability:a.difficultyApplicability?.status,path:a.memberships?.[0]?.path||[]}))}))
+  }))
+},null,2));
+if(official.summary.officialReady!==official.summary.bosses)throw new Error('Not every discovered raid boss has base official Blizzard knowledge ready');
+if(official.bosses.some(row=>row.difficulties.length===0))throw new Error('Official bootstrap produced a boss without difficulty views');
 if(Number(official.usage.wclCombatEventCalls)!==0)throw new Error('Raid bootstrap must never request WCL combat events');
-console.log('\nOK: current raid + boss Journal knowledge bootstrapped without any combat report.');
+console.log('\nOK: raid + bosses + independent difficulty knowledge bootstrapped without any combat report.');
