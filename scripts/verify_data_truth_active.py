@@ -11,13 +11,13 @@ if source.count(legacy_root) != 1:
 adapted = source.replace(legacy_root, active_root)
 
 runtime_anchor = '''runtime=(root/'wcl-runtime.js').read_text().replace('location.origin','"https://test.local"')'''
-runtime_replacement = runtime_anchor + "\ndefensive_runtime=(root/'defensive-audit-runtime.js').read_text()\nmechanics_runtime=(root/'mechanics-runtime.js').read_text()\ncommand_center_runtime=(root/'command-center-runtime.js').read_text()"
+runtime_replacement = runtime_anchor + "\npull_lab_runtime=(root/'pull-lab-runtime.js').read_text()\ndefensive_runtime=(root/'defensive-audit-runtime.js').read_text()\nmechanics_runtime=(root/'mechanics-runtime.js').read_text()\ncommand_center_runtime=(root/'command-center-runtime.js').read_text()"
 if adapted.count(runtime_anchor) != 1:
     raise SystemExit("DATA TRUTH ADAPTER: expected exactly one active WCL runtime anchor")
 adapted = adapted.replace(runtime_anchor, runtime_replacement, 1)
 
 html_anchor = "<script type=\"module\">{runtime}</script></body></html>'''"
-html_replacement = "<script type=\"module\">{runtime}</script><script type=\"module\">{defensive_runtime}</script><script type=\"module\">{mechanics_runtime}</script><script type=\"module\">{command_center_runtime}</script></body></html>'''"
+html_replacement = "<script type=\"module\">{runtime}</script><script type=\"module\">{pull_lab_runtime}</script><script type=\"module\">{defensive_runtime}</script><script type=\"module\">{mechanics_runtime}</script><script type=\"module\">{command_center_runtime}</script></body></html>'''"
 if adapted.count(html_anchor) != 1:
     raise SystemExit("DATA TRUTH ADAPTER: expected exactly one active runtime HTML anchor")
 adapted = adapted.replace(html_anchor, html_replacement, 1)
@@ -37,6 +37,20 @@ owner_replacement = """    print('Mechanics intelligence: PASS')
     print('Command Center source owner:', 'PASS' if command_center_owner_ok else 'FAIL')
     if not command_center_owner_ok:
         print('Command Center owner state:', command_center_owner);sys.exit(6)
+    page.get_by_text('Pull Lab',exact=True).first.click();page.wait_for_timeout(250)
+    pull_lab_shadow=page.evaluate('window.__AVOID_PULL_LAB_SOURCE_RUNTIME__?.shadowAgainstLegacy?.() || null')
+    pull_lab_shadow_ok=(
+        bool(pull_lab_shadow)
+        and pull_lab_shadow.get('mode')=='parity-shadow'
+        and pull_lab_shadow.get('checks',0)>=1
+        and pull_lab_shadow.get('mismatches')==0
+        and pull_lab_shadow.get('directRequests')==0
+        and pull_lab_shadow.get('timers')==0
+        and pull_lab_shadow.get('observers')==0
+    )
+    print('Pull Lab source parity:', 'PASS' if pull_lab_shadow_ok else 'FAIL')
+    if not pull_lab_shadow_ok:
+        print('Pull Lab parity state:', pull_lab_shadow);sys.exit(7)
     page.get_by_text('Defensive Audit',exact=True).first.click();page.wait_for_timeout(250)
     defensive_owner=page.evaluate('window.__AVOID_DEFENSIVE_AUDIT_SOURCE_RUNTIME_STATE__ || null')
     defensive_owner_ok=(
@@ -48,7 +62,7 @@ owner_replacement = """    print('Mechanics intelligence: PASS')
     )
     print('Defensive Audit source owner:', 'PASS' if defensive_owner_ok else 'FAIL')
     if not defensive_owner_ok:
-        print('Defensive Audit owner state:', defensive_owner);sys.exit(7)
+        print('Defensive Audit owner state:', defensive_owner);sys.exit(8)
     browser.close()"""
 if adapted.count(owner_anchor) != 1:
     raise SystemExit("DATA TRUTH ADAPTER: expected exactly one Mechanics owner insertion anchor")
