@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { buildBundledKnowledge } from './game-knowledge-v1.mjs';
 import { officialEncounterMembershipForAbilityV1 } from './official-encounter-knowledge-v1.mjs';
 import { loadLatestOfficialEncounterGraphByWclIdV1 } from './official-encounter-store-v1.mjs';
+import { loadLatestSpellStructuralKnowledgeV1 } from './spell-structural-store-v1.mjs';
+import { wagoBuildFromBlizzardNamespaceV1 } from './providers/wago-db2-spell-effect-v1.mjs';
 import { fetchLorrgsBossSpells,fetchLorrgsSpell } from './providers/lorrgs-client-v1.mjs';
 import { fetchParseWowheadSpell,parseWowheadConfigured } from './providers/parse-wowhead-client-v1.mjs';
 import { fetchWclStaticAbilityKnowledge } from './providers/wcl-static-metadata-v1.mjs';
@@ -43,12 +45,16 @@ export function buildAbilityKnowledgePreviewV1(input={}){
       wclCalls:request.providers.wcl?1:0,
       wclPointEstimate:null,
     },
-    storedKnowledge:{officialBlizzardJournalLookup:request.encounterId?'attempted-at-resolve-with-0-provider-calls':'not-addressable-without-encounterId'},
+    storedKnowledge:{
+      officialBlizzardJournalLookup:request.encounterId?'attempted-at-resolve-with-0-provider-calls':'not-addressable-without-encounterId',
+      spellStructuralLookup:request.encounterId?'attempted-at-resolve-with-0-provider-calls':'not-addressable-without-encounterId',
+    },
     safety:{
       wclRequiresExplicitApproval:request.providers.wcl,
       parseCreditsRequireExplicitApproval:request.providers.parseWowhead,
       lorrgsReadOnly:true,
       officialJournalStoredLookupNetworkCalls:0,
+      structuralStoredLookupNetworkCalls:0,
       promotionAutomatic:false,
       combatTruth:'Warcraft Logs observed combat remains canonical; provider metadata is enrichment only.',
     },
@@ -77,7 +83,56 @@ function internalKnowledgeFor(ids,encounterId){
 const providerName=row=>String(row?.name||'').trim()||null;
 const lorrgsName=row=>String(row?.name||'').trim()||null;
 
-function aggregateAbility(id,{internal,officialGraph,officialMembership,lorrgs,lorrgsBossMember,lorrgsBossCatalogResolved,parse,wcl,encounterId,bossSlug}){
+function structuralSignalForAbility(structuralKnowledge,id){
+  if(!structuralKnowledge)return{status:'not-cached-or-unavailable',role:'build-pinned-client-spell-structure',negativeEvidence:false};
+  const relations=structuralKnowledge.relations||[];
+  const inbound=relations.filter(row=>Number(row?.targetAbilityId)===Number(id));
+  const outbound=relations.filter(row=>Number(row?.sourceAbilityId)===Number(id));
+  const queryCoverage=structuralKnowledge?.coverage?.queryCoverage||structuralKnowledge?.aggregation?.queryCoverage||{};
+  const inboundCoverage=queryCoverage[`EffectTriggerSpell|${id}`]||null;
+  const outboundCoverage=queryCoverage[`SpellID|${id}`]||null;
+  const coverageRows=[inboundCoverage,outboundCoverage].filter(Boolean);
+  const queried=coverageRows.length>0;
+  const completeForId=Boolean(inboundCoverage?.status==='resolved'&&outboundCoverage?.status==='resolved');
+  const partialForId=queried&&!completeForId;
+  const status=inbound.length||outbound.length
+    ?'resolved'
+    :completeForId
+      ?'queried-no-trigger-relations'
+      :partialForId
+        ?'partially-queried-no-current-relations'
+        :'not-queried';
+  const compact=row=>({
+    sourceAbilityId:Number(row.sourceAbilityId)||null,
+    targetAbilityId:Number(row.targetAbilityId)||null,
+    relationKind:row.relationKind||null,
+    relationLabel:row.relationLabel||null,
+    providerRowId:row.providerRowId??null,
+    officialContext:row.officialContext?.status||null,
+    structuralEvidence:row.structuralEvidence||null,
+  });
+  return{
+    status,
+    role:'build-pinned-client-spell-structure',
+    provider:'wago-db2',
+    build:structuralKnowledge?.provider?.build||null,
+    structuralFingerprint:structuralKnowledge?.fingerprint||null,
+    inbound:inbound.map(compact),
+    outbound:outbound.map(compact),
+    coverage:{
+      inbound:inboundCoverage,
+      outbound:outboundCoverage,
+      completeForId,
+      partialForId,
+    },
+    negativeEvidence:false,
+    observedOccurrence:false,
+    causalCombatEvidence:false,
+    promotionEffect:'none',
+  };
+}
+
+function aggregateAbility(id,{internal,officialGraph,officialMembership,structuralKnowledge,lorrgs,lorrgsBossMember,lorrgsBossCatalogResolved,parse,wcl,encounterId,bossSlug}){
   const names=[
     ['wcl',providerName(wcl)],
     ['blizzard-journal',officialMembership?.name||null],
@@ -104,6 +159,7 @@ function aggregateAbility(id,{internal,officialGraph,officialMembership,lorrgs,l
       ?{status:'resolved',journalEncounterId:officialGraph.encounter?.journalEncounterId||null,namespace:officialGraph.source?.namespace||null,graphFingerprint:officialGraph.fingerprint||null,name:officialMembership.name||null,memberships:officialMembership.memberships,role:'official-published-encounter-membership',negativeEvidence:false}
       :{status:'not-listed-in-journal',journalEncounterId:officialGraph.encounter?.journalEncounterId||null,namespace:officialGraph.source?.namespace||null,graphFingerprint:officialGraph.fingerprint||null,role:'official-published-encounter-membership',negativeEvidence:false}
     :{status:'not-cached-or-unavailable',role:'official-published-encounter-membership',negativeEvidence:false};
+  const structuralSignal=structuralSignalForAbility(structuralKnowledge,id);
   const structuralUse=officialMembership?.officialEncounterAssociation
     ?'Blizzard publishes this ID under the official Encounter Journal hierarchy for the selected encounter/build; this establishes official semantic membership but not occurrence or causality in a pull.'
     :lorrgsBossMember
@@ -120,6 +176,7 @@ function aggregateAbility(id,{internal,officialGraph,officialMembership,lorrgs,l
     encounterAssociation:{status:association,encounterId:encounterId||null,bossSlug:bossSlug||null,support:encounterSupport},
     providerSignals:{
       blizzardJournal:officialSignal,
+      spellStructure:structuralSignal,
       wcl:wcl?{status:'resolved',id:wcl.id,name:wcl.name||null,icon:wcl.icon||null,role:'official-static-identity'}:{status:'not-requested-or-unresolved'},
       lorrgs:lorrgsSignal,
       parseWowhead:parse?{status:'resolved',name:parse.name||null,url:parse.url||null,role:'reference-identity-fallback'}:{status:'not-requested-or-unresolved'},
@@ -131,6 +188,7 @@ function aggregateAbility(id,{internal,officialGraph,officialMembership,lorrgs,l
       structuralUse,
       canonicalCombatEvidence:false,
       officialEncounterMembership:Boolean(officialMembership?.officialEncounterAssociation),
+      structuralRelationsObservedInClientMetadata:structuralSignal.status==='resolved',
       promotionEligible:false,
       automaticPromotion:false,
     },
@@ -149,13 +207,42 @@ export async function resolveAbilityKnowledgeV1(input={},options={}){
   const wclRows=new Map();
   const errors=[];
   const hasInjectedOfficialGraph=Object.prototype.hasOwnProperty.call(options,'officialGraph');
+  const hasInjectedStructuralKnowledge=Object.prototype.hasOwnProperty.call(options,'structuralKnowledge');
   let officialGraph=hasInjectedOfficialGraph?options.officialGraph:null;
+  let structuralKnowledge=hasInjectedStructuralKnowledge?options.structuralKnowledge:null;
   if(officialGraph?.encounter?.wclEncounterId&&request.encounterId&&Number(officialGraph.encounter.wclEncounterId)!==Number(request.encounterId))throw new Error('Injected official encounter graph does not match requested WCL encounterId');
-  const usage={officialJournalReadsAttempted:request.encounterId&&!hasInjectedOfficialGraph?1:0,officialJournalCacheHit:Boolean(officialGraph),officialJournalInjected:hasInjectedOfficialGraph,lorrgsCallsAttempted:0,lorrgsCallsSucceeded:0,lorrgsBossCatalogResolved:false,parseCallsAttempted:0,parseCallsSucceeded:0,parseCreditUpperBound:0,wclCallsAttempted:0,wclCallsSucceeded:0,wclRateLimit:null};
+  if(structuralKnowledge?.scope?.wclEncounterId&&request.encounterId&&Number(structuralKnowledge.scope.wclEncounterId)!==Number(request.encounterId))throw new Error('Injected structural knowledge does not match requested WCL encounterId');
+  const usage={
+    officialJournalReadsAttempted:request.encounterId&&!hasInjectedOfficialGraph?1:0,
+    officialJournalCacheHit:Boolean(officialGraph),
+    officialJournalInjected:hasInjectedOfficialGraph,
+    structuralReadsAttempted:request.encounterId&&!hasInjectedStructuralKnowledge?1:0,
+    structuralCacheHit:Boolean(structuralKnowledge),
+    structuralInjected:hasInjectedStructuralKnowledge,
+    lorrgsCallsAttempted:0,lorrgsCallsSucceeded:0,lorrgsBossCatalogResolved:false,
+    parseCallsAttempted:0,parseCallsSucceeded:0,parseCreditUpperBound:0,
+    wclCallsAttempted:0,wclCallsSucceeded:0,wclRateLimit:null,
+  };
 
   if(request.encounterId&&!hasInjectedOfficialGraph){
     try{officialGraph=await loadLatestOfficialEncounterGraphByWclIdV1(request.encounterId);usage.officialJournalCacheHit=Boolean(officialGraph);}
     catch(error){errors.push({provider:'blizzard-journal',scope:`stored-wcl-encounter:${request.encounterId}`,error:error instanceof Error?error.message:String(error),negativeEvidence:false});}
+  }
+
+  if(request.encounterId&&!hasInjectedStructuralKnowledge){
+    try{structuralKnowledge=await loadLatestSpellStructuralKnowledgeV1(request.encounterId);usage.structuralCacheHit=Boolean(structuralKnowledge);}
+    catch(error){errors.push({provider:'wago-db2',scope:`stored-wcl-encounter:${request.encounterId}`,error:error instanceof Error?error.message:String(error),negativeEvidence:false});}
+  }
+
+  if(structuralKnowledge&&officialGraph?.source?.namespace){
+    let officialBuild=null;
+    try{officialBuild=wagoBuildFromBlizzardNamespaceV1(officialGraph.source.namespace);}catch{}
+    const structuralBuild=String(structuralKnowledge?.provider?.build||'');
+    if(officialBuild&&structuralBuild&&officialBuild!==structuralBuild){
+      errors.push({provider:'wago-db2',scope:`stored-wcl-encounter:${request.encounterId}`,error:`Stored structural build ${structuralBuild} does not match current official Blizzard build ${officialBuild}`,negativeEvidence:false});
+      structuralKnowledge=null;
+      usage.structuralCacheHit=false;
+    }
   }
 
   if(request.providers.lorrgs){
@@ -199,6 +286,7 @@ export async function resolveAbilityKnowledgeV1(input={},options={}){
     internal:internal.get(id)||null,
     officialGraph,
     officialMembership:officialGraph?officialEncounterMembershipForAbilityV1(officialGraph,id):null,
+    structuralKnowledge,
     lorrgs:lorrgsRows.get(id)||null,
     lorrgsBossMember:lorrgsBossMembers.has(id),
     lorrgsBossCatalogResolved,
@@ -211,11 +299,22 @@ export async function resolveAbilityKnowledgeV1(input={},options={}){
     version:ABILITY_KNOWLEDGE_VERSION,previewFingerprint:preview.fingerprint,request,
     providers:{
       blizzardJournal:{networkRequested:false,storedGraphAvailable:Boolean(officialGraph),journalEncounterId:officialGraph?.encounter?.journalEncounterId||null,namespace:officialGraph?.source?.namespace||null,graphFingerprint:officialGraph?.fingerprint||null,role:'official published encounter hierarchy/membership; stored lookup only in ability resolver'},
+      spellStructure:{networkRequested:false,storedGraphAvailable:Boolean(structuralKnowledge),provider:'wago-db2',build:structuralKnowledge?.provider?.build||null,structuralFingerprint:structuralKnowledge?.fingerprint||null,role:'build-pinned client DB2 spell wiring; stored lookup only in ability resolver'},
       lorrgs:{requested:request.providers.lorrgs,bossCatalogResolved:lorrgsBossCatalogResolved,catalogSemantics:'curated-boss-timeline-markers-not-exhaustive',role:'secondary curated boss timeline/analysis markers'},
       parseWowhead:{requested:request.providers.parseWowhead,configured:parseWowheadConfigured({PARSE_API_KEY:options.parseApiKey??process.env.PARSE_API_KEY}),role:'independent maintained Wowhead wrapper; identity/reference only'},
       wcl:{requested:request.providers.wcl,role:'official static identity/scope metadata'},
     },
     encounter:wclEncounter||{id:request.encounterId,name:officialGraph?.encounter?.name||null,journalID:officialGraph?.encounter?.journalEncounterId||null},abilities,usage,errors,
-    evidenceContract:{combatTruth:'WCL observed combat events remain canonical',blizzardJournal:'official published encounter hierarchy/membership from persisted build-specific graph; does not prove pull occurrence or causality',providerMetadata:'enrichment/hypothesis support only',lorrgs:'secondary derived data; boss catalogue is a curated timeline/analysis marker set, so successful absence is weak negative evidence only',parseWowhead:'non-official wrapper over public Wowhead data',promotionAutomatic:false,deepContribution:{reports:0,pulls:0},directScoreDelta:0},
+    evidenceContract:{
+      combatTruth:'WCL observed combat events remain canonical',
+      blizzardJournal:'official published encounter hierarchy/membership from persisted build-specific graph; does not prove pull occurrence or causality',
+      spellStructure:'build-pinned client DB2 structural relations from persisted Wago-derived knowledge; does not prove pull occurrence, actor provenance or causality',
+      providerMetadata:'enrichment/hypothesis support only',
+      lorrgs:'secondary derived data; boss catalogue is a curated timeline/analysis marker set, so successful absence is weak negative evidence only',
+      parseWowhead:'non-official wrapper over public Wowhead data',
+      promotionAutomatic:false,
+      deepContribution:{reports:0,pulls:0},
+      directScoreDelta:0,
+    },
   };
 }
