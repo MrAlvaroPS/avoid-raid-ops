@@ -16,6 +16,8 @@ test('CRITICAL OPERATIONAL REHEARSAL: DATA READY is separate from LIVE READY and
   assert.match(source,/operationalModelFingerprint/);
   assert.match(source,/rehearsalFingerprint/);
   assert.match(source,/staleCoverageReviewCannotBlockChangedModel:true/);
+  assert.match(source,/packDiagnostics/);
+  assert.match(source,/packDiagnosticsFromPersistedAggregate:true/);
   assert.match(source,/coverage-review/);
   assert.match(source,/live-ready/);
   assert.doesNotMatch(source,BOSS_SPECIFIC);
@@ -32,12 +34,22 @@ test('CRITICAL RAID PREP: current-raid preparation is generic, checkpointed, una
   assert.match(source,/--watch/);
   assert.match(source,/WATCH SLEEP/);
   assert.match(source,/resumeAt/);
-  assert.match(source,/unchanged coverage-review/);
+  assert.match(source,/isRawWcl429/);
+  assert.match(source,/rawWcl429IsTransientCheckpoint:true/);
   assert.match(source,/--force-rehearsal/);
   assert.match(source,/sameDifficultyOnly:true/);
   assert.match(source,/dataReadyDoesNotImplyLiveReady:true/);
   assert.match(source,/unchangedCoverageReviewIsNotRepeated:true/);
   assert.doesNotMatch(source,BOSS_SPECIFIC);
+});
+
+test('CRITICAL OBSERVATIONAL COVERAGE: seeing a non-scoreable mechanic counts as coverage but never becomes a failure',async()=>{
+  const source=await read('server/analysis/mechanics/encounter-rule-engine.mjs');
+  assert.match(source,/pressure-window/);
+  assert.match(source,/damage-distribution-only/);
+  assert.match(source,/stateful-impact-observed/);
+  assert.match(source,/agg\.observedIncidents\+=impacts\.length/);
+  assert.match(source,/not converted into a player\/raid failure/);
 });
 
 test('CRITICAL PRODUCTION LIVE GATE: unrehearsed DATA READY reference cannot emit mechanic classification through the Live API',async()=>{
