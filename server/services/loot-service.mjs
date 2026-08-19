@@ -20,27 +20,27 @@ export default async req=>{
   try{
     const url=new URL(req.url);
     if(req.method==='GET'){
-      if(url.searchParams.get('state')==='1'){const ledger=await loadLootLedgerV1(),worker=await simcWorkerStatusV1();return jsonResponse(200,{ok:true,version:'loot-api-v1.1',worker,ledger,lootCounts:lootCountsV1(ledger),networkExecuted:false},'private, no-store');}
-      if(url.searchParams.get('raidCatalog')==='1'){const result=await ensureRaidLootCatalogV1({refresh:url.searchParams.get('refresh')==='1'});return jsonResponse(200,{ok:true,version:'loot-api-v1.1',...result},'private, no-store');}
-      const itemId=Number(url.searchParams.get('item'));if(Number.isInteger(itemId)&&itemId>0){const result=await fetchLootItemV1(itemId);return jsonResponse(200,{ok:true,version:'loot-api-v1.1',...result},'private, no-store');}
-      const q=String(url.searchParams.get('q')||'').trim();if(q){const result=url.searchParams.get('raid')==='1'?await searchRaidLootCatalogV1(q,{limit:Number(url.searchParams.get('limit'))||30,refresh:url.searchParams.get('refresh')==='1'}):await searchLootItemsV1(q,{limit:Number(url.searchParams.get('limit'))||12});return jsonResponse(200,{ok:true,version:'loot-api-v1.1',...result},'private, no-store');}
-      return jsonResponse(400,{ok:false,error:'Use ?raid=1&q=<name-or-id>, ?q=<global-name>, ?item=<id>, ?raidCatalog=1 or ?state=1'},'no-store');
+      if(url.searchParams.get('state')==='1'){const ledger=await loadLootLedgerV1(),worker=await simcWorkerStatusV1();return jsonResponse(200,{ok:true,version:'loot-api-v1.2',worker,ledger,lootCounts:lootCountsV1(ledger),networkExecuted:false},'private, no-store');}
+      if(url.searchParams.get('raidCatalog')==='1'){const result=await ensureRaidLootCatalogV1({refresh:url.searchParams.get('refresh')==='1'});return jsonResponse(200,{ok:true,version:'loot-api-v1.2',...result},'private, no-store');}
+      const itemId=Number(url.searchParams.get('item'));if(Number.isInteger(itemId)&&itemId>0){const result=await fetchLootItemV1(itemId);return jsonResponse(200,{ok:true,version:'loot-api-v1.2',...result},'private, no-store');}
+      const q=String(url.searchParams.get('q')||'').trim();if(q){const result=url.searchParams.get('global')==='1'?await searchLootItemsV1(q,{limit:Number(url.searchParams.get('limit'))||12}):await searchRaidLootCatalogV1(q,{limit:Number(url.searchParams.get('limit'))||30,refresh:url.searchParams.get('refresh')==='1'});return jsonResponse(200,{ok:true,version:'loot-api-v1.2',...result},'private, no-store');}
+      return jsonResponse(400,{ok:false,error:'Use ?q=<current-raid-name-or-id>, ?global=1&q=<global-name>, ?item=<id>, ?raidCatalog=1 or ?state=1'},'no-store');
     }
     if(req.method==='POST'){
       const body=await bodyJson(req),action=String(body?.action||'').trim();
       if(action==='simulate'){
         const item=await resolveItem(body),players=safePlayers(body?.players),eligibility=players.map(player=>({player,eligibility:evaluateLootEligibilityV1(item,player)})),eligible=eligibility.filter(row=>row.eligibility.eligible).map(row=>row.player);
-        if(!eligible.length)return jsonResponse(200,{ok:true,version:'loot-api-v1.1',item,eligibility,simulation:{results:[],status:'no-eligible-raiders'},evidenceContract:{simGainOnly:true,automaticAward:false,raidOnly:true}},'private, no-store');
+        if(!eligible.length)return jsonResponse(200,{ok:true,version:'loot-api-v1.2',item,eligibility,simulation:{results:[],status:'no-eligible-raiders'},evidenceContract:{simGainOnly:true,automaticAward:false,raidOnly:true}},'private, no-store');
         const rawSimulation=await simulateLootRaidV1({players:eligible,item,itemLevel:body?.itemLevel,iterations:body?.iterations||1000,scenario:'raid_st',concurrency:body?.concurrency||2}),simulation=classifyLootSimulationV1(rawSimulation);
-        return jsonResponse(200,{ok:true,version:'loot-api-v1.1',item,eligibility,simulation,evidenceContract:{simGainOnly:true,automaticAward:false,raidOnly:true,healerAndTankRaidValueNotFabricated:true,observedCombatantInfoPreferred:true,armoryFallbackAllowed:true,unsupportedSimcSpecsRemainEligible:true}},'private, no-store');
+        return jsonResponse(200,{ok:true,version:'loot-api-v1.2',item,eligibility,simulation,evidenceContract:{simGainOnly:true,automaticAward:false,raidOnly:true,healerAndTankRaidValueNotFabricated:true,observedCombatantInfoPreferred:true,armoryFallbackAllowed:true,unsupportedSimcSpecsRemainEligible:true}},'private, no-store');
       }
       if(action==='eligibility'){
-        const item=await resolveItem(body),players=safePlayers(body?.players);return jsonResponse(200,{ok:true,version:'loot-api-v1.1',item,rows:players.map(player=>({player,eligibility:evaluateLootEligibilityV1(item,player)}))},'private, no-store');
+        const item=await resolveItem(body),players=safePlayers(body?.players);return jsonResponse(200,{ok:true,version:'loot-api-v1.2',item,rows:players.map(player=>({player,eligibility:evaluateLootEligibilityV1(item,player)}))},'private, no-store');
       }
-      if(action==='award'){const result=await awardLootV1(body);return jsonResponse(200,{ok:true,version:'loot-api-v1.1',...result},'private, no-store');}
-      if(action==='remove-award'){const result=await removeLootAwardV1(body?.id);return jsonResponse(200,{ok:true,version:'loot-api-v1.1',...result},'private, no-store');}
+      if(action==='award'){const result=await awardLootV1(body);return jsonResponse(200,{ok:true,version:'loot-api-v1.2',...result},'private, no-store');}
+      if(action==='remove-award'){const result=await removeLootAwardV1(body?.id);return jsonResponse(200,{ok:true,version:'loot-api-v1.2',...result},'private, no-store');}
       return jsonResponse(400,{ok:false,error:'action must be simulate, eligibility, award or remove-award'},'no-store');
     }
     return jsonResponse(405,{ok:false,error:'Method not allowed'},'no-store');
-  }catch(error){return jsonResponse(500,{ok:false,version:'loot-api-v1.1',error:error instanceof Error?error.message:String(error)},'no-store');}
+  }catch(error){return jsonResponse(500,{ok:false,version:'loot-api-v1.2',error:error instanceof Error?error.message:String(error)},'no-store');}
 };
