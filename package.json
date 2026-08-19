@@ -8,6 +8,8 @@
     "dev": "vite",
     "iris": "node --env-file=.env.local scripts/iris-local-worker.mjs",
     "prepare:boss": "node --env-file=.env.local scripts/iris-prepare-boss.mjs",
+    "prepare:raid": "node --env-file=.env.local scripts/iris-prepare-raid.mjs",
+    "validate:operational-rehearsal": "node --env-file=.env.local scripts/iris-operational-rehearsal.mjs",
     "validate:raid-catalog": "node --env-file=.env.local scripts/iris-raid-catalog-smoke.mjs",
     "validate:raid-learning": "node --env-file=.env.local scripts/iris-raid-learning-plan-smoke.mjs",
     "validate:raid-corpus-bootstrap": "node --env-file=.env.local scripts/iris-raid-corpus-bootstrap.mjs",
