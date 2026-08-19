@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateLootEligibilityV1, simcSlotsForItemV1 } from '../../server/loot/eligibility-v1.mjs';
+import { evaluateLootEligibilityV1, simcSlotsForItemV1, canonicalWeaponSubclassV1 } from '../../server/loot/eligibility-v1.mjs';
 
 const item=({itemClass='Armor',subclass='Plate',inventory='CHEST'}={})=>({id:1,itemClass:{name:itemClass},itemSubclass:{name:subclass},inventoryType:{type:inventory}});
 const player=(className)=>({name:'Raider',className});
@@ -36,4 +36,22 @@ test('weapon proficiency blocks impossible classes before simulation',()=>{
   const bow=item({itemClass:'Weapon',subclass:'Bows',inventory:'RANGED'});
   assert.equal(evaluateLootEligibilityV1(bow,player('Hunter')).eligible,true);
   assert.equal(evaluateLootEligibilityV1(bow,player('Priest')).eligible,false);
+});
+
+test('Blizzard singular Polearm resolves to the canonical polearm proficiency',()=>{
+  const polearm=item({itemClass:'Weapon',subclass:'Polearm',inventory:'TWOHWEAPON'});
+  assert.equal(canonicalWeaponSubclassV1('Polearm'),'polearm');
+  assert.equal(canonicalWeaponSubclassV1('Polearms'),'polearm');
+  assert.equal(evaluateLootEligibilityV1(polearm,player('Warrior')).eligible,true);
+  assert.equal(evaluateLootEligibilityV1(polearm,player('Monk')).eligible,true);
+  assert.equal(evaluateLootEligibilityV1(polearm,player('Mage')).eligible,false);
+});
+
+test('two-handed swords are not accidentally matched as one-handed swords',()=>{
+  const twoHand=item({itemClass:'Weapon',subclass:'Two-Handed Swords',inventory:'TWOHWEAPON'});
+  const oneHand=item({itemClass:'Weapon',subclass:'Sword',inventory:'WEAPONMAINHAND'});
+  assert.equal(canonicalWeaponSubclassV1('Two-Handed Swords'),'two-handed sword');
+  assert.equal(evaluateLootEligibilityV1(oneHand,player('Mage')).eligible,true);
+  assert.equal(evaluateLootEligibilityV1(twoHand,player('Mage')).eligible,false);
+  assert.equal(evaluateLootEligibilityV1(twoHand,player('Warrior')).eligible,true);
 });
