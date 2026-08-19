@@ -46,3 +46,18 @@ test('CRITICAL v3.9.10 DIFFICULTY: official applicability maps WCL difficulty to
   assert.match(catalog,/normalHeroicCannotCountAsMythicEvidence:true/);
   assert.doesNotMatch(catalog,/zoneId\s*===\s*54|\bzone\s*:\s*54\b/);
 });
+
+test('CRITICAL v3.9.10 DIFFICULTY: corpus API has no silent Mythic fallback and browser report endpoints inherit explicit URL difficulty',async()=>{
+  const [corpus,bootstrap,runtime,index]=await Promise.all([read('routes/api/wcl/corpus.js'),read('public/wcl-bootstrap-v389.js'),read('public/iris-mechanics-knowledge-v3910.js'),read('index.html')]);
+  assert.match(corpus,/difficulty: Number\(body\.difficulty \?\? url\.searchParams\.get\('difficulty'\) \?\? 0\) \|\| 0/);
+  assert.match(corpus,/difficulty is required; Normal, Heroic and Mythic are independent corpora/);
+  assert.doesNotMatch(corpus,/searchParams\.get\('difficulty'\) \|\| 5/);
+  assert.match(bootstrap,/DIFFICULTY_SCOPED_PATHS/);
+  assert.match(bootstrap,/locationDifficulty/);
+  assert.match(bootstrap,/url\.searchParams\.set\('difficulty'/);
+  assert.match(runtime,/LOAD THIS EXECUTION SCOPE/);
+  assert.match(runtime,/url\.searchParams\.set\('encounter'/);
+  assert.match(runtime,/url\.searchParams\.set\('difficulty'/);
+  assert.match(index,/wcl-bootstrap-v389\.js\?v=3\.8\.9\.2/);
+  assert.match(index,/iris-mechanics-knowledge-v3910\.js\?v=3\.9\.10\.3/);
+});
