@@ -6,7 +6,7 @@ test('Loot search defaults to the persisted current-raid Blizzard Journal catalo
   const [service,catalog,runtime]=await Promise.all([
     readFile(new URL('../../server/services/loot-service.mjs',import.meta.url),'utf8'),
     readFile(new URL('../../server/loot/raid-item-catalog-v1.mjs',import.meta.url),'utf8'),
-    readFile(new URL('../../public/loot-runtime-v39132.js',import.meta.url),'utf8'),
+    readFile(new URL('../../public/loot-runtime-v39133.js',import.meta.url),'utf8'),
   ]);
   assert.match(service,/searchRaidLootCatalogV1\(q/);
   assert.match(service,/global.*===.*1.*searchLootItemsV1/s);
@@ -16,5 +16,6 @@ test('Loot search defaults to the persisted current-raid Blizzard Journal catalo
   assert.match(catalog,/currentRaidOnly:true/);
   assert.match(catalog,/zoneTrashAndBoECompletenessNotGuaranteed:true/);
   assert.match(runtime,/English\/Spanish item name or exact item ID/i);
+  assert.match(runtime,/CURRENT RAID LOOT CATALOG/);
   assert.doesNotMatch(runtime,/data-loot-boss/);
 });
