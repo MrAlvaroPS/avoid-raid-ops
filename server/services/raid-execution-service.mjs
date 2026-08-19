@@ -1,6 +1,7 @@
 import { loadHomeRaidExecutionV1 } from '../home/raid-execution-store-v1.mjs';
 import { listHomePullFactsSnapshotsV1 } from '../home/raid-pull-facts-store-v1.mjs';
 import { homeGuildId } from '../knowledge/scopes.mjs';
+import { loadOperationalEncounterModelV2 } from '../corpus/service-v2.mjs';
 import { jsonResponse } from '../api/http.mjs';
 const positive=value=>{const n=Number(value);return Number.isInteger(n)&&n>0?n:null;};
 const finite=value=>Number.isFinite(Number(value))?Number(value):null;
@@ -19,11 +20,19 @@ function mergeObjective(classified,objective){
   const objectivePulls=Number(objective.population?.pulls||0),classifiedPulls=Number(classified.population?.pulls||0);if(objectivePulls<=classifiedPulls)return{...classified,objectivePullFacts:objective.objectivePullFacts,evidenceContract:{...(classified.evidenceContract||{}),objectivePullFactsMerged:true}};
   return{...classified,progression:objective.progression,population:{...classified.population,reports:Math.max(Number(classified.population?.reports||0),Number(objective.population?.reports||0)),pulls:objectivePulls,recentPulls:objective.population.recentPulls,previousPulls:objective.population.previousPulls},latestReportCode:objective.latestReportCode||classified.latestReportCode,objectivePullFacts:{...objective.objectivePullFacts,classifiedPulls,unclassifiedPullFacts:Math.max(0,objectivePulls-classifiedPulls)},evidenceContract:{...(classified.evidenceContract||{}),objectivePullFactsMerged:true,progressionMayIncludeUnclassifiedHomePulls:true,mechanicStateUsesOnlyClassifiedPulls:true}};
 }
+function globalContext(reference,homePulls){
+  const op=reference?.operationalReference,b=op?.benchmark,e=op?.evidence;if(!op||!b)return{available:false,sameDifficultyOnly:true,networkExecuted:false};
+  const pulls=Number(homePulls||0),dominant=pulls<8?'GLOBAL':pulls<20?'MIXED':'HOME';
+  return{available:true,status:op.status,referenceMode:dominant,widePulls:Number(e?.widePulls||0),deepPulls:Number(e?.deepPulls||0),wideSources:Number(e?.wideSources||0),deepSources:Number(e?.deepSources||0),killPulls:Number(b.killPulls||0),wipePulls:Number(b.wipePulls||0),benchmarkVersion:b.version||null,sameDifficultyOnly:true,homeExcluded:true,networkExecuted:false,meaning:dominant==='GLOBAL'?'HOME sample is still small; use GLOBAL same-difficulty context as the primary benchmark.':dominant==='MIXED'?'Blend HOME trend with GLOBAL same-difficulty context.':'HOME history is now large enough to lead longitudinal trend; GLOBAL remains external context.'};
+}
 
 export default async req=>{
   if(req.method!=='GET')return jsonResponse(405,{ok:false,error:'Method not allowed'},'no-store');
   const u=new URL(req.url),encounterId=positive(u.searchParams.get('encounter')),difficulty=positive(u.searchParams.get('difficulty'));
   if(!encounterId||!difficulty)return jsonResponse(400,{ok:false,error:'encounter+difficulty are required'},'no-store');
-  try{const [classified,facts]=await Promise.all([loadHomeRaidExecutionV1({encounterId,difficulty}),listHomePullFactsSnapshotsV1({encounterId,difficulty})]),objective=objectiveExecution(facts,{encounterId,difficulty}),result=mergeObjective(classified,objective);return jsonResponse(200,{ok:true,...result},'private, no-store');}
+  try{
+    const [classified,facts,reference]=await Promise.all([loadHomeRaidExecutionV1({encounterId,difficulty}),listHomePullFactsSnapshotsV1({encounterId,difficulty}),loadOperationalEncounterModelV2({encounterId,difficulty,partition:0}).catch(()=>null)]),objective=objectiveExecution(facts,{encounterId,difficulty}),result=mergeObjective(classified,objective),global=globalContext(reference,result?.population?.pulls||0);
+    return jsonResponse(200,{ok:true,...result,globalContext:global,evidenceContract:{...(result?.evidenceContract||{}),globalContextIsDescriptiveNotHomeEvidence:true,globalHomeBoundaryPreserved:true}},'private, no-store');
+  }
   catch(error){return jsonResponse(500,{ok:false,error:error instanceof Error?error.message:String(error),networkExecuted:false,wclCallsExecuted:0},'no-store');}
 };
