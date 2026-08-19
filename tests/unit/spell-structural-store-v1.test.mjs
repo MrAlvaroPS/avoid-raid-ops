@@ -1,8 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp,rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import { persistSpellStructuralKnowledgeV1,loadLatestSpellStructuralKnowledgeV1,loadSpellStructuralKnowledgeRevisionV1 } from '../../server/knowledge/spell-structural-store-v1.mjs';
 
 function relation(sourceAbilityId,targetAbilityId,rowId,build){
@@ -41,47 +38,52 @@ function requestValue({fingerprint,build,seedAbilityIds,relations,queryValue}){
   };
 }
 
+function memoryStorage(){
+  const values=new Map();
+  return{
+    values,
+    storageGet:async key=>values.get(String(key))??null,
+    storageSet:async(key,value)=>{values.set(String(key),value);},
+  };
+}
+
 test('spell structural latest accumulates same-build knowledge but resets cleanly on a new Blizzard build',async()=>{
-  const dir=await mkdtemp(path.join(tmpdir(),'avoid-spell-structure-store-'));
-  const previous=process.env.IRIS_DATA_DIR;
-  process.env.IRIS_DATA_DIR=dir;
-  try{
-    const buildA='12.1.0.68914';
-    const firstRequest=requestValue({fingerprint:'a'.repeat(40),build:buildA,seedAbilityIds:[700001],relations:[relation(700001,700002,1,buildA)],queryValue:700001});
-    const first=await persistSpellStructuralKnowledgeV1(firstRequest,{fetchedAt:1000});
-    assert.equal(first.aggregation.requestCount,1);
-    assert.equal(first.aggregation.relationCount,1);
-    assert.deepEqual(first.seedAbilityIds,[700001]);
-    assert.equal(first.storage.resetForNewBuild,false);
+  const storage=memoryStorage();
+  const options={storageGet:storage.storageGet,storageSet:storage.storageSet};
+  const buildA='12.1.0.68914';
+  const firstRequest=requestValue({fingerprint:'a'.repeat(40),build:buildA,seedAbilityIds:[700001],relations:[relation(700001,700002,1,buildA)],queryValue:700001});
+  const first=await persistSpellStructuralKnowledgeV1(firstRequest,{...options,fetchedAt:1000});
+  assert.equal(first.aggregation.requestCount,1);
+  assert.equal(first.aggregation.relationCount,1);
+  assert.deepEqual(first.seedAbilityIds,[700001]);
+  assert.equal(first.storage.resetForNewBuild,false);
 
-    const secondRequest=requestValue({fingerprint:'b'.repeat(40),build:buildA,seedAbilityIds:[700003],relations:[relation(700003,700004,2,buildA)],queryValue:700003});
-    const second=await persistSpellStructuralKnowledgeV1(secondRequest,{fetchedAt:2000});
-    assert.equal(second.aggregation.requestCount,2);
-    assert.equal(second.aggregation.relationCount,2);
-    assert.deepEqual(second.seedAbilityIds,[700001,700003]);
-    assert.deepEqual(second.relations.map(row=>[row.sourceAbilityId,row.targetAbilityId]),[[700001,700002],[700003,700004]]);
-    assert.equal(second.storage.buildChangedFromPrevious,false);
-    assert.equal(second.storage.resetForNewBuild,false);
+  const secondRequest=requestValue({fingerprint:'b'.repeat(40),build:buildA,seedAbilityIds:[700003],relations:[relation(700003,700004,2,buildA)],queryValue:700003});
+  const second=await persistSpellStructuralKnowledgeV1(secondRequest,{...options,fetchedAt:2000});
+  assert.equal(second.aggregation.requestCount,2);
+  assert.equal(second.aggregation.relationCount,2);
+  assert.deepEqual(second.seedAbilityIds,[700001,700003]);
+  assert.deepEqual(second.relations.map(row=>[row.sourceAbilityId,row.targetAbilityId]),[[700001,700002],[700003,700004]]);
+  assert.equal(second.storage.buildChangedFromPrevious,false);
+  assert.equal(second.storage.resetForNewBuild,false);
 
-    const exactFirst=await loadSpellStructuralKnowledgeRevisionV1(9901,buildA,'a'.repeat(40));
-    assert.equal(exactFirst.storage.kind,'request-revision');
-    assert.equal(exactFirst.relations.length,1,'immutable request revision must not be rewritten by later accumulation');
+  const exactFirst=await loadSpellStructuralKnowledgeRevisionV1(9901,buildA,'a'.repeat(40),{storageGet:storage.storageGet});
+  assert.equal(exactFirst.storage.kind,'request-revision');
+  assert.equal(exactFirst.relations.length,1,'immutable request revision must not be rewritten by later accumulation');
 
-    const buildB='12.1.0.70000';
-    const thirdRequest=requestValue({fingerprint:'c'.repeat(40),build:buildB,seedAbilityIds:[800001],relations:[relation(800001,800002,3,buildB)],queryValue:800001});
-    const third=await persistSpellStructuralKnowledgeV1(thirdRequest,{fetchedAt:3000});
-    assert.equal(third.storage.buildChangedFromPrevious,true);
-    assert.equal(third.storage.resetForNewBuild,true);
-    assert.equal(third.aggregation.requestCount,1);
-    assert.equal(third.aggregation.relationCount,1);
-    assert.deepEqual(third.seedAbilityIds,[800001]);
-    assert.deepEqual(third.relations.map(row=>[row.sourceAbilityId,row.targetAbilityId]),[[800001,800002]]);
+  const buildB='12.1.0.70000';
+  const thirdRequest=requestValue({fingerprint:'c'.repeat(40),build:buildB,seedAbilityIds:[800001],relations:[relation(800001,800002,3,buildB)],queryValue:800001});
+  const third=await persistSpellStructuralKnowledgeV1(thirdRequest,{...options,fetchedAt:3000});
+  assert.equal(third.storage.buildChangedFromPrevious,true);
+  assert.equal(third.storage.resetForNewBuild,true);
+  assert.equal(third.aggregation.requestCount,1);
+  assert.equal(third.aggregation.relationCount,1);
+  assert.deepEqual(third.seedAbilityIds,[800001]);
+  assert.deepEqual(third.relations.map(row=>[row.sourceAbilityId,row.targetAbilityId]),[[800001,800002]]);
 
-    const latest=await loadLatestSpellStructuralKnowledgeV1(9901);
-    assert.equal(latest.provider.build,buildB);
-    assert.equal(latest.relations.length,1);
-  }finally{
-    if(previous===undefined)delete process.env.IRIS_DATA_DIR;else process.env.IRIS_DATA_DIR=previous;
-    await rm(dir,{recursive:true,force:true});
-  }
+  const latest=await loadLatestSpellStructuralKnowledgeV1(9901,{storageGet:storage.storageGet});
+  assert.equal(latest.provider.build,buildB);
+  assert.equal(latest.relations.length,1);
+
+  assert.ok([...storage.values.keys()].some(key=>key.includes('/revisions/')),'test should verify immutable revision writes without external storage');
 });
