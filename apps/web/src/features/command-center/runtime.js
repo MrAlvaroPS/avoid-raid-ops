@@ -81,18 +81,18 @@
     }
   }
 
-  // Transitional v4 ownership bridge. The legacy runtime still declares both
-  // functions, but these assignments replace the global bindings before the
-  // canonical Progress runtime installs its active-screen guards. This bridge
-  // is passive: no timer, observer or network request is introduced.
   window.applyProgressCurve=applyCommandCenterProgressCurve;
   window.applyHistoryData=applyCommandCenterHistory;
-  window.__AVOID_COMMAND_CENTER_HISTORY_V4__=Object.freeze({
-    version:'command-center-history-bridge-v4',
-    owner:'command-center',
+  window.__AVOID_COMMAND_CENTER_SOURCE_RUNTIME__=Object.freeze({
+    version:'4.0.0-migration6-owner1',
+    sourceOwner:'apps/web/src/features/command-center/runtime.js',
+    transport:'public/command-center-runtime.js',
+    mode:'single-source-owner',
+    writerPolicy:'single-command-center-progression-history-owner',
     sources:Object.freeze(['window.__AVOID_WCL__','window.__AVOID_WCL_HISTORY__']),
     owns:Object.freeze(['applyProgressCurve','applyHistoryData']),
-    polling:false,
-    observers:false,
+    directRequests:0,
+    timers:0,
+    observers:0,
   });
 })();
