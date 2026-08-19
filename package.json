@@ -1,11 +1,14 @@
 {
   "name": "avoid-raid-ops-vercel",
   "private": true,
-  "version": "0.3.9-13-vercel.0",
+  "version": "0.3.9-13-vercel.1",
   "type": "module",
   "workspaces": ["apps/web"],
   "scripts": {
+    "predev": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --ensure",
     "dev": "vite",
+    "sync:simc": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --force",
+    "status:simc": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --status",
     "iris": "node --env-file=.env.local scripts/iris-local-worker.mjs",
     "prepare:boss": "node --env-file=.env.local scripts/iris-prepare-boss.mjs",
     "validate:raid-catalog": "node --env-file=.env.local scripts/iris-raid-catalog-smoke.mjs",
