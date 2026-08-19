@@ -4,8 +4,15 @@ import { ensureRaidOfficialKnowledgeV1 } from '../server/knowledge/raid-official
 
 console.log('\n[1/3] Discover current raid from WCL WorldData metadata (no reports / no combat events)');
 const resolved=await resolveRaidCatalogV1();
-console.log(JSON.stringify({fingerprint:resolved.fingerprint,currentRaid:resolved.currentRaid?{zoneId:resolved.currentRaid.zoneId,name:resolved.currentRaid.name,frozen:resolved.currentRaid.frozen,expansion:resolved.currentRaid.expansion,defaultPartition:resolved.currentRaid.defaultPartition,bosses:resolved.currentRaid.encounters}:null,raidCandidates:resolved.zones.length,selection:resolved.selection,usage:resolved.usage},null,2));
-if(!resolved.currentRaid?.encounters?.length)throw new Error('No current raid with journal-linked encounters was discovered');
+console.log(JSON.stringify({
+  fingerprint:resolved.fingerprint,
+  currentRaid:resolved.currentRaid?{zoneId:resolved.currentRaid.zoneId,name:resolved.currentRaid.name,frozen:resolved.currentRaid.frozen,expansion:resolved.currentRaid.expansion,defaultPartition:resolved.currentRaid.defaultPartition,bosses:resolved.currentRaid.encounters}:null,
+  raidCandidates:resolved.zones.length,
+  selection:resolved.selection,
+  diagnostics:resolved.diagnostics,
+  usage:resolved.usage,
+},null,2));
+if(!resolved.currentRaid?.encounters?.length)throw new Error('No current raid with journal-linked encounters was discovered. Inspect diagnostics.recentZones above; this is intentionally not replaced by a hard-coded zone ID.');
 
 console.log('\n[2/3] Persist raid catalog');
 const catalog=await persistRaidCatalogV1(resolved);
