@@ -43,12 +43,12 @@ export async function fetchLootItemV1(itemId,{region,locale,fetcher=fetch}={}){
 
 export async function searchLootItemsV1(query,{region,locale,limit=12,fetcher=fetch}={}){
   const text=String(query||'').trim();if(!text)throw new Error('query is required');
-  if(/^\d+$/.test(text))return{...(await fetchLootItemV1(Number(text),{region,locale,fetcher})),query:text,items:[(await fetchLootItemV1(Number(text),{region,locale,fetcher})).item]};
+  if(/^\d+$/.test(text)){const exact=await fetchLootItemV1(Number(text),{region,locale,fetcher});return{...exact,query:text,items:exact.item?[exact.item]:[]};}
   const r=cleanRegion(region),l=cleanLocale(locale),token=await getBlizzardAccessTokenV1({fetcher});
   const url=new URL(`https://${r}.api.blizzard.com/data/wow/search/item`);url.searchParams.set('namespace',`static-${r}`);url.searchParams.set(`name.${l}`,text);url.searchParams.set('_pageSize',String(Math.max(1,Math.min(50,Number(limit)||12))));url.searchParams.set('_page','1');url.searchParams.set('orderby','id');
   let raw=await requestJson(url.toString(),{accessToken:token.accessToken,fetcher});
   // Blizzard search has intermittently returned an authenticated empty result when the token is only in the header.
-  // Retry once with the same token in the documented query form, but never treat absence as negative evidence.
+  // Retry once with the same token in the query string, but never treat absence as negative evidence.
   if(!Array.isArray(raw?.results)||raw.results.length===0){const retry=new URL(url);retry.searchParams.set('access_token',token.accessToken);raw=await requestJson(retry.toString(),{accessToken:token.accessToken,fetcher});}
   const rows=(raw?.results||[]).slice(0,Math.max(1,Math.min(50,Number(limit)||12))),items=[];
   for(const row of rows){const data=row?.data||null;if(data?.id){items.push(normalizeItem(data,{locale:l}));continue;}const href=String(row?.key?.href||'').trim();if(!href)continue;try{items.push(normalizeItem(await requestJson(href,{accessToken:token.accessToken,fetcher}),{locale:l}));}catch{}}
