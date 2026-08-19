@@ -16,7 +16,7 @@ test('CRITICAL v3.9.12 OPERATIONAL REFERENCE: bounded floor is useful but cannot
 });
 
 test('CRITICAL v3.9.12 LIVE: operational execution is exact-difficulty, completed-pull based and HOME persistence is isolated',async()=>{
-  const [engine,service,store]=await Promise.all([read('server/engines/operational-execution-v1.mjs'),read('server/services/operational-execution-service.mjs'),read('server/home/raid-execution-store-v1.mjs')]);
+  const [engine,service,store,pulls,safe]=await Promise.all([read('server/engines/operational-execution-v1.mjs'),read('server/services/operational-execution-service.mjs'),read('server/home/raid-execution-store-v1.mjs'),read('server/analysis/pulls/pull-intelligence.mjs'),read('public/avoid-live-safe-fallback-v3912.js')]);
   assert.match(service,/encounter\+difficulty are required/);assert.match(engine,/Cross-difficulty operational execution rejected/);
   assert.match(engine,/waiting-for-first-combat/);assert.match(engine,/waiting-for-completed-pull/);assert.match(engine,/boss-reference-not-ready/);assert.match(engine,/noReferenceMeansNoFabricatedMechanicClassification:true/);
   assert.match(engine,/loadOperationalEncounterModelV2/);assert.match(engine,/getTelemetry/);assert.match(engine,/analyzeEncounterMechanics/);assert.match(engine,/findCurrentBlocker/);
@@ -24,6 +24,8 @@ test('CRITICAL v3.9.12 LIVE: operational execution is exact-difficulty, complete
   assert.doesNotMatch(engine,/kind:'preserve-gain'/);assert.doesNotMatch(engine,/Preserve:\s*\$\{gain\.label\}/);
   assert.match(engine,/if\(homeRaidEligible\)/);assert.match(engine,/external-report-never-enters-home-execution/);
   assert.match(store,/longitudinalAcrossAllPersistedPulls:true/);assert.match(store,/singlePullCannotReplaceAggregate:true/);assert.match(store,/clearStateSeparateFromMechanicalMaturity:true/);assert.match(store,/progression:\{status:cleared\?'CLEARED'/);assert.match(store,/mechanicallyReadyIsNotOverallKillability:true/);
+  assert.match(pulls,/rawDeathTimeline/);assert.match(pulls,/meaningfulDeathTimeline/);assert.match(pulls,/objective observations, not wipe-cause classification/);
+  assert.match(safe,/SAFE DIAGNOSTIC/);assert.match(safe,/DEATH SEQUENCE · SELECTED PULL/);assert.match(safe,/Objective pull diagnosis/);assert.match(safe,/Review the first death first/);assert.match(safe,/Death cascade detected/);assert.match(safe,/not yet a mechanic-blame claim/);
 });
 
 test('CRITICAL v3.9.12 OPERATIONAL STREAMS: runtime uses the same untranslated WCL spell identity contract as corpus and has a bounded parity probe',async()=>{
@@ -46,7 +48,7 @@ test('CRITICAL v3.9.12 HEADER: historical context is LOG then PULL, Active WCL s
   assert.match(runtime,/window\.__AVOID_WCL__=state\.activeData\.report\|\|null/);assert.match(runtime,/window\.__AVOID_WCL_TELEMETRY__=state\.activeData\.telemetry\|\|null/);
   assert.match(runtime,/\/api\/wcl\/operational-execution/);assert.doesNotMatch(runtime,/new URL\(['"]\/api\/wcl\/history['"]/);
   assert.match(css,/b\[data-app-release\]\{font-size:0!important\}/);assert.match(css,/content:attr\(data-app-release\)/);
-  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.12\.2/);assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.7/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.5/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.7/);
+  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.12\.2/);assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.7/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.5/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.7/);assert.match(index,/avoid-live-safe-fallback-v3912\.js\?v=3\.9\.12\.6/);
 });
 
 test('CRITICAL v3.9.12 RAID EXECUTION: raid count/single-pull score are replaced by report-independent longitudinal current mechanical state',async()=>{
