@@ -12,6 +12,7 @@ const GET_TIMEOUTS=Object.freeze({
   '/api/wcl/intelligence':60000,
   '/api/wcl/corpus':30000,
   '/api/wcl/reports':30000,
+  '/api/wcl/mechanic-knowledge':30000,
   '/api/knowledge':15000,
 });
 
