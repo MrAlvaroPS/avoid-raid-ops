@@ -79,13 +79,13 @@ function aggregateGraph(value,seedAbilityIds,relations){
   });
 }
 
-export async function persistSpellStructuralKnowledgeV1(value,{fetchedAt=Date.now()}={}){
+export async function persistSpellStructuralKnowledgeV1(value,{fetchedAt=Date.now(),storageGet=corpusGet,storageSet=corpusSet}={}){
   const wclEncounterId=positiveId(value?.scope?.wclEncounterId??value?.scope?.encounterId,'wclEncounterId');
   const build=safeBuild(value?.provider?.build);
   const requestFingerprint=safeFingerprint(value?.fingerprint??value?.graph?.graphFingerprint);
   const latestKey=spellStructuralLatestKeyV1(wclEncounterId);
   const requestRevisionKey=spellStructuralRevisionKeyV1(wclEncounterId,build,requestFingerprint);
-  const previous=await corpusGet(latestKey).catch(()=>null);
+  const previous=await storageGet(latestKey).catch(()=>null);
   const sameBuild=previous?.provider?.build===build;
   const fetchedAtMs=Number(fetchedAt)||Date.now();
 
@@ -101,7 +101,7 @@ export async function persistSpellStructuralKnowledgeV1(value,{fetchedAt=Date.no
       rawCsvPersisted:false,
     },
   };
-  await corpusSet(requestRevisionKey,requestRevision);
+  await storageSet(requestRevisionKey,requestRevision);
 
   const seedAbilityIds=[...new Set([...(sameBuild?previous?.seedAbilityIds||[]:[]),...(value?.seedAbilityIds||[])].map(Number).filter(id=>Number.isInteger(id)&&id>0))].sort((a,b)=>a-b);
   const relations=mergeRelations(sameBuild?previous?.relations||[]:[],value?.relations||[]);
@@ -179,19 +179,19 @@ export async function persistSpellStructuralKnowledgeV1(value,{fetchedAt=Date.no
       rawCsvPersisted:false,
     },
   };
-  await corpusSet(aggregateRevisionKey,stored);
-  await corpusSet(latestKey,stored);
+  await storageSet(aggregateRevisionKey,stored);
+  await storageSet(latestKey,stored);
   return stored;
 }
 
-export async function loadLatestSpellStructuralKnowledgeV1(wclEncounterId){
-  return corpusGet(spellStructuralLatestKeyV1(wclEncounterId));
+export async function loadLatestSpellStructuralKnowledgeV1(wclEncounterId,{storageGet=corpusGet}={}){
+  return storageGet(spellStructuralLatestKeyV1(wclEncounterId));
 }
 
-export async function loadSpellStructuralKnowledgeRevisionV1(wclEncounterId,build,fingerprint){
-  return corpusGet(spellStructuralRevisionKeyV1(wclEncounterId,build,fingerprint));
+export async function loadSpellStructuralKnowledgeRevisionV1(wclEncounterId,build,fingerprint,{storageGet=corpusGet}={}){
+  return storageGet(spellStructuralRevisionKeyV1(wclEncounterId,build,fingerprint));
 }
 
-export async function loadSpellStructuralAggregateRevisionV1(wclEncounterId,build,fingerprint){
-  return corpusGet(spellStructuralAggregateRevisionKeyV1(wclEncounterId,build,fingerprint));
+export async function loadSpellStructuralAggregateRevisionV1(wclEncounterId,build,fingerprint,{storageGet=corpusGet}={}){
+  return storageGet(spellStructuralAggregateRevisionKeyV1(wclEncounterId,build,fingerprint));
 }
