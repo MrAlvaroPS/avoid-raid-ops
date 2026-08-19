@@ -6,6 +6,7 @@ import { classifyPullForAnalysis } from './pull-eligibility.mjs';
 const finite=v=>v!==null&&v!==undefined&&Number.isFinite(Number(v));
 const pctChange=(current,base)=>finite(current)&&finite(base)&&Number(base)!==0?100*(Number(current)/Number(base)-1):null;
 const rosterFingerprint=f=>(f?.friendlyPlayers||[]).map(Number).filter(Number.isFinite).sort((a,b)=>a-b).join('-');
+const compactDeath=row=>row?({fightId:Number(row.fightId),actorId:finite(row.actorId)?Number(row.actorId):null,player:row.player||null,fightRelativeMs:finite(row.fightRelativeMs)?Number(row.fightRelativeMs):null,abilityId:finite(row.abilityId)?Number(row.abilityId):null,killingBlow:row.killingBlow||null,overkill:finite(row.overkill)?Number(row.overkill):null}):null;
 
 function pullFact(f,originalPullNumber,summaryTable,deathAnalysis){
   const throughput=summaryTable?summarizeThroughput(summaryTable,f):null;
@@ -19,8 +20,10 @@ function pullFact(f,originalPullNumber,summaryTable,deathAnalysis){
     durationMs:durationMs(f),stageCount:stageCount(f),stages:normalizeStages(f),
     raidDps:throughput?.raidDps??throughput?.dps??null,
     raidHps:throughput?.raidHps??throughput?.hps??null,
-    firstDeathMs:first?.fightRelativeMs??null,firstDeath:first,
+    firstDeathMs:first?.fightRelativeMs??null,firstDeath:compactDeath(first),
     rawDeaths:raw.length,meaningfulDeaths:meaningful.length,
+    rawDeathTimeline:raw.slice(0,12).map(compactDeath).filter(Boolean),
+    meaningfulDeathTimeline:meaningful.slice(0,12).map(compactDeath).filter(Boolean),
     rosterFingerprint:rosterFingerprint(f),rosterSize:(f.friendlyPlayers||[]).length
   };
 }
@@ -104,7 +107,7 @@ export function buildPullIntelligence({fights=[],summaryTables=new Map(),deathAn
     provenance:{
       progress:'WCL fightPercentage',
       throughput:'WCL Summary table per pull',
-      deaths:'WCL Death events',
+      deaths:'WCL Death events; per-pull raw and meaningful timelines are objective observations, not wipe-cause classification',
       eligibility:'Called-wipe/reset pulls are first-class excluded records and never enter analytical baselines',
       classification:'Only progress/stage/first-death/meaningful-death and same-stage DPS receive directional labels'
     },
