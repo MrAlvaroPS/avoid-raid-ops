@@ -96,7 +96,7 @@ export function buildUntouchedHoldoutSourcePoolV1({scope,stability,lineage,disco
       ],
     });
   }
-  const payload={version:UNTOUCHED_HOLDOUT_SOURCE_POOL_V1_VERSION,scope,stabilityFingerprint:stability.fingerprint,lineageFingerprint:lineage.fingerprint,discoveredAt:Number(discoveredAt),candidates:candidates.map(row=>({source:row.source,eligible:row.eligible,homeSource:row.homeSource,preexistingCorpusMember:row.preexistingCorpusMember,priorLearningUse:row.priorLearningUse,combatEvidenceObservedBeforeReservation:row.combatEvidenceObservedBeforeReservation,metadataOnlyDiscovery:row.metadataOnlyDiscovery}))};
+  const payload={version:UNTOUCHED_HOLDOUT_SOURCE_POOL_V1_VERSION,scope,stabilityFingerprint:stability.fingerprint,lineageFingerprint:lineage.fingerprint,discoveredAt:Number(discoveredAt),candidates:candidates.map(row=>({source:row.source,reportCode:row.reportCode||null,eligible:row.eligible,homeSource:row.homeSource,preexistingCorpusMember:row.preexistingCorpusMember,priorLearningUse:row.priorLearningUse,combatEvidenceObservedBeforeReservation:row.combatEvidenceObservedBeforeReservation,metadataOnlyDiscovery:row.metadataOnlyDiscovery}))};
   return{
     version:UNTOUCHED_HOLDOUT_SOURCE_POOL_V1_VERSION,
     fingerprint:digest(payload),scope,stabilityFingerprint:stability.fingerprint,lineageFingerprint:lineage.fingerprint,discoveredAt:Number(discoveredAt),candidates,
@@ -107,6 +107,7 @@ export function buildUntouchedHoldoutSourcePoolV1({scope,stability,lineage,disco
 
 export function reservationCandidatesFromSourcePoolV1(sourcePool={}){
   return(sourcePool?.candidates||[]).filter(row=>row?.eligible===true).map(row=>({
-    source:row.source,homeSource:false,preexistingCorpusMember:false,priorLearningUse:false,combatEvidenceObservedBeforeReservation:false,
+    source:row.source,seedReportCode:row.reportCode||null,metadataOnlyDiscovery:true,
+    homeSource:false,preexistingCorpusMember:false,priorLearningUse:false,combatEvidenceObservedBeforeReservation:false,
   }));
 }
