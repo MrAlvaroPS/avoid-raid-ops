@@ -20,7 +20,7 @@ import { startTargetedDeepV373 } from '../../../server/corpus/targeted-deep-v373
 import { IRIS_KNOWLEDGE_CONTRACT_VERSION, homeGuildId } from '../../../server/knowledge/scopes.mjs';
 import { BOSS_SAMPLING_POLICY_VERSION } from '../../../server/corpus/sampling-v2.mjs';
 
-const ENGINE_VERSION = '3.7.10';
+const ENGINE_VERSION = '3.9.10-difficulty-scope';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -31,17 +31,24 @@ function requestInput(request, body = {}) {
   const url = new URL(request.url);
   return {
     encounterId: Number(body.encounterId || url.searchParams.get('encounter') || 0),
-    difficulty: Number(body.difficulty || url.searchParams.get('difficulty') || 5) || 5,
+    difficulty: Number(body.difficulty ?? url.searchParams.get('difficulty') ?? 0) || 0,
     partition: Number(body.partition ?? url.searchParams.get('partition') ?? 0) || 0,
     ...body,
   };
+}
+function requireBossDifficulty(input,label='corpus scope'){
+  if(!Number(input.encounterId))return `${label}: encounter is required`;
+  if(!Number(input.difficulty))return `${label}: difficulty is required; Normal, Heroic and Mythic are independent corpora`;
+  return null;
 }
 
 async function policyContext(input) {
   const raw = await loadAnyEncounterModel(input);
   if (!raw) return { raw:null, aggregate:null, args:null, job:null };
   const partition = Number(raw.resolvedPartition ?? raw.partition ?? input.partition ?? 0);
-  const args = { encounterId:Number(raw.encounterId || input.encounterId), difficulty:Number(raw.difficulty || input.difficulty || 5), partition };
+  const args = { encounterId:Number(raw.encounterId || input.encounterId), difficulty:Number(raw.difficulty || input.difficulty || 0), partition };
+  if(!args.difficulty)throw new Error('Persisted corpus model is missing difficulty identity');
+  if(Number(raw.difficulty)!==Number(input.difficulty))throw new Error(`Cross-difficulty corpus model rejected: requested d${input.difficulty}, got d${raw.difficulty}`);
   const [aggregate,job] = partition > 0 ? await Promise.all([
     corpusGet(aggregateKey(args)).catch(() => null),
     corpusGet(jobKey(args)).catch(() => null),
@@ -62,6 +69,7 @@ async function decorateStatus(input, status) {
     targetReports: Number(job?.targetReports || 0) || null,
     aggregate: aggregate ? aggregateSummary(aggregate) : status.aggregate,
     model: raw ? modelDiagnosticsV380(raw, aggregate) : (status.model || null),
+    evidenceContract:{...(status.evidenceContract||{}),scopeIdentity:'encounter+difficulty+partition',crossDifficultyComparisonForbidden:true,crossDifficultyEmpiricalReuse:false},
   };
 }
 
@@ -70,6 +78,7 @@ async function policyModel(input) {
   const model=applyBossSamplingPolicyV380(raw, aggregate);
   if(model){
     model.engineVersion=ENGINE_VERSION;
+    model.evidenceContract={...(model.evidenceContract||{}),scopeIdentity:'encounter+difficulty+partition',crossDifficultyComparisonForbidden:true,crossDifficultyEmpiricalReuse:false};
     if(model.validation) model.validation.publicationMode='manual-review-hold-v3.7.10-local-synthesis';
   }
   return model;
@@ -133,19 +142,11 @@ async function improveModel(input) {
   const execution = corpusExecutionDescriptor();
   const active = await getCorpusStatus(input);
   if (execution.runtime === 'local' && active && (active.status === 'running' || active.status === 'rate-limited')) {
-    return {
-      status: active,
-      workflowRunId: null,
-      executionMode: 'local-worker',
-      reusedExistingJob: true,
-    };
+    return { status: active, workflowRunId: null, executionMode: 'local-worker', reusedExistingJob: true };
   }
 
   const model = await policyModel(input);
   if (!model) throw new Error('No encounter model is available to improve');
-  // `Improve` remains the explicit publication-evidence action. Learning guidance is
-  // exposed separately via model.learning.recommendations.learningNext, synthesis and probe plans.
-  // This prevents a learning bottleneck from silently launching a broad crawl.
   const rec = model.learning?.publicationRecommendation || model.learning?.enrichmentRecommendation || {};
   if (rec.mode === 'targeted-deep') {
     await startTargetedDeepV373({
@@ -182,17 +183,19 @@ export default defineHandler(async (event) => {
           ...corpusExecutionDescriptor(),
           ...health,
           engineVersion: ENGINE_VERSION,
-          policyVersion: 'signal-triage-v1+local-mechanic-synthesis-v1+semantic-contract-v1+decision-separation-v1',
+          policyVersion: 'signal-triage-v1+local-mechanic-synthesis-v1+semantic-contract-v1+decision-separation-v1+difficulty-isolation-v1',
           semanticProbePlanVersion:SEMANTIC_SURGICAL_PROBE_PLAN_V2_VERSION,
           bossAgnosticLearningContract:'iris-boss-agnostic-learning-pipeline-v1',
           knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
           samplingPolicyVersion: BOSS_SAMPLING_POLICY_VERSION,
           homeGuildId: homeGuildId(),
           intelligenceName:'Iris',
+          scopeIdentity:'encounter+difficulty+partition',
           storage,
         });
       }
-      if (!input.encounterId) return json({ ok:false, error:'encounter is required' }, 400);
+      const scopeError=requireBossDifficulty(input);
+      if(scopeError)return json({ok:false,error:scopeError},400);
       if (actionFromQuery === 'model') {
         const model = await policyModel(input);
         return json({ ok:Boolean(model), model }, model ? 200 : 404);
@@ -201,14 +204,8 @@ export default defineHandler(async (event) => {
         const sampling = await getBossSamplingManifest(input);
         return json({ ok:Boolean(sampling), sampling }, sampling ? 200 : 404);
       }
-      if (actionFromQuery === 'probe-plan') {
-        const plan=await probePlan(input);
-        return json({ok:true,wclCallsExecuted:0,plan});
-      }
-      if(actionFromQuery==='semantic-probe-plan'){
-        const plan=await semanticProbePlan(input);
-        return json({ok:true,wclCallsExecuted:0,plan});
-      }
+      if (actionFromQuery === 'probe-plan') return json({ok:true,wclCallsExecuted:0,plan:await probePlan(input)});
+      if(actionFromQuery==='semantic-probe-plan')return json({ok:true,wclCallsExecuted:0,plan:await semanticProbePlan(input)});
       if(actionFromQuery==='synthesis'){
         const synthesis=await synthesisResult(input);
         return json({ok:Boolean(synthesis),wclCallsExecuted:0,synthesis},synthesis?200:404);
@@ -220,7 +217,8 @@ export default defineHandler(async (event) => {
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || actionFromQuery || 'status');
     const input = requestInput(request, body);
-    if (!input.encounterId) return json({ ok:false, error:'encounterId is required' }, 400);
+    const scopeError=requireBossDifficulty(input,'corpus action');
+    if(scopeError)return json({ok:false,error:scopeError},400);
 
     if (action === 'start' || action === 'enrich') {
       const mode = action === 'enrich' ? 'enrich' : 'initial';
