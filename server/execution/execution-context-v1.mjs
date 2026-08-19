@@ -62,7 +62,7 @@ export function classifyActiveReportManifestV1({report,live=false,requestedFight
   return{
     version:ACTIVE_REPORT_MANIFEST_VERSION,
     generatedAt:Number(generatedAt),
-    report:{code:String(report.code),title:report.title||null,startTime:Number(report.startTime)||0,endTime:Number(report.endTime)||0,revision:Number(report.revision)||0,zone:report.zone?{id:positive(report.zone.id),name:report.zone.name||null}:null,guild:report.guild?{id:positive(report.guild.id),name:report.guild.name||null}:null},
+    report:{code:String(report.code),title:report.title||null,startTime:Number(report.startTime)||0,endTime:Number(report.endTime)||0,revision:Number(report.revision)||0,zone:report.zone?{id:positive(report.zone.id),name:report.zone.name||null}:null,guild:report.guild?{id:positive(report.guild.id),name:report.guild.name||null}:null,owner:report.owner?{id:positive(report.owner.id)}:null},
     live:Boolean(live),state,isError:false,
     waitingForFirstCombat:state==='waiting-for-first-combat',
     fights,scopes,
