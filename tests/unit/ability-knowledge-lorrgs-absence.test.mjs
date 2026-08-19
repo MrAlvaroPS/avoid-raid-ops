@@ -24,7 +24,7 @@ test('successful keyed Lorrgs boss catalogue distinguishes tracked marker from w
     encounterId:9876,
     bossSlug:'synthetic-boss',
     providers:{lorrgs:true,parseWowhead:false,wcl:false},
-  },{fetcher,officialGraph:null});
+  },{fetcher,officialGraph:null,structuralKnowledge:null});
 
   assert.equal(result.providers.lorrgs.bossCatalogResolved,true);
   assert.equal(result.providers.lorrgs.catalogSemantics,'curated-boss-timeline-markers-not-exhaustive');
@@ -33,6 +33,8 @@ test('successful keyed Lorrgs boss catalogue distinguishes tracked marker from w
   assert.equal(result.usage.lorrgsCallsSucceeded,1);
   assert.equal(result.usage.officialJournalReadsAttempted,0);
   assert.equal(result.usage.officialJournalInjected,true);
+  assert.equal(result.usage.structuralReadsAttempted,0);
+  assert.equal(result.usage.structuralInjected,true);
 
   const listed=result.abilities.find(row=>row.abilityId===700001);
   assert.equal(listed.encounterAssociation.status,'supported');
@@ -61,7 +63,7 @@ test('failed boss catalogue remains unknown rather than claiming absence',async(
   };
   const result=await resolveAbilityKnowledgeV1({
     abilityIds:[700003],encounterId:9876,bossSlug:'synthetic-boss',providers:{lorrgs:true,parseWowhead:false,wcl:false},
-  },{fetcher,officialGraph:null});
+  },{fetcher,officialGraph:null,structuralKnowledge:null});
   const row=result.abilities[0];
   assert.equal(result.providers.lorrgs.bossCatalogResolved,false);
   assert.equal(row.encounterAssociation.status,'unknown');
@@ -82,7 +84,7 @@ test('injected official Journal graph enriches ability semantics without provide
   };
   const result=await resolveAbilityKnowledgeV1({
     abilityIds:[700004,700005],encounterId:9876,providers:{lorrgs:false,parseWowhead:false,wcl:false},
-  },{officialGraph});
+  },{officialGraph,structuralKnowledge:null});
 
   assert.equal(result.usage.officialJournalReadsAttempted,0);
   assert.equal(result.usage.officialJournalCacheHit,true);
