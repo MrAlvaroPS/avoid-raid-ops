@@ -102,7 +102,7 @@ For every encounter, Iris follows the same evidence ladder when the relevant sta
    - Matched controls are empirical evidence and are addressed by the original empirical Episode fingerprint; provider-only reinterpretation must not force identical WCL reacquisition.
    - Only `matched-specificity-supported` patterns may advance beyond Matched Null.
 
-10. **Independent Evidence Groups**
+10. **Independent Evidence Groups** `[implemented]`
    - Group only Matched Null-supported patterns by canonical independent source identity (`guild`, else uploader/owner, else report fallback).
    - Multiple reports/pulls from one guild/uploader remain one independent evidence group.
    - Use only persisted paired anchor/null evidence; this stage performs zero WCL/provider calls.
@@ -110,20 +110,24 @@ For every encounter, Iris follows the same evidence ladder when the relevant sta
    - Require independent group coverage before advancing, but do **not** claim statistical stability here.
    - HOME/AvoiD reports never contribute to this GLOBAL BOSS gate.
 
-11. **Statistical Stability** `[next layer]`
-   - Evaluate whether effect direction/magnitude is stable across the independent groups established above.
-   - Define contradiction tolerance, source-balanced effect aggregation, dispersion/uncertainty and minimum support under a separately versioned contract.
-   - Do not let one high-volume guild dominate by pull/report count.
-   - This layer is not yet implemented by `independent-evidence-groups-v1`.
+11. **Source-Stratified Statistical Stability** `[implemented]`
+   - Evaluate only `independent-groups-evidence-available` patterns.
+   - Give each independent source one unit of weight regardless of report/pull volume.
+   - Evaluate supportive/contradictory source shares, median source-level prevalence delta and robust MAD dispersion under a versioned contract.
+   - Contradiction remains an explicit gate and cannot be hidden by one high-volume source.
+   - v1 claims directional/dispersion stability only; it does **not** claim formal hypothesis significance or a confidence interval.
+   - Only `source-stratified-stability-supported` patterns become eligible for a later untouched holdout plan.
+   - This stage performs zero WCL/provider calls and cannot promote a mechanic.
 
-12. **Untouched Holdout** `[later]`
-   - Test the surviving claim against source-isolated evidence that was not used to discover, tune or stabilize the mechanic.
-   - Holdout failure blocks Promotion; holdout data never feeds backward silently into training.
+12. **Untouched Holdout** `[next]`
+   - Test only Stability-supported claims against source-isolated evidence that was not used to discover, tune, group or stabilize the mechanic.
+   - Holdout selection must be frozen/fingerprinted before evaluation.
+   - Holdout failure blocks Promotion; holdout data never feeds backward silently into discovery/training.
 
 13. **Promotion** `[later]`
    - Converting a verified claim into an accepted/scoreable mechanic requires the separately versioned Promotion Contract.
    - Promotion must define denominator, eligibility, null policy, player attribution rules, contradiction policy, holdout requirements and score impact.
-   - `official-member`, `structural-link`, `provider-supported`, `mechanically-supported`, `matched-specificity-supported` and `independent-groups-evidence-available` are not synonyms for `accepted`.
+   - `official-member`, `structural-link`, `provider-supported`, `mechanically-supported`, `matched-specificity-supported`, `independent-groups-evidence-available` and `source-stratified-stability-supported` are not synonyms for `accepted`.
 
 14. **AvoiD application/evaluation**
    - HOME/AvoiD reports are not GLOBAL BOSS training or holdout evidence.
@@ -147,7 +151,9 @@ Not every boss must execute every stage:
 - If local structural evidence is sufficient for the empirical question, do not spend WCL on semantic probing yet.
 - If official/structural metadata resolves only meaning/implementation but not observed behavior, continue with WCL evidence rather than treating metadata as occurrence.
 - If Matched Null has zero supported patterns, Independent Evidence Groups must report no eligible candidates instead of resurrecting earlier diagnostic neighbors.
-- If independent group coverage is insufficient, stop before Statistical Stability or acquire only genuinely new independent public sources if publication/learning requires it.
+- If independent group coverage is insufficient, stop before Stability or acquire only genuinely new independent public sources if learning/publication requires it.
+- If Statistical Stability is insufficient, do not spend a holdout on that candidate unless a new versioned hypothesis/evidence basis justifies reopening it.
+- If no pattern is Stability-supported, Holdout planning returns no eligible candidates rather than testing diagnostic leftovers.
 - If a candidate failed the applicable hard gate and no new hypothesis exists, stop spending WCL on it.
 - If no deterministic local structure exists, escalate only the explicit unresolved evidence question.
 - If a future encounter produces a new structural pattern not covered by the generic hypothesis vocabulary, add a **generic evidence feature**, not a boss-name branch.
@@ -174,6 +180,8 @@ changed   -> persist new official revision
              rederive interpretation fingerprints
              ↓
              reuse Matched Null empirical controls when the empirical Episode fingerprint is unchanged
+             ↓
+             rederive Evidence Groups / Stability at zero network from compatible empirical evidence
 ```
 
 Never rewrite historical WCL evidence. Historical raw events remain immutable even if Blizzard later changes IDs, hierarchy, wording or mechanic behavior. Never merge structural relations across different client builds.
@@ -198,7 +206,9 @@ DB2/Wago absence == spell absent from encounter
 Blizzard spell 403/404 == not an encounter spell
 provider semanticOrigin == WCL actorProvenance
 many reports from one guild == many independent evidence groups
+one high-volume guild == stronger source-level stability
 provider reinterpretation == reacquire identical Matched Null WCL controls
+stability-supported == holdout-passed
 ```
 
 The following are allowed outside the generic learner when clearly separated:
@@ -238,5 +248,16 @@ For Independent Evidence Groups, the portability test must additionally prove:
 - HOME/AvoiD data is absent;
 - zero WCL/provider calls;
 - no statistical-stability, holdout or Promotion claim is produced.
+
+For Statistical Stability, the portability test must additionally prove:
+
+- only `independent-groups-evidence-available` patterns enter;
+- source weighting is equal regardless of matched-pair/report volume;
+- contradictory source share can block a candidate even when a high-volume source is supportive;
+- robust source-level median/MAD metrics are deterministic;
+- no formal-significance/confidence-interval claim is invented;
+- HOME/AvoiD data is absent;
+- zero WCL/provider calls;
+- Stability support creates Holdout eligibility only, never Holdout success or Promotion.
 
 The generic learning modules must remain free of literal current-validation-boss names/IDs. This guardrail exists to prevent a successful one-boss experiment from quietly becoming hard-coded product behavior.
