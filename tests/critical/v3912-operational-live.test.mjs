@@ -19,6 +19,8 @@ test('CRITICAL v3.9.12 LIVE: operational execution is exact-difficulty, complete
   assert.match(service,/encounter\+difficulty are required/);assert.match(engine,/Cross-difficulty operational execution rejected/);
   assert.match(engine,/waiting-for-first-combat/);assert.match(engine,/waiting-for-completed-pull/);assert.match(engine,/boss-reference-not-ready/);assert.match(engine,/noReferenceMeansNoFabricatedMechanicClassification:true/);
   assert.match(engine,/loadOperationalEncounterModelV2/);assert.match(engine,/getTelemetry/);assert.match(engine,/analyzeEncounterMechanics/);assert.match(engine,/findCurrentBlocker/);
+  assert.match(engine,/observedMechanicsByFight/);assert.match(engine,/observedMechanicDoesNotImplyFailure:true/);assert.match(engine,/nextPullCallsAreMechanicOnly:true/);
+  assert.doesNotMatch(engine,/kind:'preserve-gain'/);assert.doesNotMatch(engine,/Preserve:\s*\$\{gain\.label\}/);
   assert.match(engine,/if\(homeRaidEligible\)/);assert.match(engine,/external-report-never-enters-home-execution/);
   assert.match(store,/longitudinalAcrossAllPersistedPulls:true/);assert.match(store,/singlePullCannotReplaceAggregate:true/);assert.match(store,/mechanicallyReadyIsNotOverallKillability:true/);
 });
@@ -43,7 +45,7 @@ test('CRITICAL v3.9.12 HEADER: historical context is LOG then PULL, Active WCL s
   assert.match(runtime,/window\.__AVOID_WCL__=state\.activeData\.report\|\|null/);assert.match(runtime,/window\.__AVOID_WCL_TELEMETRY__=state\.activeData\.telemetry\|\|null/);
   assert.match(runtime,/\/api\/wcl\/operational-execution/);assert.doesNotMatch(runtime,/new URL\(['"]\/api\/wcl\/history['"]/);
   assert.match(css,/b\[data-app-release\]\{font-size:0!important\}/);assert.match(css,/content:attr\(data-app-release\)/);
-  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.12\.2/);assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.0/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.1/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.1/);
+  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.12\.2/);assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.0/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.5/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.6/);
 });
 
 test('CRITICAL v3.9.12 RAID EXECUTION: raid count/single-pull score are replaced by report-independent longitudinal current mechanical state',async()=>{
@@ -51,6 +53,6 @@ test('CRITICAL v3.9.12 RAID EXECUTION: raid count/single-pull score are replaced
   assert.match(header,/CURRENT MECHANICAL STATE/);assert.match(header,/Longitudinal AvoiD mechanic execution/);assert.doesNotMatch(header,/bossCount\(/);assert.doesNotMatch(header,/CURRENT RAID/);
   assert.match(ui,/MECHANIC EVOLUTION/);assert.match(ui,/ALL-TIME/);assert.match(ui,/RECENT/);assert.match(ui,/PREVIOUS/);assert.match(ui,/not overall killability/i);
   assert.match(bridge,/data-tab="execution"/);assert.match(bridge,/display:block!important/);assert.match(bridge,/data-tab="knowledge"/);
-  assert.match(ui,/LIVE · WAITING/);assert.match(ui,/Boss reference not ready/);assert.match(ui,/No classified mechanic failure is present/);
+  assert.match(ui,/LIVE · WAITING/);assert.match(ui,/Boss reference not ready/);assert.match(ui,/OBSERVED MECHANICS · SELECTED PULL/);assert.match(ui,/CLASSIFIED FAILURES · SELECTED PULL/);assert.match(ui,/presence only · does not imply failure/);assert.match(ui,/Progress, DPS and healing improvements never become mechanic instructions/);
   assert.match(ui,/Pull Lab/);assert.match(ui,/REAL WCL PULLS/);assert.doesNotMatch(ui,/LIVE_PULLS_MOCK|goldenMocks/);
 });
