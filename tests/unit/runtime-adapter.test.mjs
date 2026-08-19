@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const runtime=fs.readFileSync(new URL('../../public/wcl-runtime.js', import.meta.url),'utf8');
+const mechanicsRuntime=fs.readFileSync(new URL('../../apps/web/src/features/mechanics/runtime.js', import.meta.url),'utf8');
 const sourceRoster=fs.readFileSync(new URL('../../apps/web/src/features/composition/RosterIntelligence.js', import.meta.url),'utf8');
 const indexHtml=fs.readFileSync(new URL('../../index.html', import.meta.url),'utf8');
 const v33Css=fs.readFileSync(new URL('../../public/raidops-v33.css', import.meta.url),'utf8');
@@ -87,10 +88,11 @@ test('Composition never renders Spell null',()=>{
 });
 
 
-test('v3.4.2 LIVE and Mechanics use analytical-pull and occurrence-normalized wording',()=>{
+test('v3.4.2 LIVE and source-owned Mechanics retain analytical-pull and occurrence-normalized wording',()=>{
   assert.match(runtime,/called-wipe\/reset skipped/);
   assert.match(runtime,/previous analytical pull/);
-  assert.match(runtime,/failed executions/);
-  assert.match(runtime,/Normalized executions/);
-  assert.match(runtime,/pendingDenominators/);
+  assert.match(mechanicsRuntime,/failed executions/);
+  assert.match(mechanicsRuntime,/Normalized executions/);
+  assert.match(mechanicsRuntime,/pendingDenominators/);
+  assert.doesNotMatch(runtime,/Normalized executions/,'Mechanics-only normalized execution copy must not drift back into the legacy runtime');
 });
