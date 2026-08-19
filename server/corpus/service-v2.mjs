@@ -11,7 +11,10 @@ export const OPERATIONAL_REFERENCE_VERSION='global-boss-operational-reference-v1
 export const OPERATIONAL_REFERENCE_THRESHOLDS=Object.freeze({minWidePulls:100,minDeepPulls:20,minWideSources:8,minDeepSources:3});
 
 async function resolveArgs(input = {}) {
-  const args = { encounterId: Number(input.encounterId), difficulty: Number(input.difficulty || 5), partition: Number(input.partition || 0) };
+  const encounterId=Number(input.encounterId),difficulty=Number(input.difficulty),partition=Number(input.partition||0);
+  if(!Number.isInteger(encounterId)||encounterId<=0)throw new Error('encounterId is required');
+  if(!Number.isInteger(difficulty)||difficulty<=0)throw new Error('difficulty is required');
+  const args = { encounterId, difficulty, partition };
   if (args.partition > 0) return args;
   const alias = await corpusGet(corpusAliasKey(args));
   if (!(Number(alias?.partition) > 0)) return null;
