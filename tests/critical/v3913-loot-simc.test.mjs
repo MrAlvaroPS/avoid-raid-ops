@@ -5,6 +5,11 @@ import { readFile } from 'node:fs/promises';
 const text=path=>readFile(path,'utf8');
 
 test('Loot uses official SimulationCraft CLI with managed nightly provenance, not Raidbots wrappers',async()=>{
+  await Promise.all([
+    import('../../server/loot/simc-runner-v1.mjs'),
+    import('../../server/loot/simc-manager-v1.mjs'),
+    import('../../server/services/loot-service.mjs')
+  ]);
   const [pkg,index,runner,manager,service,runtime]=await Promise.all([
     text('package.json'),text('index.html'),text('server/loot/simc-runner-v1.mjs'),text('server/loot/simc-manager-v1.mjs'),text('server/services/loot-service.mjs'),text('public/loot-runtime-v3913.js')
   ]);
