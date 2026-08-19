@@ -15,6 +15,10 @@ test('CRITICAL OPERATIONAL REHEARSAL: DATA READY is separate from LIVE READY and
   assert.match(source,/sameDifficultyOnly:true/);
   assert.match(source,/operationalModelFingerprint/);
   assert.match(source,/rehearsalFingerprint/);
+  assert.match(source,/OPERATIONAL_EXECUTION_CONTRACT_VERSION/);
+  assert.match(source,/executionContractVersionedReadiness:true/);
+  assert.match(source,/legacyCoverageReviewInvalidatedOnStreamV2:true/);
+  assert.match(source,/legacyLiveReadyCompatible/);
   assert.match(source,/staleCoverageReviewCannotBlockChangedModel:true/);
   assert.match(source,/packDiagnostics/);
   assert.match(source,/packDiagnosticsFromPersistedAggregate:true/);
@@ -52,11 +56,12 @@ test('CRITICAL OBSERVATIONAL COVERAGE: seeing a non-scoreable mechanic counts as
   assert.match(source,/not converted into a player\/raid failure/);
 });
 
-test('CRITICAL PRODUCTION LIVE GATE: unrehearsed DATA READY reference cannot emit mechanic classification through the Live API',async()=>{
+test('CRITICAL PRODUCTION LIVE GATE: only the current rehearsal fingerprint can emit mechanic classification through the Live API',async()=>{
   const source=await read('server/services/operational-execution-service.mjs');
-  assert.match(source,/loadOperationalReadinessV1/);
+  assert.match(source,/previewOperationalRehearsalV1/);
   assert.match(source,/readiness\?\.liveReady!==true/);
   assert.match(source,/operational-rehearsal-required/);
+  assert.match(source,/currentRehearsalFingerprintRequired:true/);
   assert.match(source,/noUnrehearsedMechanicClassification:true/);
   const gateAt=source.indexOf('readiness?.liveReady!==true'),engineAt=source.indexOf('getOperationalExecutionV1({');
   assert.ok(gateAt>=0&&engineAt>gateAt,'Live readiness must be checked before production Operational Execution');
