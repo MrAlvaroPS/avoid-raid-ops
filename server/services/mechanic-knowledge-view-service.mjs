@@ -12,8 +12,9 @@ import { loadLatestOfficialEncounterDifficultyViewV1 } from '../knowledge/offici
 import { compileOfficialEncounterDifficultyViewV1 } from '../knowledge/official-encounter-difficulty-v1.mjs';
 import { loadLatestSpellStructuralKnowledgeV1 } from '../knowledge/spell-structural-store-v1.mjs';
 import { buildSpellStructuralDifficultyViewV1 } from '../knowledge/spell-structural-difficulty-v1.mjs';
+import { loadRaidLearningScopeV1 } from '../knowledge/raid-learning-plan-store-v1.mjs';
 
-export const MECHANIC_KNOWLEDGE_VIEW_SERVICE_VERSION='iris-mechanic-knowledge-view-service-v4';
+export const MECHANIC_KNOWLEDGE_VIEW_SERVICE_VERSION='iris-mechanic-knowledge-view-service-v5';
 const positive=value=>{const n=Number(value);return Number.isInteger(n)&&n>0?n:null;};
 
 async function persistedAt(prefix,{storageList=corpusList,storageGet=corpusGet}={}){const keys=await storageList(prefix).catch(()=>[]),rows=[];for(const key of keys||[]){const value=await storageGet(key).catch(()=>null);if(value)rows.push({key,value});}return rows;}
@@ -65,12 +66,14 @@ export async function loadMechanicKnowledgeViewV1(input={},options={}){
   if(!raw&&!officialBase&&!difficultyOfficial)return null;
   const partition=Number(raw?.resolvedPartition??raw?.partition??input.partition??0),scope={encounterId:wclEncounterId||0,difficulty:requestedDifficulty,partition};
   const empiricalAvailable=Boolean(wclEncounterId&&raw&&partition>0);
-  const [aggregate,structuralBase,episodeRows]=await Promise.all([
+  const [aggregate,structuralBase,episodeRows,learningAvailability]=await Promise.all([
     empiricalAvailable?storageGet(aggregateKey(scope)).catch(()=>null):Promise.resolve(null),
     wclEncounterId?(options.loadStructural||loadLatestSpellStructuralKnowledgeV1)(wclEncounterId,{storageGet}).catch(()=>null):Promise.resolve(null),
     empiricalAvailable?persistedAt(`mechanic-episodes/${corpusId(scope)}/`,{storageList,storageGet}):Promise.resolve([]),
+    wclEncounterId?(options.loadLearningAvailability||loadRaidLearningScopeV1)(wclEncounterId,requestedDifficulty,{storageGet}).catch(()=>null):Promise.resolve(null),
   ]);
   if(aggregate&&Number(aggregate.difficulty??scope.difficulty)!==requestedDifficulty)throw new Error('Cross-difficulty aggregate rejected');
+  if(learningAvailability?.scope&&Number(learningAvailability.scope.difficulty?.id)!==requestedDifficulty)throw new Error('Cross-difficulty raid learning availability rejected');
   const structuralView=structuralBase&&officialBase&&difficultyOfficial?buildSpellStructuralDifficultyViewV1({structuralKnowledge:structuralBase,baseOfficialGraph:officialBase,difficultyOfficialView:difficultyOfficial}):structuralBase;
   const episodes=selectEpisodes(episodeRows,officialBase,structuralBase),corpus=aggregate?aggregateSummary(aggregate):null,encounterName=officialView?.encounter?.name||aggregate?.encounter?.name||raw?.encounterName||raw?.name||input.encounterName||null,mechanics=[];
   for(const episode of episodes){
@@ -78,20 +81,21 @@ export async function loadMechanicKnowledgeViewV1(input={},options={}){
     const downstream=await downstreamFor(scope,episode,{storageList,storageGet});
     mechanics.push(buildMechanicKnowledgeViewV1({scope,encounterName,aggregateSummary:corpus,officialGraph:officialView,structuralKnowledge:structuralView,episode,...downstream}));
   }
-  const publishedMechanics=officialMechanics(officialView);
+  const publishedMechanics=officialMechanics(officialView),publicAvailability=learningAvailability?.scope||null;
+  const executionStatus=!wclEncounterId?'wcl-encounter-not-published':empiricalAvailable?'wcl-corpus-available':publicAvailability?.status==='public-evidence-available'?'public-evidence-available-corpus-not-built':publicAvailability?.status||'no-combat-corpus-yet';
   return{
     version:MECHANIC_KNOWLEDGE_VIEW_SERVICE_VERSION,generatedAt:Date.now(),scope,
     encounter:{name:encounterName,wclEncounterId:wclEncounterId||null,journalEncounterId:journalEncounterId||null},
     difficulty:{id:requestedDifficulty,name:difficultyOfficial?.difficulty?.name||input.difficultyName||`Difficulty ${requestedDifficulty}`,officialFingerprint:difficultyOfficial?.fingerprint||null,applicability:difficultyOfficial?.applicability||null},
     bossKnowledge:{status:officialView?'official-ready':'official-not-available',reportRequired:false,difficultyRequired:true,officialMechanics:publishedMechanics,officialAbilityCount:Number(officialView?.abilities?.length||0)},
-    executionKnowledge:{status:!wclEncounterId?'wcl-encounter-not-published':empiricalAvailable?'wcl-corpus-available':'no-combat-corpus-yet',reportRequired:true,difficultyRequired:true,corpusAvailable:Boolean(corpus),episodeCount:mechanics.length},
+    executionKnowledge:{status:executionStatus,reportRequired:true,difficultyRequired:true,corpusAvailable:Boolean(corpus),publicSourceAvailability:publicAvailability?{status:publicAvailability.status,publicSources:Number(publicAvailability.publicSources||0),rankingOutcomeDiscarded:true,checkedAt:learningAvailability.updatedAt||null}:null,episodeCount:mechanics.length},
     sources:{
       official:officialView?{status:'ready',provider:'blizzard-game-data+wago-db2-difficulty',fingerprint:officialView.fingerprint,baseFingerprint:officialBase?.fingerprint||null,namespace:officialBase?.source?.namespace||null,sectionCount:Number(officialView?.graph?.sectionCount||0),spellCount:Number(officialView?.graph?.spellCount||0),membershipEdges:Number(officialView?.graph?.officialMembershipEdges||0),difficultyApplicability:officialView?.applicability||null}:{status:'not-available'},
       structural:structuralView?{status:'ready',provider:'wago-db2',fingerprint:structuralView.fingerprint,baseFingerprint:structuralBase?.fingerprint||null,build:structuralView?.provider?.build||structuralBase?.provider?.build||null,relations:Number(structuralView?.relations?.length||0),baseRelations:Number(structuralView?.summary?.baseRelations??structuralBase?.relations?.length??0),seedAbilities:Number(structuralView?.seedAbilityIds?.length||0),resolvedQueries:Number(structuralView?.coverage?.resolvedQueries||0),queryCount:Number(structuralView?.coverage?.queryCount||0),difficultyScopedInterpretation:Boolean(difficultyOfficial),difficultyApplicabilityVerified:structuralView?.difficultyApplicabilityVerified===true,empiricalDifficultyEvidence:false}:{status:'not-available'},
-      corpus:corpus?{status:'ready',difficulty:requestedDifficulty,...corpus}:{status:'not-available'},
+      corpus:corpus?{status:'ready',difficulty:requestedDifficulty,...corpus}:publicAvailability?{status:'not-built',difficulty:requestedDifficulty,publicSourceAvailability:publicAvailability.status,publicSources:Number(publicAvailability.publicSources||0)}:{status:'not-available'},
     },
     summary:{officialMechanics:publishedMechanics.length,officialAbilities:Number(officialView?.abilities?.length||0),mechanicInvestigations:mechanics.length,promotionPending:mechanics.filter(row=>row?.episode?.lifecycle==='promotion-pending').length,accepted:0,networkExecuted:false,wclCallsExecuted:0,providerNetworkCallsExecuted:0},
     mechanics,
-    evidenceContract:{readOnly:true,scopeIdentity:'boss+difficulty',officialKnowledgeIndependentOfReports:true,empiricalOverlayOptional:true,difficultyIsolation:true,officialAndStructuralViewsDifficultyScoped:true,crossDifficultyComparisonForbidden:true,crossDifficultyEmpiricalReuse:false,normalHeroicCannotCountAsMythicEvidence:true,wclCombatTruthCanonical:true,providerMetadataCannotPromote:true,automaticPromotion:false},
+    evidenceContract:{readOnly:true,scopeIdentity:'boss+difficulty',officialKnowledgeIndependentOfReports:true,empiricalOverlayOptional:true,difficultyIsolation:true,officialAndStructuralViewsDifficultyScoped:true,learningAvailabilityIsMetadataOnly:true,crossDifficultyComparisonForbidden:true,crossDifficultyEmpiricalReuse:false,normalHeroicCannotCountAsMythicEvidence:true,wclCombatTruthCanonical:true,providerMetadataCannotPromote:true,automaticPromotion:false},
   };
 }
