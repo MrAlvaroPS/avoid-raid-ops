@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import { readdir,readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const ROOTS=['server','routes','workflows'];
+// GLOBAL BOSS learning/knowledge/orchestration. Report-scoped application engines and
+// curated encounter fallback packs are deliberately outside this boundary.
+const GLOBAL_BOSS_ROOTS=[
+  'server/corpus','server/knowledge','server/wcl','server/services','server/iris','server/analysis',
+  'routes/api/wcl','routes/api/knowledge','workflows',
+];
 const FORBIDDEN=[
   {label:"validation boss name",pattern:/Belo'ren|Child of Al'ar/i},
   {label:'validation WCL encounter id',pattern:/\b3182\b/},
@@ -23,14 +28,31 @@ async function runtimeFiles(dir){
   return out;
 }
 
-test('CRITICAL v3.9.10 PORTABILITY: production runtime contains no Belo\'ren validation constants',async()=>{
-  const files=(await Promise.all(ROOTS.map(runtimeFiles))).flat();
+async function globalBossFiles(){return (await Promise.all(GLOBAL_BOSS_ROOTS.map(runtimeFiles))).flat();}
+
+test('CRITICAL v3.9.10 PORTABILITY: GLOBAL BOSS runtime contains no current validation-boss constants',async()=>{
   const violations=[];
-  for(const file of files){
+  for(const file of await globalBossFiles()){
     const text=await readFile(file,'utf8');
     for(const rule of FORBIDDEN)if(rule.pattern.test(text))violations.push(`${file}: ${rule.label}`);
   }
-  assert.deepEqual(violations,[],`Boss-specific validation constants leaked into production runtime:\n${violations.join('\n')}`);
+  assert.deepEqual(violations,[],`Boss-specific validation constants leaked into GLOBAL BOSS runtime:\n${violations.join('\n')}`);
+});
+
+test('CRITICAL v3.9.10 PORTABILITY: GLOBAL BOSS runtime cannot import curated encounter fallback packs',async()=>{
+  const violations=[];
+  for(const file of await globalBossFiles()){
+    const text=await readFile(file,'utf8');
+    if(/rule-packs[\\/]encounters/i.test(text))violations.push(file);
+  }
+  assert.deepEqual(violations,[],`Curated encounter packs leaked into GLOBAL BOSS learning:\n${violations.join('\n')}`);
+
+  const intelligence=await readFile('server/engines/intelligence-engine.mjs','utf8');
+  const packReadme=await readFile('server/rule-packs/encounters/README.md','utf8');
+  assert.match(intelligence,/const pack=generatedModel\?\.pack\|\|getEncounterRulePack\(encounter\.encounterID\)/,'report application must prefer the generated model before curated fallback');
+  assert.match(intelligence,/manual-fallback/,'curated encounter pack must remain explicitly labelled fallback');
+  assert.match(packReadme,/application\/evaluation fallbacks only/i);
+  assert.match(packReadme,/do not train, validate, stabilize, hold out, or promote GLOBAL BOSS knowledge/i);
 });
 
 test('CRITICAL v3.9.10 PORTABILITY: generic learning contract forbids boss-specific prerequisites and requires portability tests',async()=>{
@@ -44,5 +66,6 @@ test('CRITICAL v3.9.10 PORTABILITY: generic learning contract forbids boss-speci
   assert.match(pipeline,/This contract defines how Iris refines encounter knowledge for \*\*any\*\* boss/i);
   assert.match(pipeline,/No learning stage may require a hard-coded boss name, encounter ID, ability ID, spell name, phase name, or encounter-specific rule/i);
   assert.match(pipeline,/Every new generic learning stage must have at least one synthetic test using arbitrary encounter\/ability IDs and names/i);
-  assert.match(holdout,/not automatically an Untouched Holdout/i);
+  assert.match(holdout,/generic stage for \*\*any\*\* GLOBAL BOSS scope/i);
+  assert.match(holdout,/operator must not need to hand-author a source list or teach Iris a boss-specific rule/i);
 });
