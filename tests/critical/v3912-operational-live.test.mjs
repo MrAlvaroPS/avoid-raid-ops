@@ -29,7 +29,7 @@ test('CRITICAL v3.9.12 HEADER: historical context is LOG then PULL, Active WCL s
   assert.match(runtime,/historyReportSelectionIsConsumerOptIn:true/);assert.match(runtime,/pullSelectionIsConsumerOptIn:true/);
   assert.match(runtime,/\/api\/wcl\/operational-execution/);assert.doesNotMatch(runtime,/new URL\(['"]\/api\/wcl\/history['"]/);
   assert.match(css,/b\[data-app-release\]\{font-size:0!important\}/);assert.match(css,/content:attr\(data-app-release\)/);
-  assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.0/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.1/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.1/);
+  assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.0/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.1/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.0/);
 });
 
 test('CRITICAL v3.9.12 RAID EXECUTION: raid count/single-pull score are replaced by report-independent longitudinal current mechanical state',async()=>{
