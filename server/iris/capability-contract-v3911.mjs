@@ -9,8 +9,16 @@ const extension=Object.freeze([
   Object.freeze({id:'execution.pull-selection',status:'available',domain:'home-execution',autonomy:'client-only',endpoint:'browser execution context',effect:'consumer-opt-in-selection',description:'Default is all pulls (no override). A single selected HOME pull is published separately and only pull-aware consumers may react; GLOBAL Iris and historical aggregate views are not globally filtered.'}),
 ]);
 
+function v3911BaseCapabilities(rows=[]){
+  return rows.map(row=>{
+    if(row.id==='knowledge.raid-catalog.current')return Object.freeze({...row,autonomy:'automatic',endpoint:'GET /api/knowledge/raid-catalog',effect:'persisted-metadata-read',description:'Read the persisted current official raid catalog with zero provider network. WCL/Blizzard refresh is never triggered by navigation; use refresh=1 explicitly to update the catalog.'});
+    if(row.id==='knowledge.raid.official-boss-difficulty-bootstrap')return Object.freeze({...row,autonomy:'bounded',endpoint:'GET /api/knowledge/raid-catalog?refresh=1&official=1',effect:'explicit-official+structural-refresh+persist',description:'Explicitly refresh the current raid catalog and bootstrap every boss+difficulty from Blizzard Journal plus build-pinned DB2 metadata. Normal application navigation reads persisted products only.'});
+    return row;
+  });
+}
+
 export function getIrisCapabilityContractV3911(){
-  const base=getIrisCapabilityContractV3910(),ids=new Set(base.capabilities.map(row=>row.id));
+  const base=getIrisCapabilityContractV3910(),baseCapabilities=v3911BaseCapabilities(base.capabilities),ids=new Set(baseCapabilities.map(row=>row.id));
   return{
     ...base,version:IRIS_CAPABILITY_CONTRACT_V3911_VERSION,release:'3.9.11',
     purpose:'Machine-readable Iris contract with GLOBAL/HOME/Active-Report evidence isolation and offline-first HOME history.',
@@ -18,13 +26,14 @@ export function getIrisCapabilityContractV3911(){
     invariants:{
       ...base.invariants,
       firstPageWclNetwork:'Normal application boot reads persisted HOME history and persisted Iris products only. Automatic legacy WCL report/history bootstrap is forbidden; WCL begins only after an explicit refresh/load/live action or a separately managed GLOBAL worker.',
+      persistedNavigation:'Navigating Mechanics or other read-only product surfaces must not refresh WCL, Blizzard or Wago because a cache is old. Catalog/provider refresh requires an explicit operator refresh action.',
       executionContextIsolation:'GLOBAL Iris Boss Knowledge, persisted AvoiD History and Active Report are independent planes. An Active Report never silently mutates HOME history and a pull selector is not a global application filter.',
       activeReportDifficulty:'A report has no single trusted difficulty. Difficulty is classified per encounter fight before rich execution data is loaded; cross-difficulty aggregation is forbidden.',
       liveEmptySemantics:'An explicitly started live report with zero encounter fights is connected/waiting, not an execution failure, missing mechanic observation or zero-score pull.',
       homeHistoryPersistence:'HOME history uses exact guild+zone+report+fight identity and stores encounter+difficulty per fight. Reads are zero-WCL; refresh is explicit, incremental and metadata/fight-index only.',
-      globalHomeSourceIsolation:'GLOBAL BOSS source admission is fail-closed: only a concrete verified non-HOME guild source is eligible. HOME, known HOME uploaders, anonymous and owner-only/unverified origins are rejected before Wide/Deep evidence acquisition.',
+      globalHomeSourceIsolation:'GLOBAL BOSS source admission is fail-closed: only a concrete verified non-HOME guild source is eligible. HOME, known HOME uploaders, anonymous and owner-only/unverified origins are rejected before Wide/Deep evidence acquisition. Persisted GLOBAL profiles retain guild-level source identity but scrub uploader identity.',
     },
-    capabilities:[...base.capabilities,...extension.filter(row=>!ids.has(row.id))],
+    capabilities:[...baseCapabilities,...extension.filter(row=>!ids.has(row.id))],
   };
 }
 export function findIrisCapabilityV3911(id){return getIrisCapabilityContractV3911().capabilities.find(row=>row.id===id)||null;}
