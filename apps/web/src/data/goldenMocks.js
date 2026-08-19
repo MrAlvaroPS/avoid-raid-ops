@@ -1,6 +1,6 @@
 // AUTO-RECONSTRUCTED FROM golden-master/main.js. Do not hand-edit values.
 
-export const NAV_ITEMS = [["Command Center","\u2302"],["LIVE","\u25CF"],["Progress","\u2197"],["Pull Lab","\u2301"],["Damage & Healing","\u2301"],["Mechanics","\u25CE"],["Defensive Audit","\u25C7"],["Players","\u2659"],["Composition","\u25EB"]];
+export const NAV_ITEMS = [["Command Center","\u2302"],["LIVE","\u25CF"],["Progress","\u2197"],["Pull Lab","\u2301"],["Damage & Healing","\u2301"],["Mechanics","\u25CE"],["Defensive Audit","\u25C7"],["Players","\u2659"],["Composition","\u25EB"],["Loot","\u25C8"]];
 export const PROGRESSION_MOCK = [88,84,79,82,73,69,63,67,59,55,48,51,43,39,31,35,26,22,18,14,11,9.8,7.2,5.4,3.2];
 export const PLAYER_RELIABILITY_MOCK = [["Krynn","Frost DK","DPS",97,94,96,98,"+4.2%"],["Veyra","Pres. Evoker","HEAL",95,91,97,92,"+2.8%"],["Thorne","Prot. Warrior","TANK",94,96,99,94,"+1.1%"],["Mirael","Arcane Mage","DPS",92,88,93,86,"+6.7%"],["Ravok","Enh. Shaman","DPS",84,79,78,61,"-1.4%"],["Sylen","Shadow Priest","DPS",81,86,74,58,"-3.2%"]];
 export const MECHANICS_MOCK = [["Nether Eruption","Raidwide / Defensive","06:14","11","31%","Critical"],["Cosmic Shard","Targeted / Spread","06:21","7","19%","Unstable"],["Fractured Dominion","Soak assignment","04:38","3","8%","Improving"],["King's Command","Interrupt rotation","03:52","2","4%","Controlled"],["Void Collapse","Positioning","02:06","4","11%","Controlled"],["Astral Scar","Dispel","01:28","1","2%","Controlled"]];
