@@ -1,19 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
 
 const SOURCE='apps/web/src/features/command-center/runtime.js';
 const TRANSPORT='public/command-center-runtime.js';
-const HISTORICAL_BRIDGE='public/command-center-history-bridge-v4.js';
-const HISTORICAL_BRIDGE_COMMENT="\n  // Transitional v4 ownership bridge. The legacy runtime still declares both\n  // functions, but these assignments replace the global bindings before the\n  // canonical Progress runtime installs its active-screen guards. This bridge\n  // is passive: no timer, observer or network request is introduced.\n";
-const presentationLogic=source=>source.split('  window.applyProgressCurve=')[0].replace(HISTORICAL_BRIDGE_COMMENT,'\n');
+const RETIRED_BRIDGE='public/command-center-history-bridge-v4.js';
 
-test('Command Center source owner and public transport are byte-identical while presentation logic stays equal to the validated historical bridge',async()=>{
-  const [source,transport,bridge]=await Promise.all([read(SOURCE),read(TRANSPORT),read(HISTORICAL_BRIDGE)]);
+test('Command Center source owner and public transport remain byte-identical after historical bridge retirement',async()=>{
+  const [source,transport]=await Promise.all([read(SOURCE),read(TRANSPORT)]);
   assert.equal(transport,source,'Command Center public transport must stay byte-identical to its feature source');
-  assert.equal(presentationLogic(source),presentationLogic(bridge),'source-owner promotion must not alter the validated Command Center presentation functions');
+  await assert.rejects(access(new URL(`../../${RETIRED_BRIDGE}`,import.meta.url)),error=>error?.code==='ENOENT','historical Command Center bridge must remain physically absent');
 });
 
 test('Command Center runtime is explicit single-source owner and remains passive',async()=>{
