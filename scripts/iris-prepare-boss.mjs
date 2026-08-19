@@ -27,12 +27,14 @@ if(!execute){
 }
 
 if(!status){status=await startCorpus({...scope,corpusProfile:'operational',targetPulls:100,deepTargetPulls:20,maxCandidateReports:500,maxRankingPages:4,maxSourcePages:2});console.log(`START · ${boss.name} · ${availability.difficulty?.name} · ${status.status}/${status.phase}`);}
-while(steps<maxSteps&&status&&status.status==='running'){
+while(steps<maxSteps&&status&&(status.status==='running'||status.status==='rate-limited')){
+  if(status.status==='rate-limited'&&Number(status.resumeAt)>Date.now()){console.log(`RATE LIMIT RESERVE · checkpoint preserved until ${new Date(Number(status.resumeAt)).toISOString()}`);break;}
   status=await stepCorpus({...scope,corpusProfile:'operational',targetPulls:100,deepTargetPulls:20,maxCandidateReports:500,maxRankingPages:4,maxSourcePages:2});steps++;
   if(steps===1||steps%10===0||status.status!=='running')console.log(`[${steps}/${maxSteps}] ${status.status}/${status.phase} · ${Number(status.pullCount||0)} wide · ${Number(status.deepPullCount||0)} deep · ${Number(status.sourceStats?.total||0)} sources`);
 }
 if(status?.status==='ready'){console.log('CANONICALIZE · zero-WCL HOME/source isolation rebuild');status=await recompileCorpusModelV2({...scope,corpusProfile:'operational'});}
 const operational=await loadOperationalEncounterModelV2(scope).catch(()=>null),readiness=operational?'READY':status?.status==='rate-limited'?'RATE LIMITED':status?.status==='paused'?'PAUSED':status?.status==='running'?'BUILDING':'NOT READY';
-console.log(JSON.stringify({steps,corpus:status?{status:status.status,phase:status.phase,pulls:status.pullCount,deepPulls:status.deepPullCount,sources:status.sourceStats?.total,message:status.message}:null,liveReadiness:readiness,operationalReference:operational?.operationalReference||null,evidenceContract:{sameDifficultyOnly:true,homeExcludedBeforeOperationalUse:true,operationalDoesNotMeanPublished:true,automaticPromotion:false}},null,2));
+console.log(JSON.stringify({steps,corpus:status?{status:status.status,phase:status.phase,pulls:status.pullCount,deepPulls:status.deepPullCount,sources:status.sourceStats?.total,resumeAt:status.resumeAt||null,pauseReason:status.pauseReason||null,message:status.message}:null,liveReadiness:readiness,operationalReference:operational?.operationalReference||null,evidenceContract:{sameDifficultyOnly:true,homeExcludedBeforeOperationalUse:true,operationalDoesNotMeanPublished:true,automaticPromotion:false}},null,2));
 if(!operational&&status?.status==='ready')throw new Error('Corpus completed but did not satisfy the fail-closed Operational Reference floor. Inspect canonical sampling diagnostics instead of weakening the gate.');
-console.log(`\n${operational?'OK: boss is operationally ready for Live; background enrichment may continue independently.':'STOP: persistent checkpoint preserved; rerun the same command to continue.'}`);
+const stop=operational?'OK: boss is operationally ready for Live; background enrichment may continue independently.':status?.status==='paused'?'STOP: systemic/operator pause preserved. Inspect pauseReason/last failure before explicitly resuming; Iris will not blindly repeat a broken WCL contract.':status?.status==='rate-limited'?'STOP: rate-limit checkpoint preserved. Rerun the same command after resumeAt; stepCorpus resumes safely.':'STOP: persistent checkpoint preserved; rerun the same command to continue.';
+console.log(`\n${stop}`);
