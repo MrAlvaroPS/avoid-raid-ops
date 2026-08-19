@@ -8,6 +8,7 @@ test('CRITICAL v3.9.12 OPERATIONAL REFERENCE: bounded floor is useful but cannot
   const [config,service,prepare]=await Promise.all([read('server/corpus/config.mjs'),read('server/corpus/service-v2.mjs'),read('scripts/iris-prepare-boss.mjs')]);
   assert.match(config,/CORPUS_OPERATIONAL_PROFILE/);assert.match(config,/targetPulls:\s*100/);assert.match(config,/deepTargetPulls:\s*20/);
   assert.match(service,/OPERATIONAL_REFERENCE_VERSION/);assert.match(service,/canonicalSourceSafety/);assert.match(service,/homeSourceSelectedReports/);assert.match(service,/selectedMissingSourceReports/);assert.match(service,/automaticPromotion:false/);
+  assert.match(service,/difficulty is required/);assert.doesNotMatch(service,/difficulty\s*:\s*Number\(input\.difficulty\s*\|\|\s*5\)/);
   assert.match(service,/loadPublishedEncounterModelV2/);assert.match(service,/model\.status !== 'published'/);
   assert.match(prepare,/public-evidence-available/);assert.match(prepare,/corpusProfile:'operational'/);assert.match(prepare,/recompileCorpusModelV2/);assert.match(prepare,/operationalDoesNotMeanPublished:true/);
   assert.doesNotMatch(`${config}\n${service}\n${prepare}`,BOSS_SPECIFIC,'generic operational preparation must not contain validation-boss constants');
@@ -22,14 +23,16 @@ test('CRITICAL v3.9.12 LIVE: operational execution is exact-difficulty, complete
   assert.match(store,/longitudinalAcrossAllPersistedPulls:true/);assert.match(store,/singlePullCannotReplaceAggregate:true/);assert.match(store,/mechanicallyReadyIsNotOverallKillability:true/);
 });
 
-test('CRITICAL v3.9.12 HEADER: historical context is LOG then PULL, Active WCL stays independent and visible version has one visual owner',async()=>{
+test('CRITICAL v3.9.12 HEADER: historical context is LOG then PULL, Active WCL stays independent and live scope rollover clears old boss data',async()=>{
   const [runtime,css,index]=await Promise.all([read('public/avoid-execution-context-v3911.js'),read('public/raidops-v3911-execution.css'),read('index.html')]);
   const logAt=runtime.indexOf('<small>LOG</small>'),pullAt=runtime.indexOf('<small>PULL</small>'),activeAt=runtime.indexOf('ACTIVE WCL');
   assert.ok(logAt>=0&&pullAt>logAt&&activeAt>pullAt,'header control order must be LOG → PULL → Active WCL');
   assert.match(runtime,/historyReportSelectionIsConsumerOptIn:true/);assert.match(runtime,/pullSelectionIsConsumerOptIn:true/);
+  assert.match(runtime,/richExecutionClearedOnScopeChange:true/);assert.match(runtime,/lastActiveScopeKey/);assert.match(runtime,/scopeChanged/);
+  assert.match(runtime,/window\.__AVOID_WCL__=state\.activeData\.report\|\|null/);assert.match(runtime,/window\.__AVOID_WCL_TELEMETRY__=state\.activeData\.telemetry\|\|null/);
   assert.match(runtime,/\/api\/wcl\/operational-execution/);assert.doesNotMatch(runtime,/new URL\(['"]\/api\/wcl\/history['"]/);
   assert.match(css,/b\[data-app-release\]\{font-size:0!important\}/);assert.match(css,/content:attr\(data-app-release\)/);
-  assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.0/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.1/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.1/);
+  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.12\.2/);assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.0/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.1/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.1/);
 });
 
 test('CRITICAL v3.9.12 RAID EXECUTION: raid count/single-pull score are replaced by report-independent longitudinal current mechanical state',async()=>{
