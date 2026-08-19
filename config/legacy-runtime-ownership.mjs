@@ -9,8 +9,7 @@ export const LEGACY_RUNTIME_MECHANICS_RUNTIME_TRANSPORT='public/mechanics-runtim
 export const LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER='apps/web/src/features/defensive-audit/DefensiveAudit.js';
 export const LEGACY_RUNTIME_DEFENSIVES_RUNTIME_SOURCE='apps/web/src/features/defensive-audit/runtime.js';
 export const LEGACY_RUNTIME_DEFENSIVES_RUNTIME_TRANSPORT='public/defensive-audit-runtime.js';
-export const LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER='public/mechanics-defensives-fallback-bridge-v4.js';
-export const LEGACY_RUNTIME_MECHANICS_DEFENSIVES_SHADOW_OWNER='public/mechanics-defensives-fallback-bridge-v4.js';
+export const LEGACY_RUNTIME_MECHANICS_DEFENSIVES_BRIDGES_PHYSICALLY_RETIRED=Object.freeze(['public/mechanics-defensives-fallback-bridge-v4.js']);
 export const LEGACY_RUNTIME_MECHANICS_FALLBACK_HISTORICAL_WRITERS=Object.freeze(['applyMechanicsAndDefensives']);
 export const LEGACY_RUNTIME_MECHANICS_FALLBACK_ACTIVE_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_MECHANICS_FALLBACK_PHYSICALLY_RETIRED=Object.freeze(['applyMechanicsAndDefensives']);
@@ -87,8 +86,7 @@ export const LEGACY_RUNTIME_OWNERSHIP=Object.freeze({
   defensivesSourceOwner:LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,
   defensivesRuntimeSource:LEGACY_RUNTIME_DEFENSIVES_RUNTIME_SOURCE,
   defensivesRuntimeTransport:LEGACY_RUNTIME_DEFENSIVES_RUNTIME_TRANSPORT,
-  mechanicsDefensivesFallbackOwner:LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER,
-  mechanicsDefensivesShadowOwner:LEGACY_RUNTIME_MECHANICS_DEFENSIVES_SHADOW_OWNER,
+  mechanicsDefensivesBridgesPhysicallyRetired:LEGACY_RUNTIME_MECHANICS_DEFENSIVES_BRIDGES_PHYSICALLY_RETIRED,
   mechanicsFallbackHistoricalWriters:LEGACY_RUNTIME_MECHANICS_FALLBACK_HISTORICAL_WRITERS,
   mechanicsFallbackActiveWriters:LEGACY_RUNTIME_MECHANICS_FALLBACK_ACTIVE_WRITERS,
   mechanicsFallbackPhysicallyRetired:LEGACY_RUNTIME_MECHANICS_FALLBACK_PHYSICALLY_RETIRED,
