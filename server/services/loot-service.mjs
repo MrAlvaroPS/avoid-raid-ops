@@ -11,6 +11,8 @@ function safeCharacter(row={}){
   const talentImportCode=String(source?.talentImportCode||'').trim();return{gear,talentImportCode:talentImportCode.slice(0,2000),gearCount:gear.length,profileSource:String(source?.combatantInfoSource||'').trim()||null};
 }
 const safePlayers=rows=>(Array.isArray(rows)?rows:[]).slice(0,40).map(row=>({name:String(row?.name||'').trim(),server:String(row?.server||row?.realm||'').trim()||null,region:String(row?.region||process.env.BLIZZARD_REGION||'eu').trim(),className:String(row?.className||row?.class||'').trim()||null,spec:String(row?.spec||'').trim()||null,role:String(row?.role||'DPS').trim().toUpperCase(),actorId:finite(row?.actorId),itemLevel:finite(row?.itemLevel),character:safeCharacter(row)})).filter(row=>row.name);
+const completeItem=item=>Boolean(item?.id&&item?.itemClass?.name&&item?.itemSubclass?.name&&item?.inventoryType?.type);
+async function resolveItem(body={}){const candidate=body?.item?.id?body.item:null;if(completeItem(candidate))return candidate;const id=Number(candidate?.id||body?.itemId);if(!Number.isInteger(id)||id<=0)throw new Error('A complete item or itemId is required');return(await fetchLootItemV1(id)).item;}
 
 export default async req=>{
   try{
@@ -24,13 +26,13 @@ export default async req=>{
     if(req.method==='POST'){
       const body=await bodyJson(req),action=String(body?.action||'').trim();
       if(action==='simulate'){
-        const item=body?.item?.id?body.item:(await fetchLootItemV1(body?.itemId)).item,players=safePlayers(body?.players),eligibility=players.map(player=>({player,eligibility:evaluateLootEligibilityV1(item,player)})),eligible=eligibility.filter(row=>row.eligibility.eligible).map(row=>row.player);
+        const item=await resolveItem(body),players=safePlayers(body?.players),eligibility=players.map(player=>({player,eligibility:evaluateLootEligibilityV1(item,player)})),eligible=eligibility.filter(row=>row.eligibility.eligible).map(row=>row.player);
         if(!eligible.length)return jsonResponse(200,{ok:true,version:'loot-api-v1',item,eligibility,simulation:{results:[],status:'no-eligible-raiders'},evidenceContract:{simGainOnly:true,automaticAward:false,raidOnly:true}},'private, no-store');
         const simulation=await simulateLootRaidV1({players:eligible,item,itemLevel:body?.itemLevel,iterations:body?.iterations||1000,scenario:'raid_st',concurrency:body?.concurrency||2});
         return jsonResponse(200,{ok:true,version:'loot-api-v1',item,eligibility,simulation,evidenceContract:{simGainOnly:true,automaticAward:false,raidOnly:true,healerAndTankRaidValueNotFabricated:true,observedCombatantInfoPreferred:true,armoryFallbackAllowed:true}},'private, no-store');
       }
       if(action==='eligibility'){
-        const item=body?.item?.id?body.item:(await fetchLootItemV1(body?.itemId)).item,players=safePlayers(body?.players);return jsonResponse(200,{ok:true,version:'loot-api-v1',item,rows:players.map(player=>({player,eligibility:evaluateLootEligibilityV1(item,player)}))},'private, no-store');
+        const item=await resolveItem(body),players=safePlayers(body?.players);return jsonResponse(200,{ok:true,version:'loot-api-v1',item,rows:players.map(player=>({player,eligibility:evaluateLootEligibilityV1(item,player)}))},'private, no-store');
       }
       if(action==='award'){const result=await awardLootV1(body);return jsonResponse(200,{ok:true,version:'loot-api-v1',...result},'private, no-store');}
       if(action==='remove-award'){const result=await removeLootAwardV1(body?.id);return jsonResponse(200,{ok:true,version:'loot-api-v1',...result},'private, no-store');}
