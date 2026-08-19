@@ -38,19 +38,22 @@ owner_replacement = """    print('Mechanics intelligence: PASS')
     if not command_center_owner_ok:
         print('Command Center owner state:', command_center_owner);sys.exit(6)
     page.get_by_text('Pull Lab',exact=True).first.click();page.wait_for_timeout(250)
-    pull_lab_shadow=page.evaluate('window.__AVOID_PULL_LAB_SOURCE_RUNTIME__?.shadowAgainstLegacy?.() || null')
-    pull_lab_shadow_ok=(
-        bool(pull_lab_shadow)
-        and pull_lab_shadow.get('mode')=='parity-shadow'
-        and pull_lab_shadow.get('checks',0)>=1
-        and pull_lab_shadow.get('mismatches')==0
-        and pull_lab_shadow.get('directRequests')==0
-        and pull_lab_shadow.get('timers')==0
-        and pull_lab_shadow.get('observers')==0
+    pull_lab_owner=page.evaluate('window.__AVOID_PULL_LAB_SOURCE_RUNTIME__ || null')
+    pull_lab_binding=page.evaluate("typeof window.applyPullLabSource === 'function'")
+    pull_lab_owner_ok=(
+        bool(pull_lab_owner)
+        and pull_lab_owner.get('mode')=='single-source-owner'
+        and pull_lab_owner.get('writerPolicy')=='single-pull-lab-presentation-owner'
+        and pull_lab_owner.get('sourceOwner')=='apps/web/src/features/pull-lab/runtime.js'
+        and pull_lab_owner.get('transport')=='public/pull-lab-runtime.js'
+        and pull_lab_owner.get('directRequests')==0
+        and pull_lab_owner.get('timers')==0
+        and pull_lab_owner.get('observers')==0
+        and pull_lab_binding
     )
-    print('Pull Lab source parity:', 'PASS' if pull_lab_shadow_ok else 'FAIL')
-    if not pull_lab_shadow_ok:
-        print('Pull Lab parity state:', pull_lab_shadow);sys.exit(7)
+    print('Pull Lab source owner:', 'PASS' if pull_lab_owner_ok else 'FAIL')
+    if not pull_lab_owner_ok:
+        print('Pull Lab owner state:', pull_lab_owner, 'binding:', pull_lab_binding);sys.exit(7)
     page.get_by_text('Defensive Audit',exact=True).first.click();page.wait_for_timeout(250)
     defensive_owner=page.evaluate('window.__AVOID_DEFENSIVE_AUDIT_SOURCE_RUNTIME_STATE__ || null')
     defensive_owner_ok=(
