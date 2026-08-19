@@ -11,6 +11,7 @@
     "prepare:raid": "node --env-file=.env.local scripts/iris-prepare-raid.mjs",
     "prepare:raid:watch": "node --env-file=.env.local scripts/iris-prepare-raid.mjs --watch",
     "validate:operational-rehearsal": "node --env-file=.env.local scripts/iris-operational-rehearsal.mjs",
+    "validate:operational-streams": "node --env-file=.env.local scripts/iris-operational-stream-probe.mjs",
     "validate:raid-catalog": "node --env-file=.env.local scripts/iris-raid-catalog-smoke.mjs",
     "validate:raid-learning": "node --env-file=.env.local scripts/iris-raid-learning-plan-smoke.mjs",
     "validate:raid-corpus-bootstrap": "node --env-file=.env.local scripts/iris-raid-corpus-bootstrap.mjs",
