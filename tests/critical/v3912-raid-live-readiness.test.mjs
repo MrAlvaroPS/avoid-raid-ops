@@ -33,6 +33,16 @@ test('CRITICAL RAID PREP: current-raid preparation is generic, sequential/checkp
   assert.doesNotMatch(source,BOSS_SPECIFIC);
 });
 
+test('CRITICAL PRODUCTION LIVE GATE: unrehearsed DATA READY reference cannot emit mechanic classification through the Live API',async()=>{
+  const source=await read('server/services/operational-execution-service.mjs');
+  assert.match(source,/loadOperationalReadinessV1/);
+  assert.match(source,/readiness\?\.liveReady!==true/);
+  assert.match(source,/operational-rehearsal-required/);
+  assert.match(source,/noUnrehearsedMechanicClassification:true/);
+  const gateAt=source.indexOf('readiness?.liveReady!==true'),engineAt=source.indexOf('getOperationalExecutionV1({');
+  assert.ok(gateAt>=0&&engineAt>gateAt,'Live readiness must be checked before production Operational Execution');
+});
+
 test('CRITICAL MULTI-BOSS LIVE: changing boss scope clears stale rich data before hydrating the new boss',async()=>{
   const source=await read('public/avoid-execution-context-v3911.js');
   assert.match(source,/lastActiveScopeKey/);
