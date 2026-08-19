@@ -25,14 +25,33 @@ test('CRITICAL v3.9.10 HOLDOUT: candidate/source sets freeze before holdout evid
   assert.match(source,/holdoutReuseAfterRetuningForbidden:true/);
 });
 
-test('CRITICAL v3.9.10 HOLDOUT: this layer never promotes and executes no provider/WCL network itself',async()=>{
-  const [source,route]=await Promise.all([read('server/corpus/untouched-holdout-v1.mjs'),read('routes/api/wcl/untouched-holdout.js')]);
+test('CRITICAL v3.9.10 HOLDOUT: reservation/evaluation remain zero-network and never promote',async()=>{
+  const source=await read('server/corpus/untouched-holdout-v1.mjs');
   assert.match(source,/automaticPromotion:false/);
   assert.match(source,/promotionEligible:false/);
   assert.match(source,/wclCallsExecuted:0/);
   assert.match(source,/providerNetworkCallsExecuted:0/);
-  assert.match(route,/networkExecuted:false/);
-  assert.match(route,/wclCallsExecuted:0/);
-  assert.match(route,/providerNetworkCallsExecuted:0/);
-  assert.doesNotMatch(route,/fetch\(/);
+});
+
+test('CRITICAL v3.9.10 SOURCE DISCOVERY: automatic source selection is fingerprinted metadata-only WCL with zero combat-event calls',async()=>{
+  const [route,discovery,pool]=await Promise.all([
+    read('routes/api/wcl/untouched-holdout.js'),
+    read('server/corpus/untouched-holdout-source-discovery-v1.mjs'),
+    read('server/corpus/untouched-holdout-source-pool-v1.mjs'),
+  ]);
+  assert.match(route,/discover-sources-preview/);
+  assert.match(route,/discover-sources/);
+  assert.match(route,/confirmExecution:true is required for Holdout source discovery/);
+  assert.match(route,/previewFingerprint/);
+  assert.match(route,/Automatic Holdout source discovery must complete before reservation/);
+  assert.doesNotMatch(route,/body\.sourceCandidates/,'production Holdout route must not accept a hand-authored source list');
+  assert.match(discovery,/wclCombatEventCalls:0/);
+  assert.match(discovery,/rankingOrderUsedForSelection:false/);
+  assert.match(discovery,/sourceIdentityOnly:true/);
+  assert.match(discovery,/fetchRankingPage/);
+  assert.match(discovery,/fetchReportIdentity/);
+  assert.doesNotMatch(discovery,/CORPUS_(?:WIDE|DEEP)|events\(|table\(/i,'source discovery must not query combat evidence');
+  assert.match(pool,/unknownLineageCannotBecomeUntouched:true/);
+  assert.match(pool,/metadataOnlyBeforeReservation:true/);
+  assert.match(pool,/homeAvoidDataUsed:false/);
 });
