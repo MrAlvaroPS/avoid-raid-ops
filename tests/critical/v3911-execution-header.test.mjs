@@ -10,7 +10,7 @@ test('CRITICAL v3.9.11 FIRST LOAD: HOME history reader is physically isolated fr
   assert.match(refresh,/wclGraphql/);assert.match(refresh,/explicitRefresh:true/);
   assert.match(service,/req\.method===['"]GET['"]/);assert.match(service,/getPersistedAvoidHistoryIndexV1/);assert.match(service,/req\.method===['"]POST['"]/);assert.match(service,/confirmExecution:true is required/);
   assert.doesNotMatch(index,/\/wcl-runtime\.js/);assert.doesNotMatch(index,/\/wcl-bootstrap-v389\.js/);
-  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.11\.2/);assert.match(index,/WCL stays idle until you explicitly refresh history or load a report/);
+  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.11\.3/);assert.match(index,/WCL stays idle until you explicitly refresh history or load a report/);
 });
 
 test('CRITICAL v3.9.11 HEADER: pull selection, explicit history refresh and active live report are independent controls',async()=>{
@@ -20,6 +20,7 @@ test('CRITICAL v3.9.11 HEADER: pull selection, explicit history refresh and acti
   assert.match(runtime,/activeReportDoesNotMutateHomeHistory:true/);assert.match(runtime,/pullSelectionIsConsumerOptIn:true/);assert.match(runtime,/firstPageWclNetworkAllowed:false/);assert.match(runtime,/activeReportNeverFetchesHomeHistory:true/);
   assert.match(runtime,/window\.__AVOID_WCL_HISTORY__=state\.historyScope/);assert.match(runtime,/window\.__AVOID_ACTIVE_REPORT__=state\.activeReport/);assert.match(runtime,/window\.__AVOID_PULL_SELECTION__=state\.pullSelection/);
   assert.match(runtime,/function installControls/);assert.match(runtime,/setInterval\(maintainShell,750\)/);assert.match(runtime,/historyRefreshing/);
+  assert.match(runtime,/function renderSidebarHistory/);assert.match(runtime,/pulls stored/);assert.match(runtime,/button\)button\.hidden=true/);assert.match(runtime,/v3\.9\.11/);
   assert.match(css,/avoid-exec-group\.history/);assert.match(css,/avoid-exec-group\.active/);
   assert.match(context,/difficultyClassifiedPerFight:true/);assert.match(context,/emptyLiveReportIsNotFailure:true/);
   assert.match(doc,/A report\/pull selector is not a global application filter/);
@@ -38,5 +39,5 @@ test('CRITICAL v3.9.11 HISTORY: persisted HOME reports keep boss+difficulty per 
   const [store,reader,refresh]=await Promise.all([read('server/home/history-store-v1.mjs'),read('server/engines/home-history-read-v1.mjs'),read('server/engines/home-history-refresh-v1.mjs')]);
   assert.match(store,/difficulty:Number\(row\.difficulty\)/);assert.match(store,/scopeKey:key/);
   assert.match(reader,/if\(fight\.inProgress\|\|!/);assert.match(reader,/key:`\$\{report\.reportCode\}:\$\{fight\.id\}`/);
-  assert.match(refresh,/reportNeedsRefresh/);assert.match(refresh,/changed\.slice\(-limit\)/);assert.match(refresh,/wclCombatEventCalls:0/);
+  assert.match(refresh,/reportNeedsRefresh/);assert.match(refresh,/listed\.revision/);assert.match(refresh,/changed\.slice\(-limit\)/);assert.match(refresh,/wclCombatEventCalls:0/);
 });
