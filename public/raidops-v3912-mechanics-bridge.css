@@ -1,0 +1,5 @@
+/* Longitudinal Raid Execution is selected boss+difficulty HOME state, not the open report.
+   The legacy Mechanics runtime may still mark this node as report-scoped execution; these
+   final author rules deliberately give the v3.9.12 operational root independent tab ownership. */
+.canvas[data-avoid-operational-mechanics="1"]:has(.iris-mechanics-tabs [data-tab="execution"].active)>.avoid-operational-root[data-kind="mechanics"]{display:block!important}
+.canvas[data-avoid-operational-mechanics="1"]:has(.iris-mechanics-tabs [data-tab="knowledge"].active)>.avoid-operational-root[data-kind="mechanics"]{display:none!important}
