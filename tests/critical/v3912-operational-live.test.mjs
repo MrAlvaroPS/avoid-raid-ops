@@ -29,13 +29,14 @@ test('CRITICAL v3.9.12 HEADER: historical context is LOG then PULL, Active WCL s
   assert.match(runtime,/historyReportSelectionIsConsumerOptIn:true/);assert.match(runtime,/pullSelectionIsConsumerOptIn:true/);
   assert.match(runtime,/\/api\/wcl\/operational-execution/);assert.doesNotMatch(runtime,/new URL\(['"]\/api\/wcl\/history['"]/);
   assert.match(css,/b\[data-app-release\]\{font-size:0!important\}/);assert.match(css,/content:attr\(data-app-release\)/);
-  assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.0/);
+  assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.0/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.0/);
 });
 
-test('CRITICAL v3.9.12 RAID EXECUTION: raid count/single-pull score are replaced by longitudinal current mechanical state',async()=>{
-  const [header,ui]=await Promise.all([read('public/iris-mechanics-header-v3910.js'),read('public/avoid-operational-ui-v3912.js')]);
+test('CRITICAL v3.9.12 RAID EXECUTION: raid count/single-pull score are replaced by report-independent longitudinal current mechanical state',async()=>{
+  const [header,ui,bridge]=await Promise.all([read('public/iris-mechanics-header-v3910.js'),read('public/avoid-operational-ui-v3912.js'),read('public/raidops-v3912-mechanics-bridge.css')]);
   assert.match(header,/CURRENT MECHANICAL STATE/);assert.match(header,/Longitudinal AvoiD mechanic execution/);assert.doesNotMatch(header,/bossCount\(/);assert.doesNotMatch(header,/CURRENT RAID/);
   assert.match(ui,/MECHANIC EVOLUTION/);assert.match(ui,/ALL-TIME/);assert.match(ui,/RECENT/);assert.match(ui,/PREVIOUS/);assert.match(ui,/not overall killability/i);
+  assert.match(bridge,/data-tab="execution"/);assert.match(bridge,/display:block!important/);assert.match(bridge,/data-tab="knowledge"/);
   assert.match(ui,/LIVE · WAITING/);assert.match(ui,/Boss reference not ready/);assert.match(ui,/No classified mechanic failure is present/);
   assert.match(ui,/Pull Lab/);assert.match(ui,/REAL WCL PULLS/);assert.doesNotMatch(ui,/LIVE_PULLS_MOCK|goldenMocks/);
 });
