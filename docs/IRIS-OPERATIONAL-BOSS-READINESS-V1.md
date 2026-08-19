@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Operational Boss Readiness exists so a newly released or newly selected boss can become useful in AvoiD Live **before** the full scientific GLOBAL knowledge pipeline reaches publication/promotion maturity.
+Operational Boss Readiness exists so a newly released raid can become useful in AvoiD Live **before** the full scientific GLOBAL knowledge pipeline reaches publication/promotion maturity.
 
-It does not weaken that pipeline. It creates a separate, explicitly provisional contract:
+It does not weaken that pipeline. It creates a separate provisional path:
 
 ```text
 Official / structural boss context
@@ -15,18 +15,23 @@ bounded canonical public corpus
         +
 fail-closed HOME/source isolation
         ↓
-OPERATIONAL REFERENCE
+DATA READY · OPERATIONAL REFERENCE
+        ↓
+deterministic external rehearsal
+through production Operational Execution
+        ↓
+MECHANIC COVERAGE READY
+        ↓
+LIVE READY
         ↓
 AvoiD observed completed pulls
-        ↓
-Operational Execution
         ↓
 Longitudinal Raid Execution
 ```
 
-## Operational Reference is not accepted knowledge
+## DATA READY is not accepted knowledge
 
-The default v1 operational floor is intentionally small:
+The default v1 operational floor is intentionally bounded:
 
 - 100 Wide pulls
 - 20 Deep pulls
@@ -44,39 +49,107 @@ Before it can be consumed, canonical sampling must prove:
 
 An Operational Reference may classify observed AvoiD mechanics. It **cannot** satisfy Promotion, become accepted boss knowledge, or establish a combat fact by itself.
 
+## LIVE READY adds an Operational Rehearsal
+
+A safe corpus existing is not enough to claim the production Live path is useful. `Operational Rehearsal` selects a small deterministic set of reports from the canonical Wide sample and runs them through the same Operational Execution engine used by Live.
+
+Report selection:
+
+- comes only from canonical `selectedWideCodes`;
+- is stable for the exact boss+difficulty+partition;
+- does not use ranking, parse, kill/wipe result, mechanic outcome or player performance;
+- never adds the external report to HOME execution;
+- never trains or promotes knowledge.
+
+Default v1 coverage gate:
+
+- up to 3 deterministic rehearsal reports;
+- at least 2 successful production-path executions when that many reports exist;
+- at least 3 distinct mechanics observed, capped by the pack size;
+- at least 30% of rule-pack mechanics observed across rehearsal reports;
+- zero truncated rehearsal reports.
+
+This is an **operational smoke/coverage gate**, not a scientific significance test. Failure produces `COVERAGE REVIEW`, never weaker thresholds or fabricated Live readiness.
+
+```powershell
+npm run validate:operational-rehearsal -- --encounter <id> --difficulty Normal
+npm run validate:operational-rehearsal -- --encounter <id> --difficulty Normal --execute
+```
+
+The first command is zero-network. The second explicitly executes bounded WCL observation.
+
 ## `prepare:boss`
 
-The generic operator entry point is:
+The boss-level primitive remains:
 
 ```powershell
 npm run prepare:boss -- --encounter <WCL encounter id> --difficulty Normal
-```
-
-Preview is zero-network. It reads the persisted raid catalog, persisted exact-difficulty public availability and current corpus state.
-
-Execution is explicit:
-
-```powershell
 npm run prepare:boss -- --encounter <WCL encounter id> --difficulty Normal --execute
 ```
 
-The command:
+Preview is zero-network. Execution resolves the persisted raid catalog and exact-difficulty public availability, reuses checkpoints, acquires only the bounded operational corpus, canonicalizes source isolation and reports DATA readiness.
 
-1. resolves the current raid boss from the persisted catalog;
-2. requires public evidence for the exact requested difficulty;
-3. reuses/checkpoints any existing corpus;
-4. starts only the bounded operational profile when missing;
-5. advances acquisition under the normal rate/source protections;
-6. performs a zero-WCL canonical recompile when ready;
-7. refuses LIVE readiness unless fail-closed Operational Reference checks pass.
+It remains useful for diagnosis or one specific boss. It is no longer the intended manual workflow for every boss in a raid.
 
-If acquisition pauses or reaches a rate reserve, rerunning the same command continues from persisted state. No boss-specific production constant is required.
+## `prepare:raid`
 
-## Active Report / Live
+The current-raid operational preflight is:
 
-The lightweight Active Report manifest classifies every WCL fight by encounter+difficulty. A report itself is not assigned one global difficulty.
+```powershell
+npm run prepare:raid -- --difficulty Normal
+npm run prepare:raid -- --difficulty Normal --execute
+```
 
-Live states are first-class:
+Preview is zero-network and lists every current-raid boss with:
+
+- public evidence availability;
+- corpus phase/pulls/sources;
+- DATA readiness;
+- rehearsal/coverage status;
+- LIVE readiness.
+
+Execution walks the persisted current raid in encounter order. For every boss with public evidence in the exact difficulty it:
+
+1. reuses any existing corpus/checkpoint;
+2. starts the bounded operational profile only if missing;
+3. advances acquisition under the existing WCL source/rate protections;
+4. performs the zero-WCL canonical HOME/source-isolation rebuild;
+5. runs deterministic Operational Rehearsal when DATA READY;
+6. persists `LIVE READY` or `COVERAGE REVIEW`.
+
+The command stops safely when it reaches the configured global step budget or WCL rate reserve. Rerunning the same command resumes unfinished bosses. A systemic/operator pause is preserved rather than blindly retried.
+
+No boss IDs or names are embedded in production raid preparation.
+
+## New tier / build automation
+
+The intended autonomous lifecycle is:
+
+```text
+raid catalog/build fingerprint changes
+        ↓
+official boss bootstrap
+        ↓
+exact-difficulty WCL availability scan
+        ↓
+prepare:raid preview
+        ↓
+prepare missing public scopes under bounded budget
+        ↓
+Operational Rehearsal
+        ↓
+per-scope readiness ledger
+```
+
+Normal, Heroic and Mythic remain separate. Heroic evidence may suggest a future Mythic hypothesis, but it never satisfies Mythic DATA/LIVE readiness. During RWF, Mythic may legitimately remain `waiting-for-public-evidence` while Normal/Heroic become LIVE READY.
+
+## Multi-boss Live report
+
+A WCL report is never assigned one trusted difficulty or boss globally. The lightweight Active Report manifest classifies every encounter fight by `encounterId + difficulty`.
+
+When one live report moves from boss A to boss B, the browser immediately clears rich report/telemetry/Operational Execution state from boss A before hydrating boss B. The persisted HOME history and GLOBAL knowledge planes are not cleared or changed.
+
+Healthy Live states include:
 
 ```text
 NO ACTIVE REPORT
@@ -86,7 +159,7 @@ LIVE · ANALYSING COMPLETED PULL
 LIVE · MECHANICS READY
 ```
 
-No encounter fight and an in-progress first fight are both non-negative states. Iris does not manufacture a zero score or mechanic failure while waiting for completed evidence.
+No encounter fight and an in-progress first fight are non-negative states. Iris does not manufacture a zero score or mechanic failure while waiting for completed evidence.
 
 For a completed scope, Operational Execution combines:
 
@@ -97,7 +170,7 @@ For a completed scope, Operational Execution combines:
 - current blocker;
 - up to three next-pull calls.
 
-Only reports proven to be HOME may persist into AvoiD longitudinal execution. An external report may be evaluated but never enters HOME history.
+Only reports proven to be HOME may persist into AvoiD longitudinal execution. An external rehearsal/report may be evaluated but never enters HOME history.
 
 ## Raid Execution semantics
 
@@ -135,16 +208,7 @@ That is aggregated across the persisted AvoiD scope. It is never a single-pull p
 
 `MECHANICALLY STABLE` / mechanics gate PASS means the mechanics Iris can currently measure are stable in the recent execution window. It does **not** by itself claim the boss is killable.
 
-Overall kill readiness must later combine separate evidence dimensions such as:
-
-- mechanical execution;
-- throughput / damage requirement;
-- healing/survivability requirement;
-- phase coverage and repeatability;
-- any mechanics not yet observed/reached;
-- composition or assignment constraints where evidence exists.
-
-This separation prevents a clean early-phase sample from becoming a false `boss is ready to die` conclusion.
+Overall kill readiness must later combine separate evidence dimensions such as mechanical execution, throughput, healing/survivability, phase coverage/repeatability, unobserved mechanics and composition/assignment constraints where evidence exists.
 
 ## Product ownership
 
@@ -159,10 +223,6 @@ LOG and PULL selection are opt-in contexts, not global filters.
 
 - GLOBAL Iris Boss Knowledge remains independent.
 - Progress remains longitudinal HOME history unless explicitly migrated to another context.
-- Live consumes Active Report.
+- Live consumes Active Report and follows the latest classified boss+difficulty scope.
 - Pull Lab consumes exact pulls from Active Report and may use a compatible selected pull.
 - Raid Execution consumes the longitudinal HOME mechanic aggregate for the selected boss+difficulty.
-
-## Season/build automation direction
-
-`prepare:boss` is the operator-safe primitive for automation. A future raid readiness planner may run its preview automatically whenever the persisted raid catalog/build changes and schedule missing exact-difficulty scopes. Network acquisition remains bounded/checkpointed; accepted knowledge still requires the normal independent evidence gates and cannot be auto-promoted by Operational Readiness.
