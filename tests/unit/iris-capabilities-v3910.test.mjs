@@ -2,12 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getIrisCapabilityContractV3910,findIrisCapabilityV3910 } from '../../server/iris/capability-contract-v3910.mjs';
 
-test('v3.9.10 capability overlay exposes full generic Holdout automation honestly',()=>{
+test('v3.9.10 capability overlay exposes raid-first difficulty knowledge and full generic Holdout automation honestly',()=>{
   const contract=getIrisCapabilityContractV3910();
   assert.equal(contract.release,'3.9.10');
+  assert.match(contract.invariants.raidBossDifficultyScope,/raid → boss → difficulty/i);
+  assert.match(contract.invariants.difficultyIsolation,/never count as Mythic/i);
+  assert.match(contract.invariants.difficultyIdentityMapping,/distinct namespaces/i);
   assert.match(contract.invariants.bossAgnosticGlobalLearning,/encounter\+difficulty\+partition/i);
   assert.match(contract.invariants.holdoutSourceDiscovery,/may not inspect candidate combat outcomes/i);
   assert.match(contract.invariants.holdoutCombatAcquisition,/exact encounter fight IDs/i);
+
+  const raidCatalog=findIrisCapabilityV3910('knowledge.raid-catalog.current');
+  const bootstrap=findIrisCapabilityV3910('knowledge.raid.official-boss-difficulty-bootstrap');
+  const mechanics=findIrisCapabilityV3910('knowledge.mechanics.boss-difficulty-read');
+  assert.equal(raidCatalog.status,'available');
+  assert.equal(raidCatalog.autonomy,'automatic');
+  assert.match(raidCatalog.description,/without any combat report/i);
+  assert.equal(bootstrap.status,'available');
+  assert.match(bootstrap.description,/WCL difficulty IDs are mapped/i);
+  assert.equal(mechanics.status,'available');
+  assert.match(mechanics.description,/Normal, Heroic and Mythic evidence are never substituted/i);
 
   const sourcePreview=findIrisCapabilityV3910('corpus.untouched-holdout.source-discovery-preview');
   const discovery=findIrisCapabilityV3910('corpus.untouched-holdout.source-discovery');
