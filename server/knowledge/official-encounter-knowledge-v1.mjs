@@ -111,5 +111,5 @@ export async function resolveOfficialEncounterKnowledgeV1(input={},options={}){
   const fetched=await fetchBlizzardJournalEncounterV1(journalEncounterId,{fetcher:options.fetcher||fetch,accessToken:token.accessToken,region:request.region,locale:request.locale,href});dataCalls++;
   const graph=compileOfficialEncounterGraphV1({journal:fetched.journal,locale:request.locale,sourceEndpoint:fetched.endpoint,namespace:fetched.namespace,wclEncounterId:request.wclEncounterId});
   const result={...graph,previewFingerprint:preview.fingerprint,requested:request,resolved:{journalEncounterId,matchedBy:request.journalEncounterId?'journal-id':'encounter-name',searchCandidates:search?.candidates?.map(row=>({id:row.id,name:row.name,instanceId:row.instanceId,instanceName:row.instanceName,href:row.href}))||[]},usage:{oauthCalls:token.oauthCalls,tokenCacheHit:token.cacheHit,blizzardGameDataCalls:dataCalls,wclCalls:0,thirdPartyCalls:0}};
-  return options.persist===false?result:persistOfficialEncounterGraphV1(result,{fetchedAt:options.fetchedAt});
+  return options.persist===false?result:persistOfficialEncounterGraphV1(result,{fetchedAt:options.fetchedAt,storageGet:options.storageGet,storageSet:options.storageSet});
 }
