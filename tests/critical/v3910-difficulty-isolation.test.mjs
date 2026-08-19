@@ -29,18 +29,23 @@ test('CRITICAL v3.9.10 DIFFICULTY: report telemetry history intelligence and liv
   assert.match(files[7],/getTelemetry\([^\n]+difficulty:selectedDifficulty/);
 });
 
-test('CRITICAL v3.9.10 DIFFICULTY: official applicability maps WCL difficulty to encounter-scoped DB2 Difficulty IDs before filtering',async()=>{
+test('CRITICAL v3.9.10 DIFFICULTY: Difficulty resolves identity while Journal X Difficulty tables only restrict applicability',async()=>{
   const [provider,compiler,bootstrap,route,catalog]=await Promise.all([read('server/knowledge/providers/wago-db2-journal-difficulty-v1.mjs'),read('server/knowledge/official-encounter-difficulty-v1.mjs'),read('server/knowledge/raid-official-bootstrap-v1.mjs'),read('routes/api/wcl/mechanic-knowledge.js'),read('server/knowledge/raid-catalog-v1.mjs')]);
   assert.match(provider,/JournalSectionXDifficulty/);
   assert.match(provider,/JournalEncounterXDifficulty/);
   assert.match(provider,/fetchTable\('Difficulty'/);
+  assert.match(provider,/difficultyIdentityComesFromDifficultyTable:true/);
+  assert.match(provider,/journalEncounterXDifficultyIsApplicabilityRestriction:true/);
+  assert.match(provider,/journalSectionXDifficultyIsApplicabilityRestriction:true/);
   assert.match(provider,/wclDifficultyIdsAreNotDb2DifficultyIds:true/);
   assert.match(provider,/observedCombat:false/);
   assert.match(compiler,/resolveDb2Difficulty/);
+  assert.match(compiler,/journalDifficultyRowsAreApplicabilityRestrictions:true/);
   assert.match(compiler,/wclAndDb2DifficultyIdsDistinct:true/);
-  assert.match(compiler,/difficulty-applicability-unresolved/);
+  assert.match(compiler,/difficultyVerified:metadataUsable/);
   assert.match(compiler,/crossDifficultyEmpiricalReuse:false/);
-  assert.match(bootstrap,/compileOfficialEncounterDifficultyViewV1/);
+  assert.match(bootstrap,/WAGO_DB2_JOURNAL_DIFFICULTY_PROVIDER_VERSION/);
+  assert.match(bootstrap,/difficultySnapshot\?\.version!==WAGO_DB2_JOURNAL_DIFFICULTY_PROVIDER_VERSION/);
   assert.match(bootstrap,/wclCombatEventCalls:0/);
   assert.match(route,/if\(!input\.difficulty\)/);
   assert.match(catalog,/normalHeroicCannotCountAsMythicEvidence:true/);
@@ -59,5 +64,5 @@ test('CRITICAL v3.9.10 DIFFICULTY: corpus API has no silent Mythic fallback and 
   assert.match(runtime,/url\.searchParams\.set\('encounter'/);
   assert.match(runtime,/url\.searchParams\.set\('difficulty'/);
   assert.match(index,/wcl-bootstrap-v389\.js\?v=3\.8\.9\.2/);
-  assert.match(index,/iris-mechanics-knowledge-v3910\.js\?v=3\.9\.10\.3/);
+  assert.match(index,/iris-mechanics-knowledge-v3910\.js\?v=3\.9\.10\.4/);
 });
