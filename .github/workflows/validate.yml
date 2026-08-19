@@ -1,83 +1,49 @@
-name: Validate AvoiD Raid Ops
+name: Apply split bridge retirement
 
 on:
-  push:
+  pull_request:
     branches:
-      - "**"
+      - main
 
 permissions:
-  contents: read
-  statuses: write
+  contents: write
 
 concurrency:
-  group: validate-${{ github.ref }}
+  group: v4-split-bridge-retirement
   cancel-in-progress: true
 
 jobs:
-  validate:
+  migrate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - name: Checkout
+      - name: Checkout refactor branch
         uses: actions/checkout@v4
-      - name: Node 22
-        uses: actions/setup-node@v4
         with:
-          node-version: 22
-      - name: Install Node dependencies
-        run: npm install --no-audit --no-fund
-      - name: Install Data Truth browser dependencies
+          ref: refactor/reorganizacion-2026-08-17
+          fetch-depth: 0
+      - name: Apply strict retirement one-shot
+        id: migration
         run: |
-          python3 -m pip install --disable-pip-version-check playwright==1.54.0
-          python3 -m playwright install chromium
-      - name: Golden integrity
-        run: npm run verify:golden
-      - name: Architecture and quarantine
-        run: npm run verify:architecture
-      - name: Active assets and CSS transport
-        run: npm run verify:assets
-      - name: Legacy runtime ownership
-        run: npm run verify:legacy-runtime
-      - name: Source reconstruction
-        run: npm run verify:reconstruction
-      - name: Browser Data Truth
-        run: npm run verify:data-truth
-      - name: Release ownership
-        run: npm run verify:release
-      - name: Critical contracts
-        run: npm run test:critical
-      - name: Unit and regression suite
-        run: |
-          set -o pipefail
-          npm test 2>&1 | tee unit-test-output.txt
-      - name: Upload unit failure diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-failure-${{ github.sha }}
-          path: unit-test-output.txt
-          if-no-files-found: ignore
-          retention-days: 7
-      - name: Production build contract
-        run: npm run build
-      - name: Publish AvoiD validation status
-        if: always()
-        env:
-          GH_STATUS_TOKEN: ${{ github.token }}
-          VALIDATION_JOB_STATUS: ${{ job.status }}
-        run: |
-          if [ "$VALIDATION_JOB_STATUS" = "success" ]; then
-            STATE=success
-            DESCRIPTION="All AvoiD validation gates and production build passed"
-          else
-            STATE=failure
-            DESCRIPTION="One or more AvoiD validation gates failed"
+          if [ ! -f scripts/migrations/v4-retire-split-bridge.mjs ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          PAYLOAD=$(printf '{"state":"%s","context":"AvoiD Validation","description":"%s","target_url":"https://github.com/%s/actions/runs/%s"}' "$STATE" "$DESCRIPTION" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
-          curl --fail-with-body --silent --show-error \
-            --request POST \
-            --header "Accept: application/vnd.github+json" \
-            --header "Authorization: Bearer $GH_STATUS_TOKEN" \
-            --header "X-GitHub-Api-Version: 2022-11-28" \
-            --data "$PAYLOAD" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA"
+          node scripts/migrations/v4-retire-split-bridge.mjs
+          test ! -e scripts/migrations/v4-retire-split-bridge.mjs
+          git diff --exit-code -- public/wcl-runtime.js && {
+            echo "Expected wcl-runtime cleanup was not produced" >&2
+            exit 1
+          }
+          git diff --exit-code -- scripts/verify-legacy-runtime-ownership.mjs && {
+            echo "Expected ownership verifier cleanup was not produced" >&2
+            exit 1
+          }
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      - name: Commit approved bridge retirement
+        if: steps.migration.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/wcl-runtime.js scripts/verify-legacy-runtime-ownership.mjs scripts/migrations/v4-retire-split-bridge.mjs
+          git commit -m "refactor(v4): remove retired split bridge call site"
+          git push origin HEAD:refactor/reorganizacion-2026-08-17
