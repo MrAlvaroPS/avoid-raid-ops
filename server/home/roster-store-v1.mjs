@@ -48,7 +48,9 @@ export function mergeHistoryRosterV1(roster={},reports=[],{syncedAt=Date.now()}=
       }
     }
   }
-  const members=(roster?.members||[]).map(row=>({...row})),byName=new Map(members.map((row,i)=>[norm(row.name),i]));
+  // raidActivity is intentionally rebuilt from the persisted reports of the CURRENT raid.
+  // Directory identity, observed gear/spec and reliability survive a tier change; raid membership does not.
+  const members=(roster?.members||[]).map(row=>({...row,raidActivity:null})),byName=new Map(members.map((row,i)=>[norm(row.name),i]));
   for(const [key,activity] of activities){let idx=byName.get(key);if(idx==null){idx=members.length;byName.set(key,idx);members.push(blankHistoryMember(activity));}
     const base=members[idx],pulls=activity.pullKeys.size,reportsCount=activity.reportCodes.size;
     members[idx]={...base,name:activity.name||base.name,className:base.className||activity.className||null,raidActivity:{source:HOME_ROSTER_SOURCE_HISTORY,temporary:true,confirmedFromHomeLogs:true,pulls,reports:reportsCount,reportCodes:[...activity.reportCodes].sort(),firstSeenAt:activity.firstSeenAt,lastSeenAt:activity.lastSeenAt,totalRaidPulls,attendancePct:totalRaidPulls>0?100*pulls/totalRaidPulls:null,syncedAt:Number(syncedAt)||Date.now()}};
