@@ -33,9 +33,11 @@ max_time=300
 profileset_metric=dps
 ```
 
-`DungeonSlice`/Mythic+ profiles are forbidden for Loot v0.1. The metric is **raid single-target DPS gain**, not generic character value.
+Mythic+/dungeon profiles are forbidden for Loot v0.1. The metric is **raid single-target DPS gain**, not generic character value.
 
-The base character is imported by SimulationCraft from Battle.net (`armory=region,realm,character`) and the candidate item is applied through profilesets. Rings/trinkets are tested in both possible slots and the best valid replacement is returned.
+The preferred base profile is reconstructed from the explicitly loaded WCL CombatantInfo snapshot: observed item IDs, item levels, gems, enchants and talent import code. This keeps the baseline tied to the gear actually observed in the raid. Because v0.1 does not yet preserve every bonus ID/crafted option from WCL, that limitation is carried in `profileCompleteness`. If the observed profile is incomplete, SimulationCraft falls back to Battle.net (`armory=region,realm,character`) rather than fabricating missing equipment.
+
+The candidate item is applied through SimulationCraft profilesets. Rings/trinkets are tested in both possible slots and the best valid replacement is returned.
 
 ### Tanks and healers
 
