@@ -11,7 +11,7 @@ const extension=Object.freeze([
   Object.freeze({
     id:'knowledge.raid.official-boss-difficulty-bootstrap',status:'available',domain:'knowledge',autonomy:'automatic',
     endpoint:'GET /api/knowledge/raid-catalog?official=1',effect:'official+structural-read+persist',
-    description:'Bootstrap every current-raid boss and each explicit difficulty from Blizzard Journal plus build-pinned DB2 Journal difficulty metadata. WCL difficulty IDs are mapped to encounter-scoped DB2 Difficulty IDs by name before filtering Journal sections. Missing applicability remains unresolved instead of borrowing another difficulty.',
+    description:'Bootstrap every current-raid boss and explicit WCL difficulty from Blizzard Journal plus build-pinned DB2 metadata. Difficulty table name/player-range metadata resolves the client DifficultyID without assuming WCL numeric equality; JournalEncounterXDifficulty and JournalSectionXDifficulty are then applied only as applicability restrictions. Missing/ambiguous identity stays unresolved instead of borrowing another difficulty.',
   }),
   Object.freeze({
     id:'knowledge.raid-learning.availability-preview',status:'available',domain:'knowledge',autonomy:'automatic',
@@ -78,7 +78,7 @@ export function getIrisCapabilityContractV3910(){
       ...base.invariants,
       raidBossDifficultyScope:'Mechanics knowledge is raid → boss → difficulty. Official boss knowledge may exist with zero reports; GLOBAL WCL and AvoiD execution are optional overlays from the exact same difficulty only.',
       difficultyIsolation:'GLOBAL BOSS empirical products remain encounter+difficulty+partition scoped. Normal/Heroic may generate a hypothesis to investigate later in Mythic but never count as Mythic observation, validation, stability, Holdout or Promotion evidence.',
-      difficultyIdentityMapping:'WCL difficulty IDs and WoW client DB2 Difficulty IDs are distinct namespaces. DB2 applicability must map the requested WCL difficulty by name within JournalEncounterXDifficulty before applying JournalSectionXDifficulty.',
+      difficultyIdentityMapping:'WCL difficulty IDs and WoW client DB2 Difficulty IDs are distinct namespaces. Resolve the DB2 identity from Difficulty name plus raid player-range/context; treat JournalEncounterXDifficulty and JournalSectionXDifficulty only as applicability restrictions after identity resolution. Ambiguous mapping remains unresolved.',
       bossAgnosticGlobalLearning:'GLOBAL BOSS production learning is driven by encounter+difficulty+partition and persisted evidence/provider state; validation-boss constants may not enter the generic learning runtime.',
       publicEvidenceAvailability:'Availability checks are metadata-only, difficulty-scoped and outcome-discarding. A public Heroic source says nothing about Mythic availability or evidence.',
       untouchedHoldout:'Holdout candidates, sources, source seed-report metadata and thresholds are frozen before combat evidence. Historical corpus validation is not silently relabeled untouched, unknown lineage is not assumed clean, and HOME/prior-learning sources are excluded.',
