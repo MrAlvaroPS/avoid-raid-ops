@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto';
 import { normalizeWagoBuildV1 } from './wago-db2-spell-effect-v1.mjs';
 
-export const WAGO_DB2_JOURNAL_DIFFICULTY_PROVIDER_VERSION='wago-db2-journal-difficulty-v2';
+export const WAGO_DB2_JOURNAL_DIFFICULTY_PROVIDER_VERSION='wago-db2-journal-difficulty-v3';
 export const WAGO_DB2_JOURNAL_DIFFICULTY_MAX_BYTES=3_000_000;
 export const WAGO_DB2_JOURNAL_DIFFICULTY_MAX_ROWS=20_000;
 const BASE_URL='https://wago.tools/db2';
 
 const clean=value=>String(value??'').trim();
-const optionalInt=value=>{const n=Number(value);return Number.isInteger(n)?n:null;};
+const optionalInt=value=>{if(value==null||String(value).trim()==='')return null;const n=Number(value);return Number.isInteger(n)?n:null;};
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])])):value;
 const sha1=value=>createHash('sha1').update(JSON.stringify(stable(value))).digest('hex');
 
@@ -25,10 +25,19 @@ export async function fetchWagoJournalDifficultySnapshotV1({build,fetcher=fetch,
   ]);
   const sectionRows=sections.rows.map(row=>({rowId:optionalInt(first(row,['ID','Id'])),journalSectionId:optionalInt(first(row,['JournalEncounterSectionID','JournalSectionID','JournalEncounterSectionId'])),difficultyId:optionalInt(first(row,['DifficultyID','DifficultyId']))})).filter(row=>row.journalSectionId&&row.difficultyId);
   const encounterRows=encounters.rows.map(row=>({rowId:optionalInt(first(row,['ID','Id'])),journalEncounterId:optionalInt(first(row,['JournalEncounterID','JournalEncounterId'])),difficultyId:optionalInt(first(row,['DifficultyID','DifficultyId']))})).filter(row=>row.journalEncounterId&&row.difficultyId);
-  const difficultyRows=difficulties.rows.map(row=>({difficultyId:optionalInt(first(row,['ID','Id'])),name:clean(first(row,['Name_lang','Name','NameLang'])),instanceType:optionalInt(first(row,['InstanceType'])),fallbackDifficultyId:optionalInt(first(row,['FallbackDifficultyID','FallbackDifficultyId'])),toggleDifficultyId:optionalInt(first(row,['ToggleDifficultyID','ToggleDifficultyId']))})).filter(row=>row.difficultyId);
+  const difficultyRows=difficulties.rows.map(row=>({
+    difficultyId:optionalInt(first(row,['ID','Id'])),
+    name:clean(first(row,['Name_lang','Name','NameLang'])),
+    instanceType:optionalInt(first(row,['InstanceType'])),
+    minPlayers:optionalInt(first(row,['MinPlayers'])),
+    maxPlayers:optionalInt(first(row,['MaxPlayers'])),
+    orderIndex:optionalInt(first(row,['OrderIndex'])),
+    fallbackDifficultyId:optionalInt(first(row,['FallbackDifficultyID','FallbackDifficultyId'])),
+    toggleDifficultyId:optionalInt(first(row,['ToggleDifficultyID','ToggleDifficultyId'])),
+  })).filter(row=>row.difficultyId&&row.name);
   if(sections.rows.length&&(!sections.headers.some(h=>/Journal.*SectionID/i.test(h))||!sections.headers.some(h=>/^DifficultyID$/i.test(h))))throw new Error('JournalSectionXDifficulty schema is missing section or DifficultyID');
   if(encounters.rows.length&&(!encounters.headers.some(h=>/JournalEncounterID/i.test(h))||!encounters.headers.some(h=>/^DifficultyID$/i.test(h))))throw new Error('JournalEncounterXDifficulty schema is missing encounter or DifficultyID');
   if(difficulties.rows.length&&(!difficulties.headers.some(h=>/^ID$/i.test(h))||!difficulties.headers.some(h=>/^Name(?:_lang|Lang)?$/i.test(h))))throw new Error('Difficulty schema is missing ID or Name');
   const payload={version:WAGO_DB2_JOURNAL_DIFFICULTY_PROVIDER_VERSION,provider:'wago-db2',build:normalizedBuild,sectionRows,encounterRows,difficultyRows};
-  return{...payload,fingerprint:sha1(payload),sources:{sections:sections.endpoint,encounters:encounters.endpoint,difficulties:difficulties.endpoint},usage:{networkCalls:3,sectionRows:sectionRows.length,encounterRows:encounterRows.length,difficultyRows:difficultyRows.length},evidenceContract:{buildPinned:true,clientDb2StructuralMetadata:true,wclDifficultyIdsAreNotDb2DifficultyIds:true,difficultyMappingUsesEncounterScopedDb2IdsAndNames:true,observedCombat:false,absenceIsCombatNegativeEvidence:false,crossDifficultyInference:false,automaticPromotion:false}};
+  return{...payload,fingerprint:sha1(payload),sources:{sections:sections.endpoint,encounters:encounters.endpoint,difficulties:difficulties.endpoint},usage:{networkCalls:3,sectionRows:sectionRows.length,encounterRows:encounterRows.length,difficultyRows:difficultyRows.length},evidenceContract:{buildPinned:true,clientDb2StructuralMetadata:true,wclDifficultyIdsAreNotDb2DifficultyIds:true,difficultyIdentityComesFromDifficultyTable:true,journalEncounterXDifficultyIsApplicabilityRestriction:true,journalSectionXDifficultyIsApplicabilityRestriction:true,observedCombat:false,absenceIsCombatNegativeEvidence:false,crossDifficultyInference:false,automaticPromotion:false}};
 }
