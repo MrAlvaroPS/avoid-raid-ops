@@ -117,17 +117,30 @@ test('Corpus legacy runtime, residues and migration guard are fully retired whil
   await assert.rejects(()=>access(new URL('../../public/corpus-ui-stability-v1.js',import.meta.url)),'retired Corpus migration guard must be physically absent');
 });
 
-test('Command Center owns the retired curve and history behavior through one passive bridge',async()=>{
-  const [legacy,bridge]=await Promise.all([read('public/wcl-runtime.js'),read('public/command-center-history-bridge-v4.js')]);
+test('Command Center owns retired curve and history behavior through its feature source owner',async()=>{
+  const [legacy,source,transport]=await Promise.all([
+    read('public/wcl-runtime.js'),
+    read('apps/web/src/features/command-center/runtime.js'),
+    read('public/command-center-runtime.js'),
+  ]);
+  assert.equal(transport,source,'Command Center transport must remain byte-identical to its feature source');
   assert.match(legacy,/window\.applyProgressCurve\?\.\(\)/,'Command Center uses extracted curve binding');
   assert.match(legacy,/window\.applyHistoryData\?\.\(\)/,'supplemental orchestration uses extracted history binding');
-  assert.match(bridge,/window\.applyProgressCurve=applyCommandCenterProgressCurve/);
-  assert.match(bridge,/window\.applyHistoryData=applyCommandCenterHistory/);
-  assert.match(bridge,/window\.__AVOID_WCL__/);
-  assert.match(bridge,/window\.__AVOID_WCL_HISTORY__/);
-  assert.match(bridge,/findOwnText\('Command Center'\)/);
-  assert.doesNotMatch(bridge,/Are we actually getting better\?/);
-  assert.doesNotMatch(bridge,/MutationObserver|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
+  assert.match(source,/window\.applyProgressCurve=applyCommandCenterProgressCurve/);
+  assert.match(source,/window\.applyHistoryData=applyCommandCenterHistory/);
+  assert.match(source,/window\.__AVOID_WCL__/);
+  assert.match(source,/window\.__AVOID_WCL_HISTORY__/);
+  assert.match(source,/window\.__AVOID_COMMAND_CENTER_SOURCE_RUNTIME__/);
+  assert.match(source,/mode:'single-source-owner'/);
+  assert.match(source,/writerPolicy:'single-command-center-progression-history-owner'/);
+  assert.match(source,/findOwnText\('Command Center'\)/);
+  assert.doesNotMatch(source,/Are we actually getting better\?/);
+  assert.doesNotMatch(source,/MutationObserver|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
+  await assert.rejects(
+    ()=>access(new URL('../../public/command-center-history-bridge-v4.js',import.meta.url)),
+    error=>error?.code==='ENOENT',
+    'retired historical Command Center bridge must remain physically absent',
+  );
 });
 
 test('missing-history policy is owned only by canonical Progress after physical retirement',async()=>{
