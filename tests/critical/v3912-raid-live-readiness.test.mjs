@@ -19,7 +19,7 @@ test('CRITICAL OPERATIONAL REHEARSAL: DATA READY is separate from LIVE READY and
   assert.doesNotMatch(source,BOSS_SPECIFIC);
 });
 
-test('CRITICAL RAID PREP: current-raid Normal preparation is generic, sequential/checkpointed and never borrows another difficulty',async()=>{
+test('CRITICAL RAID PREP: current-raid preparation is generic, sequential/checkpointed and never borrows another difficulty',async()=>{
   const source=await read('scripts/iris-prepare-raid.mjs');
   assert.match(source,/catalog\.currentRaid\.encounters/);
   assert.match(source,/availability\.status!=='public-evidence-available'/);
@@ -48,4 +48,13 @@ test('CRITICAL DIFFICULTY IDENTITY: operational loaders have no implicit Mythic 
   const source=await read('server/corpus/service-v2.mjs');
   assert.match(source,/difficulty is required/);
   assert.doesNotMatch(source,/input\.difficulty\s*\|\|\s*5/);
+});
+
+test('CRITICAL IRIS CAPABILITIES: raid preparation and rehearsal are machine-readable instead of operator folklore',async()=>{
+  const source=await read('server/iris/capability-contract-v3912.mjs');
+  assert.match(source,/id:'boss\.operational-rehearsal'/);
+  assert.match(source,/id:'raid\.prepare\.operational'/);
+  assert.match(source,/DATA READY/);
+  assert.match(source,/LIVE READY/);
+  assert.match(source,/Rehearsal never trains or promotes/);
 });
