@@ -5,17 +5,20 @@ import { corpusGet,corpusSet,corpusStorageErrorInfo } from '../../../server/corp
 import { buildUntouchedHoldoutReservationV1,evaluateUntouchedHoldoutV1 } from '../../../server/corpus/untouched-holdout-v1.mjs';
 import { buildGlobalBossLearningSourceLineageV1,reservationCandidatesFromSourcePoolV1 } from '../../../server/corpus/untouched-holdout-source-pool-v1.mjs';
 import { buildUntouchedHoldoutSourceDiscoveryPreviewV1,executeUntouchedHoldoutSourceDiscoveryV1 } from '../../../server/corpus/untouched-holdout-source-discovery-v1.mjs';
+import { buildUntouchedHoldoutAcquisitionPreviewV1,executeUntouchedHoldoutAcquisitionV1,loadUntouchedHoldoutAcquisitionCacheV1 } from '../../../server/corpus/untouched-holdout-acquisition-v1.mjs';
 
 const API_VERSION='untouched-holdout-api-v1';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 const stabilityBase=(args,signalId,episodeBuildFingerprint)=>`statistical-stability/${corpusId(args)}/${Number(signalId)}/${String(episodeBuildFingerprint)}`;
 const stabilityLatestKey=(args,signalId,episodeBuildFingerprint)=>`${stabilityBase(args,signalId,episodeBuildFingerprint)}/latest.json`;
 const stabilityRevisionKey=(args,signalId,episodeBuildFingerprint,fingerprint)=>`${stabilityBase(args,signalId,episodeBuildFingerprint)}/revisions/${String(fingerprint)}.json`;
+const episodeKey=(args,signalId,episodeBuildFingerprint)=>`mechanic-episodes/${corpusId(args)}/${Number(signalId)}/${String(episodeBuildFingerprint)}.json`;
 const holdoutBase=(args,signalId,episodeBuildFingerprint)=>`untouched-holdout/${corpusId(args)}/${Number(signalId)}/${String(episodeBuildFingerprint)}`;
 const sourcePoolLatestKey=(args,signalId,episodeBuildFingerprint)=>`${holdoutBase(args,signalId,episodeBuildFingerprint)}/source-pool-latest.json`;
 const sourcePoolRevisionKey=(args,signalId,episodeBuildFingerprint,fingerprint)=>`${holdoutBase(args,signalId,episodeBuildFingerprint)}/source-pools/${String(fingerprint)}.json`;
 const reservationLatestKey=(args,signalId,episodeBuildFingerprint)=>`${holdoutBase(args,signalId,episodeBuildFingerprint)}/reservation-latest.json`;
 const reservationRevisionKey=(args,signalId,episodeBuildFingerprint,fingerprint)=>`${holdoutBase(args,signalId,episodeBuildFingerprint)}/reservations/${String(fingerprint)}.json`;
+const acquisitionLatestKey=(args,signalId,episodeBuildFingerprint)=>`${holdoutBase(args,signalId,episodeBuildFingerprint)}/acquisition-latest.json`;
 const resultLatestKey=(args,signalId,episodeBuildFingerprint)=>`${holdoutBase(args,signalId,episodeBuildFingerprint)}/result-latest.json`;
 const resultRevisionKey=(args,signalId,episodeBuildFingerprint,fingerprint)=>`${holdoutBase(args,signalId,episodeBuildFingerprint)}/results/${String(fingerprint)}.json`;
 
@@ -52,6 +55,21 @@ async function loadCompatibleSourcePool(args,input,loaded,lineage){
   return sourcePool;
 }
 
+async function loadReservation(args,input,episodeBuildFingerprint){
+  const requested=String(input.reservationFingerprint||'').trim();
+  const key=requested?reservationRevisionKey(args,input.signalId,episodeBuildFingerprint,requested):reservationLatestKey(args,input.signalId,episodeBuildFingerprint);
+  const value=await corpusGet(key).catch(()=>null);
+  if(!value)throw new Error(requested?'Persisted Untouched Holdout reservation not found':'No latest Untouched Holdout reservation is available');
+  if(requested&&String(value.fingerprint)!==requested)throw new Error('Untouched Holdout reservation fingerprint mismatch');
+  return{reservation:value,key};
+}
+
+async function loadEpisode(args,input,episodeBuildFingerprint){
+  const value=await corpusGet(episodeKey(args,input.signalId,episodeBuildFingerprint)).catch(()=>null);
+  if(!value)throw new Error('Persisted mechanic Episode required for Holdout combat acquisition was not found');
+  return value;
+}
+
 export default defineHandler(async event=>{
   const request=event.req;
   try{
@@ -63,21 +81,32 @@ export default defineHandler(async event=>{
     if(!episodeBuildFingerprint)return json({ok:false,error:'episodeBuildFingerprint is required'},400);
 
     if(action==='latest'){
-      const [sourcePool,reservation,result]=await Promise.all([
+      const [sourcePool,reservation,acquisition,result]=await Promise.all([
         corpusGet(sourcePoolLatestKey(args,input.signalId,episodeBuildFingerprint)).catch(()=>null),
         corpusGet(reservationLatestKey(args,input.signalId,episodeBuildFingerprint)).catch(()=>null),
+        corpusGet(acquisitionLatestKey(args,input.signalId,episodeBuildFingerprint)).catch(()=>null),
         corpusGet(resultLatestKey(args,input.signalId,episodeBuildFingerprint)).catch(()=>null),
       ]);
-      return json({ok:Boolean(sourcePool||reservation||result),apiVersion:API_VERSION,networkExecuted:false,wclCallsExecuted:0,providerNetworkCallsExecuted:0,sourcePool,reservation,result},sourcePool||reservation||result?200:404);
+      return json({ok:Boolean(sourcePool||reservation||acquisition||result),apiVersion:API_VERSION,networkExecuted:false,wclCallsExecuted:0,providerNetworkCallsExecuted:0,sourcePool,reservation,acquisition,result},sourcePool||reservation||acquisition||result?200:404);
+    }
+
+    if(action==='acquire-evidence-preview'||action==='acquire-evidence'){
+      const loadedReservation=await loadReservation(args,input,episodeBuildFingerprint),episode=await loadEpisode(args,input,episodeBuildFingerprint),cacheRecords=await loadUntouchedHoldoutAcquisitionCacheV1({reservation:loadedReservation.reservation,scope:args});
+      const preview=buildUntouchedHoldoutAcquisitionPreviewV1({reservation:loadedReservation.reservation,episode,cacheRecords,config:body.acquisitionConfig||{}});
+      if(action==='acquire-evidence-preview')return json({ok:true,apiVersion:API_VERSION,networkExecuted:false,wclCallsExecuted:0,providerNetworkCallsExecuted:0,persisted:false,reservationKey:loadedReservation.key,preview});
+      if(body.confirmExecution!==true)return json({ok:false,error:'confirmExecution:true is required for Holdout combat acquisition',preview},409);
+      if(String(body.previewFingerprint||'')!==String(preview.fingerprint))return json({ok:false,error:'Holdout combat-acquisition preview fingerprint is stale; preview again before execution',preview},409);
+      const acquisition=await executeUntouchedHoldoutAcquisitionV1({reservation:loadedReservation.reservation,episode,scope:args,previewFingerprint:preview.fingerprint,confirmExecution:true,config:preview.config});
+      const stored={...acquisition,storage:{kind:'untouched-holdout-acquisition',reservationKey:loadedReservation.key,latestKey:acquisitionLatestKey(args,input.signalId,episodeBuildFingerprint)}};
+      await corpusSet(stored.storage.latestKey,stored);
+      return json({ok:true,apiVersion:API_VERSION,networkExecuted:Number(acquisition.wclCallsExecuted||0)>0,wclCallsExecuted:Number(acquisition.wclCallsExecuted||0),providerNetworkCallsExecuted:0,persisted:true,acquisition:stored});
     }
 
     if(action==='evaluate'){
-      const reservationFingerprint=String(body.reservationFingerprint||'').trim();
-      if(!reservationFingerprint)return json({ok:false,error:'reservationFingerprint is required for evaluate'},400);
-      const reservation=await corpusGet(reservationRevisionKey(args,input.signalId,episodeBuildFingerprint,reservationFingerprint));
-      if(!reservation)return json({ok:false,error:'Persisted Untouched Holdout reservation not found'},404);
-      const result=evaluateUntouchedHoldoutV1({reservation,holdoutEvidence:body.holdoutEvidence});
-      const stored={...result,scope:args,signalId:input.signalId,storage:{kind:'untouched-holdout-result',reservationKey:reservationRevisionKey(args,input.signalId,episodeBuildFingerprint,reservationFingerprint),revisionKey:resultRevisionKey(args,input.signalId,episodeBuildFingerprint,result.fingerprint),latestKey:resultLatestKey(args,input.signalId,episodeBuildFingerprint)}};
+      const loadedReservation=await loadReservation(args,input,episodeBuildFingerprint),acquisition=await corpusGet(acquisitionLatestKey(args,input.signalId,episodeBuildFingerprint)).catch(()=>null);
+      if(!acquisition||String(acquisition.reservationFingerprint)!==String(loadedReservation.reservation.fingerprint))return json({ok:false,error:'Compatible automatic Holdout combat acquisition is required before evaluation'},409);
+      const result=evaluateUntouchedHoldoutV1({reservation:loadedReservation.reservation,holdoutEvidence:acquisition.holdoutEvidence});
+      const stored={...result,scope:args,signalId:input.signalId,acquisitionPreviewFingerprint:acquisition.previewFingerprint||null,storage:{kind:'untouched-holdout-result',reservationKey:loadedReservation.key,acquisitionKey:acquisitionLatestKey(args,input.signalId,episodeBuildFingerprint),revisionKey:resultRevisionKey(args,input.signalId,episodeBuildFingerprint,result.fingerprint),latestKey:resultLatestKey(args,input.signalId,episodeBuildFingerprint)}};
       await corpusSet(stored.storage.revisionKey,stored);await corpusSet(stored.storage.latestKey,stored);
       return json({ok:true,apiVersion:API_VERSION,networkExecuted:false,wclCallsExecuted:0,providerNetworkCallsExecuted:0,persisted:true,result:stored});
     }
