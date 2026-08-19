@@ -13,8 +13,9 @@ import { compileOfficialEncounterDifficultyViewV1 } from '../knowledge/official-
 import { loadLatestSpellStructuralKnowledgeV1 } from '../knowledge/spell-structural-store-v1.mjs';
 import { buildSpellStructuralDifficultyViewV1 } from '../knowledge/spell-structural-difficulty-v1.mjs';
 import { loadRaidLearningScopeV1 } from '../knowledge/raid-learning-plan-store-v1.mjs';
+import { getGlobalRaidReferenceV1 } from './global-raid-reference-service.mjs';
 
-export const MECHANIC_KNOWLEDGE_VIEW_SERVICE_VERSION='iris-mechanic-knowledge-view-service-v5';
+export const MECHANIC_KNOWLEDGE_VIEW_SERVICE_VERSION='iris-mechanic-knowledge-view-service-v6';
 const positive=value=>{const n=Number(value);return Number.isInteger(n)&&n>0?n:null;};
 
 async function persistedAt(prefix,{storageList=corpusList,storageGet=corpusGet}={}){const keys=await storageList(prefix).catch(()=>[]),rows=[];for(const key of keys||[]){const value=await storageGet(key).catch(()=>null);if(value)rows.push({key,value});}return rows;}
@@ -61,10 +62,14 @@ export async function loadMechanicKnowledgeViewV1(input={},options={}){
   const officialView=difficultyOfficial||officialBase;
 
   const modelInput=wclEncounterId?{encounterId:wclEncounterId,difficulty:requestedDifficulty,partition:Number(input.partition||0)}:null;
-  const raw=modelInput?await (options.loadModel||loadAnyEncounterModel)(modelInput).catch(()=>null):null;
+  const [raw,globalReference]=await Promise.all([
+    modelInput?(options.loadModel||loadAnyEncounterModel)(modelInput).catch(()=>null):Promise.resolve(null),
+    modelInput?(options.loadGlobalReference||getGlobalRaidReferenceV1)(modelInput).catch(()=>null):Promise.resolve(null),
+  ]);
   if(raw&&Number(raw.difficulty)!==requestedDifficulty)throw new Error(`Cross-difficulty model load rejected: requested d${requestedDifficulty}, got d${raw.difficulty}`);
+  if(globalReference?.scope&&Number(globalReference.scope.difficulty)!==requestedDifficulty)throw new Error(`Cross-difficulty GLOBAL reference rejected: requested d${requestedDifficulty}, got d${globalReference.scope.difficulty}`);
   if(!raw&&!officialBase&&!difficultyOfficial)return null;
-  const partition=Number(raw?.resolvedPartition??raw?.partition??input.partition??0),scope={encounterId:wclEncounterId||0,difficulty:requestedDifficulty,partition};
+  const partition=Number(raw?.resolvedPartition??raw?.partition??globalReference?.scope?.partition??input.partition??0),scope={encounterId:wclEncounterId||0,difficulty:requestedDifficulty,partition};
   const empiricalAvailable=Boolean(wclEncounterId&&raw&&partition>0);
   const [aggregate,structuralBase,episodeRows,learningAvailability]=await Promise.all([
     empiricalAvailable?storageGet(aggregateKey(scope)).catch(()=>null):Promise.resolve(null),
@@ -82,20 +87,22 @@ export async function loadMechanicKnowledgeViewV1(input={},options={}){
     mechanics.push(buildMechanicKnowledgeViewV1({scope,encounterName,aggregateSummary:corpus,officialGraph:officialView,structuralKnowledge:structuralView,episode,...downstream}));
   }
   const publishedMechanics=officialMechanics(officialView),publicAvailability=learningAvailability?.scope||null;
-  const executionStatus=!wclEncounterId?'wcl-encounter-not-published':empiricalAvailable?'wcl-corpus-available':publicAvailability?.status==='public-evidence-available'?'public-evidence-available-corpus-not-built':publicAvailability?.status||'no-combat-corpus-yet';
+  const referenceMaturity=globalReference?.maturity||'none';
+  const executionStatus=!wclEncounterId?'wcl-encounter-not-published':empiricalAvailable?'wcl-corpus-available':referenceMaturity==='foundation-building'?'public-reference-building':referenceMaturity==='foundation-ready'?'public-reference-ready':publicAvailability?.status==='public-evidence-available'?'public-evidence-available-corpus-not-built':publicAvailability?.status||'no-combat-corpus-yet';
   return{
     version:MECHANIC_KNOWLEDGE_VIEW_SERVICE_VERSION,generatedAt:Date.now(),scope,
     encounter:{name:encounterName,wclEncounterId:wclEncounterId||null,journalEncounterId:journalEncounterId||null},
     difficulty:{id:requestedDifficulty,name:difficultyOfficial?.difficulty?.name||input.difficultyName||`Difficulty ${requestedDifficulty}`,officialFingerprint:difficultyOfficial?.fingerprint||null,applicability:difficultyOfficial?.applicability||null},
     bossKnowledge:{status:officialView?'official-ready':'official-not-available',reportRequired:false,difficultyRequired:true,officialMechanics:publishedMechanics,officialAbilityCount:Number(officialView?.abilities?.length||0)},
-    executionKnowledge:{status:executionStatus,reportRequired:true,difficultyRequired:true,corpusAvailable:Boolean(corpus),publicSourceAvailability:publicAvailability?{status:publicAvailability.status,publicSources:Number(publicAvailability.publicSources||0),rankingOutcomeDiscarded:true,checkedAt:learningAvailability.updatedAt||null}:null,episodeCount:mechanics.length},
+    executionKnowledge:{status:executionStatus,reportRequired:true,difficultyRequired:true,corpusAvailable:Boolean(corpus),globalReferenceMaturity:referenceMaturity,globalReferenceOperational:Boolean(globalReference?.evidenceContract?.foundationCanSupportOperationalComparison&&globalReference?.reference),publicSourceAvailability:publicAvailability?{status:publicAvailability.status,publicSources:Number(publicAvailability.publicSources||0),rankingOutcomeDiscarded:true,checkedAt:learningAvailability.updatedAt||null}:null,episodeCount:mechanics.length},
     sources:{
       official:officialView?{status:'ready',provider:'blizzard-game-data+wago-db2-difficulty',fingerprint:officialView.fingerprint,baseFingerprint:officialBase?.fingerprint||null,namespace:officialBase?.source?.namespace||null,sectionCount:Number(officialView?.graph?.sectionCount||0),spellCount:Number(officialView?.graph?.spellCount||0),membershipEdges:Number(officialView?.graph?.officialMembershipEdges||0),difficultyApplicability:officialView?.applicability||null}:{status:'not-available'},
       structural:structuralView?{status:'ready',provider:'wago-db2',fingerprint:structuralView.fingerprint,baseFingerprint:structuralBase?.fingerprint||null,build:structuralView?.provider?.build||structuralBase?.provider?.build||null,relations:Number(structuralView?.relations?.length||0),baseRelations:Number(structuralView?.summary?.baseRelations??structuralBase?.relations?.length??0),seedAbilities:Number(structuralView?.seedAbilityIds?.length||0),resolvedQueries:Number(structuralView?.coverage?.resolvedQueries||0),queryCount:Number(structuralView?.coverage?.queryCount||0),difficultyScopedInterpretation:Boolean(difficultyOfficial),difficultyApplicabilityVerified:structuralView?.difficultyApplicabilityVerified===true,empiricalDifficultyEvidence:false}:{status:'not-available'},
+      globalReference:globalReference?{status:globalReference.status,maturity:globalReference.maturity,difficulty:requestedDifficulty,...(globalReference.reference||{}),acceptedKnowledge:false,operationalComparison:Boolean(globalReference.evidenceContract?.foundationCanSupportOperationalComparison)}:{status:'not-started',maturity:'none',difficulty:requestedDifficulty,acceptedKnowledge:false},
       corpus:corpus?{status:'ready',difficulty:requestedDifficulty,...corpus}:publicAvailability?{status:'not-built',difficulty:requestedDifficulty,publicSourceAvailability:publicAvailability.status,publicSources:Number(publicAvailability.publicSources||0)}:{status:'not-available'},
     },
-    summary:{officialMechanics:publishedMechanics.length,officialAbilities:Number(officialView?.abilities?.length||0),mechanicInvestigations:mechanics.length,promotionPending:mechanics.filter(row=>row?.episode?.lifecycle==='promotion-pending').length,accepted:0,networkExecuted:false,wclCallsExecuted:0,providerNetworkCallsExecuted:0},
+    summary:{officialMechanics:publishedMechanics.length,officialAbilities:Number(officialView?.abilities?.length||0),mechanicInvestigations:mechanics.length,promotionPending:mechanics.filter(row=>row?.episode?.lifecycle==='promotion-pending').length,accepted:0,globalReferenceMaturity:referenceMaturity,networkExecuted:false,wclCallsExecuted:0,providerNetworkCallsExecuted:0},
     mechanics,
-    evidenceContract:{readOnly:true,scopeIdentity:'boss+difficulty',officialKnowledgeIndependentOfReports:true,empiricalOverlayOptional:true,difficultyIsolation:true,officialAndStructuralViewsDifficultyScoped:true,learningAvailabilityIsMetadataOnly:true,crossDifficultyComparisonForbidden:true,crossDifficultyEmpiricalReuse:false,normalHeroicCannotCountAsMythicEvidence:true,wclCombatTruthCanonical:true,providerMetadataCannotPromote:true,automaticPromotion:false},
+    evidenceContract:{readOnly:true,scopeIdentity:'boss+difficulty',officialKnowledgeIndependentOfReports:true,empiricalOverlayOptional:true,difficultyIsolation:true,officialAndStructuralViewsDifficultyScoped:true,learningAvailabilityIsMetadataOnly:true,foundationReferenceIsOperationalComparisonNotAcceptedKnowledge:true,crossDifficultyComparisonForbidden:true,crossDifficultyEmpiricalReuse:false,normalHeroicCannotCountAsMythicEvidence:true,wclCombatTruthCanonical:true,providerMetadataCannotPromote:true,automaticPromotion:false},
   };
 }
