@@ -55,17 +55,23 @@ test('CRITICAL v3.9.10 PORTABILITY: GLOBAL BOSS runtime cannot import curated en
   assert.match(packReadme,/do not train, validate, stabilize, hold out, or promote GLOBAL BOSS knowledge/i);
 });
 
-test('CRITICAL v3.9.10 PORTABILITY: generic learning contract forbids boss-specific prerequisites and requires portability tests',async()=>{
-  const [agents,pipeline,holdout]=await Promise.all([
+test('CRITICAL v3.9.10 PORTABILITY: generic learning contract forbids boss-specific prerequisites and requires automatic portability tests',async()=>{
+  const [agents,pipeline,holdout,discovery,pool]=await Promise.all([
     readFile('AGENTS.md','utf8'),
     readFile('docs/IRIS-BOSS-AGNOSTIC-LEARNING-PIPELINE-V1.md','utf8'),
     readFile('docs/IRIS-UNTOUCHED-HOLDOUT-V1.md','utf8'),
+    readFile('server/corpus/untouched-holdout-source-discovery-v1.mjs','utf8'),
+    readFile('server/corpus/untouched-holdout-source-pool-v1.mjs','utf8'),
   ]);
   assert.match(agents,/Production learning logic is state\/evidence-driven and boss-agnostic/i);
   assert.match(agents,/Do not hard-code encounter IDs, ability IDs, spell names or current-boss meaning/i);
   assert.match(pipeline,/This contract defines how Iris refines encounter knowledge for \*\*any\*\* boss/i);
   assert.match(pipeline,/No learning stage may require a hard-coded boss name, encounter ID, ability ID, spell name, phase name, or encounter-specific rule/i);
   assert.match(pipeline,/Every new generic learning stage must have at least one synthetic test using arbitrary encounter\/ability IDs and names/i);
+  assert.match(pipeline,/Untouched Holdout\*\* `\[implemented: precommit \+ automatic source discovery \+ evaluation\]`/i);
   assert.match(holdout,/generic stage for \*\*any\*\* GLOBAL BOSS scope/i);
-  assert.match(holdout,/operator must not need to hand-author a source list or teach Iris a boss-specific rule/i);
+  assert.match(holdout,/operator does not hand-author a source list or teach Iris a boss-specific rule/i);
+  assert.match(discovery,/rankingOrderUsedForSelection:false/);
+  assert.match(discovery,/wclCombatEventCalls:0/);
+  assert.match(pool,/unknownLineageCannotBecomeUntouched:true/);
 });
