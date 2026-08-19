@@ -1,8 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp,rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import { resolveOfficialEncounterKnowledgeV1 } from '../../server/knowledge/official-encounter-knowledge-v1.mjs';
 import { loadLatestOfficialEncounterGraphByWclIdV1 } from '../../server/knowledge/official-encounter-store-v1.mjs';
 import { resolveAbilityKnowledgeV1 } from '../../server/knowledge/ability-knowledge-v1.mjs';
@@ -23,36 +20,51 @@ const journal={
   ],
 };
 
+function memoryStorage(){
+  const values=new Map();
+  return{
+    values,
+    storageGet:async key=>values.get(String(key))??null,
+    storageSet:async(key,value)=>{values.set(String(key),value);},
+  };
+}
+
 test('resolved Blizzard graph persists by WCL alias and feeds Ability Knowledge with zero provider/WCL calls',async()=>{
-  const dir=await mkdtemp(path.join(tmpdir(),'avoid-official-flow-'));
-  const previous=process.env.IRIS_DATA_DIR;
-  process.env.IRIS_DATA_DIR=dir;
+  const storage=memoryStorage();
   resetBlizzardTokenCacheV1();
   let providerCalls=0;
   try{
-    const href='https://eu.api.blizzard.com/data/wow/journal-encounter/6100?namespace=static-test-eu';
+    const href='https://eu.api.blizzard.com/data/wow/journal-encounter/6100?namespace=static-12.1.0_68914-eu';
     const fetcher=async url=>{
       providerCalls++;
       const text=String(url);
       if(text==='https://oauth.battle.net/token')return json({access_token:'test-token',token_type:'bearer',expires_in:86399});
       if(text.includes('/data/wow/search/journal-encounter'))return json({results:[{key:{href},data:{id:6100,name:{en_US:'Persisted Encounter'},instance:{id:6200,name:{en_US:'Persisted Raid'}}}}]});
-      if(text.startsWith(href))return json(journal);
+      if(text.startsWith(href))return json({...journal,_links:{self:{href}}});
       throw new Error(`Unexpected provider URL: ${text}`);
     };
 
-    const resolved=await resolveOfficialEncounterKnowledgeV1({encounterName:'Persisted Encounter',wclEncounterId:7100,region:'eu',locale:'en_US'},{fetcher,clientId:'id',clientSecret:'secret'});
+    const resolved=await resolveOfficialEncounterKnowledgeV1({encounterName:'Persisted Encounter',wclEncounterId:7100,region:'eu',locale:'en_US'},{
+      fetcher,clientId:'id',clientSecret:'secret',storageGet:storage.storageGet,storageSet:storage.storageSet,
+    });
     assert.equal(resolved.encounter.wclEncounterId,7100);
     assert.equal(resolved.storage.changedFromPrevious,false);
 
-    const stored=await loadLatestOfficialEncounterGraphByWclIdV1(7100);
+    const stored=await loadLatestOfficialEncounterGraphByWclIdV1(7100,{storageGet:storage.storageGet});
     assert.equal(stored.fingerprint,resolved.fingerprint);
     assert.equal(stored.resolvedAlias.wclEncounterId,7100);
 
     const callsAfterPersist=providerCalls;
-    const knowledge=await resolveAbilityKnowledgeV1({encounterId:7100,abilityIds:[810002,899999],providers:{lorrgs:false,parseWowhead:false,wcl:false}},{fetcher:async()=>{throw new Error('Ability Knowledge must not call network providers in this test');}});
+    const knowledge=await resolveAbilityKnowledgeV1({encounterId:7100,abilityIds:[810002,899999],providers:{lorrgs:false,parseWowhead:false,wcl:false}},{
+      officialGraph:stored,
+      structuralKnowledge:null,
+      fetcher:async()=>{throw new Error('Ability Knowledge must not call network providers in this test');},
+    });
     assert.equal(providerCalls,callsAfterPersist);
-    assert.equal(knowledge.usage.officialJournalReadsAttempted,1);
+    assert.equal(knowledge.usage.officialJournalReadsAttempted,0);
     assert.equal(knowledge.usage.officialJournalCacheHit,true);
+    assert.equal(knowledge.usage.officialJournalInjected,true);
+    assert.equal(knowledge.usage.structuralReadsAttempted,0);
     assert.equal(knowledge.usage.lorrgsCallsAttempted,0);
     assert.equal(knowledge.usage.wclCallsAttempted,0);
 
@@ -66,9 +78,8 @@ test('resolved Blizzard graph persists by WCL alias and feeds Ability Knowledge 
     const missing=knowledge.abilities.find(row=>row.abilityId===899999);
     assert.equal(missing.providerSignals.blizzardJournal.status,'not-listed-in-journal');
     assert.equal(missing.providerSignals.blizzardJournal.negativeEvidence,false);
+    assert.ok(storage.values.size>=3,'official persistence flow should write immutable revision, latest and WCL alias into injected storage');
   }finally{
-    if(previous===undefined)delete process.env.IRIS_DATA_DIR;else process.env.IRIS_DATA_DIR=previous;
-    await rm(dir,{recursive:true,force:true});
     resetBlizzardTokenCacheV1();
   }
 });
