@@ -24,7 +24,7 @@ export function normalizeGuildRosterMemberV1(row={},classMap=new Map(),{fetchedA
 }
 
 function observedPayload(row={}){
-  return{
+  return {
     actorId:finite(row?.actorId),name:String(row?.name||'').trim(),className:String(row?.className||row?.class||'').trim()||null,spec:String(row?.spec||'').trim()||null,role:String(row?.role||'').trim().toUpperCase()||null,
     server:String(row?.server||row?.realm||'').trim()||null,region:String(row?.region||'').trim()||null,itemLevel:finite(row?.itemLevel),character:row?.character&&typeof row.character==='object'?row.character:null,reliability:row?.reliability||null,
   };
@@ -85,6 +85,6 @@ export function mergeDirectoryRosterV1(existing={},incoming={}){
   return next;
 }
 
-export async function loadHomeRosterV1({guildId,storageGet=corpusGet}={}){return corpusGet(keyFor(guildId));}
+export async function loadHomeRosterV1({guildId,storageGet=corpusGet}={}){return storageGet(keyFor(guildId));}
 export async function persistHomeRosterV1(roster,{guildId,storageSet=corpusSet}={}){const key=keyFor(guildId);await storageSet(key,roster);return{key,roster};}
 export const homeRosterStorageKeyV1=keyFor;
