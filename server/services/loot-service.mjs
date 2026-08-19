@@ -5,7 +5,12 @@ import { loadLootLedgerV1, lootCountsV1, awardLootV1, removeLootAwardV1 } from '
 import { simcWorkerStatusV1, simulateLootRaidV1 } from '../loot/simc-runner-v1.mjs';
 
 const bodyJson=async req=>{try{return await req.json()}catch{return{}}};
-const safePlayers=rows=>(Array.isArray(rows)?rows:[]).slice(0,40).map(row=>({name:String(row?.name||'').trim(),server:String(row?.server||row?.realm||'').trim()||null,region:String(row?.region||process.env.BLIZZARD_REGION||'eu').trim(),className:String(row?.className||row?.class||'').trim()||null,spec:String(row?.spec||'').trim()||null,role:String(row?.role||'DPS').trim().toUpperCase(),actorId:Number.isFinite(Number(row?.actorId))?Number(row.actorId):null,itemLevel:Number.isFinite(Number(row?.itemLevel))?Number(row.itemLevel):null})).filter(row=>row.name);
+const finite=value=>Number.isFinite(Number(value))?Number(value):null;
+function safeCharacter(row={}){
+  const source=row?.character||{},gear=(Array.isArray(source.gear)?source.gear:[]).slice(0,20).map(item=>({id:finite(item?.id),name:String(item?.name||'').trim()||null,slot:String(item?.slot||'').trim()||null,slotId:finite(item?.slotId),itemLevel:finite(item?.itemLevel),gems:(Array.isArray(item?.gems)?item.gems:[]).slice(0,4).map(Number).filter(Number.isFinite),enchants:(Array.isArray(item?.enchants)?item.enchants:[]).slice(0,3).map(Number).filter(Number.isFinite)})).filter(item=>item.id&&item.slot);
+  const talentImportCode=String(source?.talentImportCode||'').trim();return{gear,talentImportCode:talentImportCode.slice(0,2000),gearCount:gear.length,profileSource:String(source?.combatantInfoSource||'').trim()||null};
+}
+const safePlayers=rows=>(Array.isArray(rows)?rows:[]).slice(0,40).map(row=>({name:String(row?.name||'').trim(),server:String(row?.server||row?.realm||'').trim()||null,region:String(row?.region||process.env.BLIZZARD_REGION||'eu').trim(),className:String(row?.className||row?.class||'').trim()||null,spec:String(row?.spec||'').trim()||null,role:String(row?.role||'DPS').trim().toUpperCase(),actorId:finite(row?.actorId),itemLevel:finite(row?.itemLevel),character:safeCharacter(row)})).filter(row=>row.name);
 
 export default async req=>{
   try{
@@ -22,7 +27,7 @@ export default async req=>{
         const item=body?.item?.id?body.item:(await fetchLootItemV1(body?.itemId)).item,players=safePlayers(body?.players),eligibility=players.map(player=>({player,eligibility:evaluateLootEligibilityV1(item,player)})),eligible=eligibility.filter(row=>row.eligibility.eligible).map(row=>row.player);
         if(!eligible.length)return jsonResponse(200,{ok:true,version:'loot-api-v1',item,eligibility,simulation:{results:[],status:'no-eligible-raiders'},evidenceContract:{simGainOnly:true,automaticAward:false,raidOnly:true}},'private, no-store');
         const simulation=await simulateLootRaidV1({players:eligible,item,itemLevel:body?.itemLevel,iterations:body?.iterations||1000,scenario:'raid_st',concurrency:body?.concurrency||2});
-        return jsonResponse(200,{ok:true,version:'loot-api-v1',item,eligibility,simulation,evidenceContract:{simGainOnly:true,automaticAward:false,raidOnly:true,healerAndTankRaidValueNotFabricated:true}},'private, no-store');
+        return jsonResponse(200,{ok:true,version:'loot-api-v1',item,eligibility,simulation,evidenceContract:{simGainOnly:true,automaticAward:false,raidOnly:true,healerAndTankRaidValueNotFabricated:true,observedCombatantInfoPreferred:true,armoryFallbackAllowed:true}},'private, no-store');
       }
       if(action==='eligibility'){
         const item=body?.item?.id?body.item:(await fetchLootItemV1(body?.itemId)).item,players=safePlayers(body?.players);return jsonResponse(200,{ok:true,version:'loot-api-v1',item,rows:players.map(player=>({player,eligibility:evaluateLootEligibilityV1(item,player)}))},'private, no-store');
