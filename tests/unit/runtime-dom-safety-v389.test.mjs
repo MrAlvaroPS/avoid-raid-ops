@@ -14,6 +14,7 @@ const ACTIVE_OVERLAYS = [
   'public/knowledge-reindex-v390.js',
   'public/wcl-runtime.js',
   'public/mechanics-defensives-fallback-bridge-v4.js',
+  'public/defensive-audit-runtime.js',
   'public/mechanics-runtime.js',
   'public/command-center-history-bridge-v4.js',
   'public/encounter-intelligence-v375.js',
@@ -55,17 +56,33 @@ test('CRITICAL MECHANICS SOURCE OWNER: feature source and stable public transpor
   assert.doesNotMatch(source,/setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
 });
 
-test('CRITICAL MECHANICS/DEFENSIVES BRIDGE: only Defensive fallback/shadow remains active', async () => {
-  const source = await read('public/mechanics-defensives-fallback-bridge-v4.js');
-  assert.match(source,/window\.applyMechanicsAndDefensives=applySplitFallback/);
-  assert.doesNotMatch(source,/__AVOID_MECHANICS_SOURCE_RUNTIME__\?\.shadow/);
-  assert.doesNotMatch(source,/window\.applyTelemetryMechanics=|window\.applyIntelligenceMechanics=/);
-  assert.match(source,/window\.applyTelemetryDefensives=screenWriter\('applyTelemetryDefensives','Defensive Audit'\)/);
-  assert.match(source,/window\.applyIntelligenceDefensives=screenWriter\('applyIntelligenceDefensives','Defensive Audit'\)/);
-  assert.match(source,/writerPolicy:'defensive-fallback-and-writer-shadow'/);
+test('CRITICAL DEFENSIVE SOURCE PARITY: feature source and stable public transport are identical, request-free and timer-free', async () => {
+  const [source,transport] = await Promise.all([
+    read('apps/web/src/features/defensive-audit/runtime.js'),
+    read('public/defensive-audit-runtime.js'),
+  ]);
+  assert.equal(transport, source);
+  assert.match(source,/window\.applyTelemetryDefensives=applyTelemetryDefensives/);
+  assert.match(source,/window\.applyIntelligenceDefensives=applyIntelligenceDefensives/);
+  assert.match(source,/mode:'parity-shadow'/);
+  assert.match(source,/queueMicrotask/);
+  assert.match(source,/mismatches/);
   assert.doesNotMatch(source,OBSERVER_CONSTRUCTION);
   assert.doesNotMatch(source,/\.observe\s*\(/);
   assert.doesNotMatch(source,/setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
+});
+
+test('CRITICAL MECHANICS/DEFENSIVES BRIDGE: only Defensive parity triggering remains active', async () => {
+  const source = await read('public/mechanics-defensives-fallback-bridge-v4.js');
+  assert.match(source,/window\.applyMechanicsAndDefensives=applySplitFallback/);
+  assert.match(source,/__AVOID_DEFENSIVE_AUDIT_SOURCE_RUNTIME__\?\.shadow\?\.\(\)/);
+  assert.doesNotMatch(source,/__AVOID_MECHANICS_SOURCE_RUNTIME__\?\.shadow/);
+  assert.doesNotMatch(source,/window\.applyTelemetryMechanics=|window\.applyIntelligenceMechanics=/);
+  assert.doesNotMatch(source,/window\.applyTelemetryDefensives=|window\.applyIntelligenceDefensives=|screenWriter/);
+  assert.match(source,/writerPolicy:'defensive-source-parity-shadow-trigger'/);
+  assert.doesNotMatch(source,OBSERVER_CONSTRUCTION);
+  assert.doesNotMatch(source,/\.observe\s*\(/);
+  assert.doesNotMatch(source,/queueMicrotask|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
 });
 
 test('CRITICAL COMMAND CENTER HISTORY BRIDGE: migration bridge is passive and request-free', async () => {
@@ -122,7 +139,8 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   const dataHub = index.indexOf('/data-hub-v390.js?v=3.9.0');
   const reindex = index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const legacy = index.indexOf('/wcl-runtime.js?v=3.8.5');
-  const fallbackBridge = index.indexOf('/mechanics-defensives-fallback-bridge-v4.js?v=4.0.0-migration4-owner1');
+  const fallbackBridge = index.indexOf('/mechanics-defensives-fallback-bridge-v4.js?v=4.0.0-migration5-shadow1');
+  const defensiveSource = index.indexOf('/defensive-audit-runtime.js?v=4.0.0-migration5-shadow1');
   const mechanicsSource = index.indexOf('/mechanics-runtime.js?v=4.0.0-migration4-owner1');
   const historyBridge = index.indexOf('/command-center-history-bridge-v4.js?v=4.0.0-migration1');
   const progress = index.indexOf('/progress-runtime-v3713.js?v=3.8.5');
@@ -131,8 +149,9 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   assert.ok(reindex > dataHub, 'knowledge reindex guard must listen after the data hub is initialized');
   assert.ok(legacy > reindex, 'legacy compatibility runtime must load after data platform layers');
   assert.ok(fallbackBridge > legacy, 'split bridge must load after legacy global declarations');
-  assert.ok(mechanicsSource > fallbackBridge, 'Mechanics source owner must install after the split bridge and own the two retired presentation bindings');
-  assert.ok(historyBridge > mechanicsSource, 'Command Center history bridge must remain after the Mechanics source shadow');
+  assert.ok(defensiveSource > fallbackBridge, 'Defensive Audit source parity runtime must install after the bridge trigger');
+  assert.ok(mechanicsSource > defensiveSource, 'Mechanics source owner must remain after the Defensive parity runtime');
+  assert.ok(historyBridge > mechanicsSource, 'Command Center history bridge must remain after the Mechanics source owner');
   assert.ok(progress > historyBridge, 'Progress must install its active-screen wrapper after the Command Center bridge');
   for (const asset of [
     '/encounter-intelligence-v375.js?v=3.8.5',
