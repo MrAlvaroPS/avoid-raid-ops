@@ -102,6 +102,11 @@ export async function fetchWagoSpellEffectRowsV1({build,field='SpellID',value,fe
   }catch(error){throw new Error(`Wago DB2 network error: ${error instanceof Error?error.message:String(error)}`);}
   if(!response?.ok)throw new Error(`Wago DB2 HTTP ${response?.status||'unknown'} for SpellEffect ${field}=${id}`);
   const text=await readBoundedText(response,{maxBytes});
+  if(!text.trim())return{
+    version:WAGO_DB2_SPELL_EFFECT_PROVIDER_VERSION,
+    provider:'wago-db2',table:'SpellEffect',build:normalizedBuild,endpoint:url.toString(),filter:{field,value:id},
+    rows:[],responseRows:0,matchedRows:0,serverFilterVerified:true,emptyResponse:true,rawCsvPersisted:false,
+  };
   const parsed=parseCsvObjects(text);
   if(!parsed.headers.includes('SpellID')||!parsed.headers.includes('EffectTriggerSpell'))throw new Error('Wago SpellEffect CSV schema is missing SpellID or EffectTriggerSpell');
   if(parsed.rows.length>maxRows)throw new Error(`Wago DB2 response exceeds ${maxRows} row safety limit`);
@@ -118,6 +123,7 @@ export async function fetchWagoSpellEffectRowsV1({build,field='SpellID',value,fe
     responseRows:normalized.length,
     matchedRows:matched.length,
     serverFilterVerified:normalized.every(row=>field==='SpellID'?row.spellId===id:row.effectTriggerSpell===id),
+    emptyResponse:false,
     rawCsvPersisted:false,
   };
 }
@@ -136,7 +142,7 @@ export async function resolveWagoTriggerRelationsV1(seedAbilityIds,{build,direct
       try{
         result=await fetchWagoSpellEffectRowsV1({build:normalizedBuild,field,value:seed,fetcher,baseUrl});
         successfulCalls++;
-        queries.push({field,value:seed,endpoint:result.endpoint,matchedRows:result.matchedRows,serverFilterVerified:result.serverFilterVerified,status:'resolved'});
+        queries.push({field,value:seed,endpoint:result.endpoint,matchedRows:result.matchedRows,serverFilterVerified:result.serverFilterVerified,status:'resolved',emptyResponse:result.emptyResponse===true});
       }catch(error){
         const message=error instanceof Error?error.message:String(error);
         errors.push({field,value:seed,error:message,negativeEvidence:false});
