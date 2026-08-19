@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
   statuses: write
 
 concurrency:
@@ -23,27 +23,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
-      - name: Apply approved Pull Lab migration once
-        if: github.event_name == 'pull_request'
-        run: |
-          if grep -q 'function applyPullLab() {' public/wcl-runtime.js; then
-            python3 scripts/migrate-pull-lab-owner-once.py
-            python3 scripts/patch-pull-lab-verifier-once.py
-            git diff --check
-            node --test tests/unit/pull-lab-runtime-v4.test.mjs tests/unit/active-assets-manifest-v4.test.mjs tests/unit/runtime-dom-safety-v389.test.mjs tests/unit/legacy-runtime-ownership-v4.test.mjs
-            node scripts/verify-legacy-runtime-ownership.mjs
-            node scripts/sync-active-asset-html.mjs --check
-            git config user.name "AvoiD v4 migration"
-            git config user.email "actions@users.noreply.github.com"
-            git add apps/web/src/features/pull-lab/runtime.js public/pull-lab-runtime.js public/wcl-runtime.js config/legacy-runtime-ownership.mjs config/active-assets.mjs index.html scripts/verify-legacy-runtime-ownership.mjs tests/unit/pull-lab-runtime-v4.test.mjs tests/unit/active-assets-manifest-v4.test.mjs tests/unit/runtime-dom-safety-v389.test.mjs tests/unit/legacy-runtime-ownership-v4.test.mjs
-            test "$(git diff --cached --name-only | wc -l)" -eq 11
-            git commit -m "refactor(v4): promote Pull Lab source owner"
-            git push origin HEAD:${{ github.head_ref }}
-          else
-            echo "Pull Lab legacy writer already retired; migration step is a no-op."
-          fi
       - name: Node 22
         uses: actions/setup-node@v4
         with:
@@ -65,9 +44,7 @@ jobs:
       - name: Source reconstruction
         run: npm run verify:reconstruction
       - name: Browser Data Truth
-        run: |
-          grep -n -C 10 -E "Pull Lab source parity|shadowAgainstLegacy|AVOID_PULL_LAB_SOURCE_RUNTIME" scripts/verify_data_truth_ui.py || true
-          npm run verify:data-truth
+        run: npm run verify:data-truth
       - name: Release ownership
         run: npm run verify:release
       - name: Critical contracts
