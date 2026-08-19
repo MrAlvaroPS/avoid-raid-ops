@@ -1,0 +1,70 @@
+import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { access, mkdir, readFile, writeFile, rm, readdir } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+
+export const SIMC_MANAGER_VERSION='simc-nightly-manager-v1';
+const DEFAULT_INDEX='https://downloads.simulationcraft.org/nightly/?C=M;O=D';
+const CHECK_TTL_MS=6*60*60*1000;
+const rootDir=()=>resolve(process.env.SIMC_MANAGED_DIR||join(process.cwd(),'.raidops-simc'));
+const statePath=()=>join(rootDir(),'state.json');
+const clean=v=>String(v||'').trim();
+const exists=async p=>{try{await access(p);return true}catch{return false}};
+const now=()=>Date.now();
+
+function emptyState(){return{version:SIMC_MANAGER_VERSION,lastCheckedAt:null,current:null,previous:null,lastUpdateError:null};}
+export async function loadSimcManagerStateV1(){try{const row=JSON.parse(await readFile(statePath(),'utf8'));return row?.version===SIMC_MANAGER_VERSION?row:emptyState();}catch{return emptyState();}}
+async function saveState(state){await mkdir(rootDir(),{recursive:true});await writeFile(statePath(),JSON.stringify(state,null,2),'utf8');return state;}
+function archiveCommit(filename){const tokens=basename(filename).replace(/\.7z$/i,'').split(/[-.]/);return tokens.filter(t=>/^[0-9a-f]{7,40}$/i.test(t)).at(-1)?.toLowerCase()||null;}
+function parseIndex(html,indexUrl){
+  const hrefs=[...String(html||'').matchAll(/href=["']([^"']+\.7z)["']/gi)].map(m=>m[1]);
+  const rows=[];
+  for(const href of hrefs){
+    const file=decodeURIComponent(basename(new URL(href,indexUrl).pathname));
+    if(!/^simc-/i.test(file)||!/win64/i.test(file)||/winarm64|nonetwork/i.test(file))continue;
+    const commit=archiveCommit(file);if(!commit)continue;
+    rows.push({filename:file,commit,url:new URL(href,indexUrl).toString()});
+  }
+  return [...new Map(rows.map(r=>[r.filename,r])).values()];
+}
+async function fetchText(url,{fetcher=fetch}={}){const r=await fetcher(url,{headers:{'user-agent':'AvoiD-Raid-Ops/SimC-Manager','accept':'text/html,*/*'}});if(!r.ok)throw new Error(`SimulationCraft nightly index HTTP ${r.status}`);return await r.text();}
+export async function discoverLatestSimcNightlyV1({fetcher=fetch,indexUrl=process.env.SIMC_NIGHTLY_INDEX||DEFAULT_INDEX}={}){
+  const html=await fetchText(indexUrl,{fetcher}),rows=parseIndex(html,indexUrl);if(!rows.length)throw new Error('No Windows x64 SimulationCraft nightly was found in the official nightly index');return{indexUrl,latest:rows[0],candidates:rows.slice(0,5)};
+}
+function sha256(buffer){return createHash('sha256').update(buffer).digest('hex');}
+async function download(url,{fetcher=fetch}={}){const r=await fetcher(url,{headers:{'user-agent':'AvoiD-Raid-Ops/SimC-Manager','accept':'application/x-7z-compressed,application/octet-stream,*/*'}});if(!r.ok)throw new Error(`SimulationCraft nightly download HTTP ${r.status}`);return Buffer.from(await r.arrayBuffer());}
+function lookup(command){const locator=process.platform==='win32'?'where.exe':'which';try{const r=spawnSync(locator,[command],{encoding:'utf8',windowsHide:true,timeout:4000});return r.status===0?String(r.stdout||'').split(/\r?\n/).map(clean).find(Boolean)||null:null}catch{return null;}}
+async function resolve7zip(){
+  const configured=clean(process.env.SEVEN_ZIP_PATH);if(configured){if(isAbsolute(configured)&&await exists(configured))return configured;const found=lookup(configured);if(found)return found;}
+  for(const command of ['7z','7zz']){const found=lookup(command);if(found)return found;}
+  if(process.platform==='win32')for(const candidate of ['C:\\Program Files\\7-Zip\\7z.exe','C:\\Program Files (x86)\\7-Zip\\7z.exe'])if(await exists(candidate))return candidate;
+  return null;
+}
+async function findFile(dir,target){for(const entry of await readdir(dir,{withFileTypes:true})){const full=join(dir,entry.name);if(entry.isFile()&&entry.name.toLowerCase()===target.toLowerCase())return full;if(entry.isDirectory()){const nested=await findFile(full,target);if(nested)return nested;}}return null;}
+function run(command,args,{cwd,timeout=120000}={}){const r=spawnSync(command,args,{cwd,encoding:'utf8',windowsHide:true,timeout,maxBuffer:8*1024*1024});if(r.error)throw r.error;if(r.status!==0)throw new Error(`${basename(command)} exited ${r.status}: ${String(r.stderr||r.stdout||'').slice(-1600)}`);return{stdout:String(r.stdout||''),stderr:String(r.stderr||''),status:r.status};}
+async function verifyGithubCommit(commit,{fetcher=fetch}={}){
+  try{const r=await fetcher(`https://api.github.com/repos/simulationcraft/simc/commits/${encodeURIComponent(commit)}`,{headers:{'user-agent':'AvoiD-Raid-Ops/SimC-Manager','accept':'application/vnd.github+json'}});if(r.status===404)return{verified:false,hardFailure:true,reason:`Nightly commit ${commit} does not resolve in simulationcraft/simc`};if(!r.ok)return{verified:null,hardFailure:false,reason:`GitHub verification HTTP ${r.status}`};const row=await r.json();return{verified:true,hardFailure:false,sha:String(row?.sha||''),htmlUrl:row?.html_url||null};}catch(error){return{verified:null,hardFailure:false,reason:error instanceof Error?error.message:String(error)};}
+}
+async function promoteNightly(latest,archive,{fetcher=fetch}={}){
+  const sevenZip=await resolve7zip();if(!sevenZip)throw new Error('7-Zip CLI was not found. Install 7-Zip or set SEVEN_ZIP_PATH to 7z.exe.');
+  const commitCheck=await verifyGithubCommit(latest.commit,{fetcher});if(commitCheck.hardFailure)throw new Error(commitCheck.reason);
+  const releaseDir=join(rootDir(),'releases',latest.commit),archiveDir=join(rootDir(),'downloads'),archivePath=join(archiveDir,latest.filename);
+  await mkdir(archiveDir,{recursive:true});await rm(releaseDir,{recursive:true,force:true});await mkdir(releaseDir,{recursive:true});await writeFile(archivePath,archive);
+  run(sevenZip,['x',archivePath,`-o${releaseDir}`,'-y'],{cwd:releaseDir,timeout:180000});
+  const simcPath=await findFile(releaseDir,process.platform==='win32'?'simc.exe':'simc');if(!simcPath)throw new Error('Nightly archive extracted successfully but simc executable was not found');
+  const build=run(simcPath,['display_build=2'],{cwd:dirname(simcPath),timeout:30000});
+  const buildInfo=clean(`${build.stdout}\n${build.stderr}`).slice(0,4000);if(!/SimulationCraft/i.test(buildInfo))throw new Error('Extracted simc executable did not report SimulationCraft build information');
+  const metadata={managerVersion:SIMC_MANAGER_VERSION,installedAt:now(),filename:latest.filename,sourceUrl:latest.url,commit:latest.commit,githubCommitVerification:commitCheck,archiveSha256:sha256(archive),simcPathRelative:relative(rootDir(),simcPath),buildInfo,sevenZipPath:sevenZip};
+  await writeFile(join(releaseDir,'avoid-simc-metadata.json'),JSON.stringify(metadata,null,2),'utf8');return metadata;
+}
+export async function managedSimcCurrentV1(){const state=await loadSimcManagerStateV1(),row=state.current;if(!row?.simcPathRelative)return null;const path=join(rootDir(),row.simcPathRelative);return await exists(path)?{...row,path}:null;}
+export async function simcFreshnessV1(){const state=await loadSimcManagerStateV1(),current=await managedSimcCurrentV1();return{version:SIMC_MANAGER_VERSION,current,previous:state.previous,lastCheckedAt:state.lastCheckedAt,lastUpdateError:state.lastUpdateError,checkDue:!state.lastCheckedAt||now()-Number(state.lastCheckedAt)>CHECK_TTL_MS};}
+export async function syncSimcNightlyV1({force=false,fetcher=fetch}={}){
+  const state=await loadSimcManagerStateV1(),current=await managedSimcCurrentV1(),due=force||!state.lastCheckedAt||now()-Number(state.lastCheckedAt)>CHECK_TTL_MS;
+  if(!due)return{version:SIMC_MANAGER_VERSION,status:'fresh-check-not-due',updated:false,current,lastCheckedAt:state.lastCheckedAt};
+  let discovery;
+  try{discovery=await discoverLatestSimcNightlyV1({fetcher});state.lastCheckedAt=now();
+    if(current?.filename===discovery.latest.filename||current?.commit===discovery.latest.commit){state.lastUpdateError=null;await saveState(state);return{version:SIMC_MANAGER_VERSION,status:'already-current',updated:false,current,latest:discovery.latest};}
+    const archive=await download(discovery.latest.url,{fetcher}),installed=await promoteNightly(discovery.latest,archive,{fetcher});state.previous=state.current;state.current=installed;state.lastUpdateError=null;await saveState(state);return{version:SIMC_MANAGER_VERSION,status:'updated',updated:true,current:{...installed,path:join(rootDir(),installed.simcPathRelative)},previous:state.previous,latest:discovery.latest};
+  }catch(error){state.lastCheckedAt=now();state.lastUpdateError={at:now(),message:error instanceof Error?error.message:String(error)};await saveState(state);return{version:SIMC_MANAGER_VERSION,status:current?'update-failed-using-current':'update-failed-no-current',updated:false,current,error:state.lastUpdateError,latest:discovery?.latest||null};}
+}
