@@ -44,7 +44,7 @@ try{
   const index=await readFile('index.html','utf8');
   if(index.includes('/wcl-runtime.js'))throw new Error('index.html must not auto-load legacy WCL runtime');
   if(index.includes('/wcl-bootstrap-v389.js'))throw new Error('index.html must not wait on automatic WCL bootstrap');
-  if(!index.includes('/avoid-execution-context-v3911.js?v=3.9.11.2'))throw new Error('offline-first execution context runtime missing');
+  if(!index.includes('/avoid-execution-context-v3911.js?v=3.9.11.3'))throw new Error('offline-first execution context runtime missing');
   console.log('[verify:vercel] OK      package runtime pins + critical test gate + offline-first boot contract');
 }catch(error){failures++;console.error(`[verify:vercel] CONTRACT package/index: ${error?.message||error}`);}
 if(failures){console.error(`[verify:vercel] FAILED · ${failures} problem${failures===1?'':'s'}`);process.exit(1);}console.log(`[verify:vercel] PASS · ${files.length} syntax checks + deployment contracts`);
