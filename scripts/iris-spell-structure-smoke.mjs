@@ -1,6 +1,7 @@
 import { loadLatestOfficialEncounterGraphByWclIdV1 } from '../server/knowledge/official-encounter-store-v1.mjs';
 import { buildSpellStructuralKnowledgePreviewV1,resolveSpellStructuralKnowledgeV1 } from '../server/knowledge/spell-structural-knowledge-v1.mjs';
 import { loadLatestSpellStructuralKnowledgeV1,loadSpellStructuralKnowledgeRevisionV1 } from '../server/knowledge/spell-structural-store-v1.mjs';
+import { resolveAbilityKnowledgeV1 } from '../server/knowledge/ability-knowledge-v1.mjs';
 
 function parseArgs(argv){
   const out={abilities:[],directions:'both'};
@@ -24,7 +25,7 @@ if(args.help){usage();process.exit(0);}
 if(!Number.isInteger(args.wclEncounterId)||args.wclEncounterId<=0)throw new Error('--wcl must be a positive WCL encounter ID');
 if(!args.abilities.length)throw new Error('--abilities must contain at least one positive ability ID');
 
-console.log('\n[1/4] Load persisted official Blizzard graph (0 network)');
+console.log('\n[1/5] Load persisted official Blizzard graph (0 network)');
 const officialGraph=await loadLatestOfficialEncounterGraphByWclIdV1(args.wclEncounterId);
 if(!officialGraph)throw new Error(`No persisted official encounter graph for WCL encounter ${args.wclEncounterId}`);
 console.log(JSON.stringify({
@@ -35,12 +36,12 @@ console.log(JSON.stringify({
   fingerprint:officialGraph.fingerprint,
 },null,2));
 
-console.log('\n[2/4] Preview bounded Wago DB2 structural lookup');
+console.log('\n[2/5] Preview bounded Wago DB2 structural lookup');
 const input={wclEncounterId:args.wclEncounterId,seedAbilityIds:args.abilities,directions:args.directions};
 const preview=buildSpellStructuralKnowledgePreviewV1(input,officialGraph);
 console.log(JSON.stringify({fingerprint:preview.fingerprint,build:preview.officialGraph.build,seedAbilityIds:preview.request.seedAbilityIds,directions:preview.request.directions,networkUpperBound:preview.networkUpperBound},null,2));
 
-console.log('\n[3/4] Resolve + persist build-pinned SpellEffect relations');
+console.log('\n[3/5] Resolve + persist build-pinned SpellEffect relations');
 const resolved=await resolveSpellStructuralKnowledgeV1(input,{officialGraph});
 const exactRequest=await loadSpellStructuralKnowledgeRevisionV1(args.wclEncounterId,resolved.provider.build,resolved.requestFingerprint);
 console.log(JSON.stringify({
@@ -71,7 +72,7 @@ console.log(JSON.stringify({
   storage:resolved.storage,
 },null,2));
 
-console.log('\n[4/4] Reload persisted structural knowledge (0 network)');
+console.log('\n[4/5] Reload persisted structural knowledge (0 network)');
 const stored=await loadLatestSpellStructuralKnowledgeV1(args.wclEncounterId);
 if(!stored)throw new Error('Persisted structural knowledge reload returned no result');
 console.log(JSON.stringify({
@@ -91,6 +92,32 @@ console.log(JSON.stringify({
   wclCalls:0,
 },null,2));
 
+console.log('\n[5/5] Ability Knowledge from stored Blizzard + DB2 knowledge only');
+const abilityKnowledge=await resolveAbilityKnowledgeV1({
+  encounterId:args.wclEncounterId,
+  abilityIds:args.abilities,
+  providers:{lorrgs:false,parseWowhead:false,wcl:false},
+});
+console.log(JSON.stringify({
+  usage:abilityKnowledge.usage,
+  providers:{
+    blizzardJournal:abilityKnowledge.providers?.blizzardJournal,
+    spellStructure:abilityKnowledge.providers?.spellStructure,
+  },
+  abilities:abilityKnowledge.abilities.map(row=>({
+    abilityId:row.abilityId,
+    name:row.identity?.name||null,
+    semanticClass:row.semanticClass,
+    officialStatus:row.providerSignals?.blizzardJournal?.status,
+    structuralStatus:row.providerSignals?.spellStructure?.status,
+    structuralBuild:row.providerSignals?.spellStructure?.build,
+    inbound:row.providerSignals?.spellStructure?.inbound||[],
+    outbound:row.providerSignals?.spellStructure?.outbound||[],
+    structuralCoverage:row.providerSignals?.spellStructure?.coverage||null,
+    negativeEvidence:row.providerSignals?.spellStructure?.negativeEvidence,
+  })),
+},null,2));
+
 const expectedCurrent=exactRequest?.relations?.find(row=>row.sourceAbilityId===1243560&&row.targetAbilityId===1241163);
 const expectedAccumulated=stored.relations?.find(row=>row.sourceAbilityId===1243560&&row.targetAbilityId===1241163);
 if(args.abilities.includes(1243560)&&args.abilities.includes(1241163)){
@@ -108,4 +135,4 @@ if(args.abilities.includes(1243560)&&args.abilities.includes(1241163)){
   },null,2));
 }
 
-console.log('\nOK: build-pinned spell structural smoke validation completed. No WCL combat-event or Blizzard network request was made by this command.');
+console.log('\nOK: build-pinned spell structural smoke validation completed. WCL combat-event and Blizzard network calls remained zero; Ability Knowledge reused persisted official/structural knowledge.');
