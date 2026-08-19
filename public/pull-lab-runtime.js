@@ -197,7 +197,7 @@
     if(sync){
       qsa(':scope > label',sync).forEach(node=>text(node,'__PULL__'));
       qsa(':scope > div i',sync).forEach(node=>{node.style.display='';node.style.left='';node.style.width='';});
-      qsa(':scope > div u.death',sync).forEach(node=>{node.style.display='';node.style.left='0%';});
+      qsa(':scope > div u.death',sync).forEach(node=>{node.style.display='';});
       qsa(':scope > small span',sync).forEach(node=>text(node,'__TIME__'));
     }
     const deltaPanel=qsa('article.panel',root).find(panel=>panel.querySelector('.delta-list'));
