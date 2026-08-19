@@ -1,10 +1,29 @@
 import { loadHomeRaidExecutionV1 } from '../home/raid-execution-store-v1.mjs';
+import { listHomePullFactsSnapshotsV1 } from '../home/raid-pull-facts-store-v1.mjs';
+import { homeGuildId } from '../knowledge/scopes.mjs';
 import { jsonResponse } from '../api/http.mjs';
 const positive=value=>{const n=Number(value);return Number.isInteger(n)&&n>0?n:null;};
+const finite=value=>Number.isFinite(Number(value))?Number(value):null;
+
+function objectiveExecution(facts,{encounterId,difficulty,guildId=homeGuildId()}={}){
+  const valid=(facts||[]).filter(row=>Number(row?.guildId)===Number(guildId)&&Number(row?.encounter?.id)===Number(encounterId)&&Number(row?.encounter?.difficulty)===Number(difficulty)),byKey=new Map();
+  for(const snapshot of valid)for(const pull of snapshot.pulls||[]){const key=`${snapshot.reportCode}:${Number(pull.fightId)}`;byKey.set(key,{...pull,key,reportCode:snapshot.reportCode,at:Number(snapshot?.report?.startTime||0)+Number(pull.startTime||0)});}
+  const pulls=[...byKey.values()].sort((a,b)=>a.at-b.at||Number(a.fightId)-Number(b.fightId)),kills=pulls.filter(row=>row.kill).length,cleared=kills>0,bestRemainingPct=pulls.reduce((best,row)=>row.kill?0:finite(row.fightPercentage)==null?best:best==null?Number(row.fightPercentage):Math.min(best,Number(row.fightPercentage)),null),latestSnapshot=valid.slice().sort((a,b)=>Number(a.generatedAt||0)-Number(b.generatedAt||0)).at(-1)||null,reports=new Set(valid.map(row=>row.reportCode)).size;
+  let label='NO AVOID DATA',tone='muted';if(pulls.length>0&&pulls.length<3){label='BASELINE';tone='info';}else if(pulls.length>=3){label='LEARNING';tone='info';}
+  return{version:'home-raid-execution-objective-overlay-v1',status:pulls.length?'ready':'empty',generatedAt:Date.now(),guildId:Number(guildId),encounter:{id:Number(encounterId),name:latestSnapshot?.encounter?.name||null,difficulty:Number(difficulty),difficultyName:latestSnapshot?.encounter?.difficultyName||null,scopeKey:`${Number(encounterId)}:d${Number(difficulty)}`},progression:{status:cleared?'CLEARED':pulls.length?'PROGRESSION':'NO AVOID DATA',cleared,kills,bestRemainingPct},state:{key:label.toLowerCase().replace(/\s+/g,'-'),label,tone,mechanicsGate:'pending',mechanicalAccuracyPct:null,scoreSemantics:'objective HOME pull facts only; mechanic maturity awaits classified execution'},population:{reports,pulls:pulls.length,recentPulls:Math.min(8,pulls.length),previousPulls:Math.max(0,Math.min(8,pulls.length-8)),normalizedMechanics:0,totalMechanics:0},blocker:null,mechanics:[],nextPullCalls:[],latestReportCode:latestSnapshot?.reportCode||null,objectivePullFacts:{available:true,pulls:pulls.length,reports,kills,source:'active-report-manifest',combatEventsRequired:false},evidenceContract:{homeOnly:true,longitudinalAcrossAllPersistedPulls:true,objectiveFactsIndependentOfMechanicReadiness:true,killAndProgressIndependentOfMechanicReadiness:true,mechanicConclusionsAbsentUntilClassified:true,singlePullCannotReplaceAggregate:true,mechanicallyReadyIsNotOverallKillability:true,automaticPromotion:false},networkExecuted:false,wclCallsExecuted:0};
+}
+
+function mergeObjective(classified,objective){
+  if(!objective||objective.status!=='ready')return classified;
+  if(!classified||classified.status!=='ready'||Number(classified?.population?.pulls||0)===0)return objective;
+  const objectivePulls=Number(objective.population?.pulls||0),classifiedPulls=Number(classified.population?.pulls||0);if(objectivePulls<=classifiedPulls)return{...classified,objectivePullFacts:objective.objectivePullFacts,evidenceContract:{...(classified.evidenceContract||{}),objectivePullFactsMerged:true}};
+  return{...classified,progression:objective.progression,population:{...classified.population,reports:Math.max(Number(classified.population?.reports||0),Number(objective.population?.reports||0)),pulls:objectivePulls,recentPulls:objective.population.recentPulls,previousPulls:objective.population.previousPulls},latestReportCode:objective.latestReportCode||classified.latestReportCode,objectivePullFacts:{...objective.objectivePullFacts,classifiedPulls,unclassifiedPullFacts:Math.max(0,objectivePulls-classifiedPulls)},evidenceContract:{...(classified.evidenceContract||{}),objectivePullFactsMerged:true,progressionMayIncludeUnclassifiedHomePulls:true,mechanicStateUsesOnlyClassifiedPulls:true}};
+}
+
 export default async req=>{
   if(req.method!=='GET')return jsonResponse(405,{ok:false,error:'Method not allowed'},'no-store');
   const u=new URL(req.url),encounterId=positive(u.searchParams.get('encounter')),difficulty=positive(u.searchParams.get('difficulty'));
   if(!encounterId||!difficulty)return jsonResponse(400,{ok:false,error:'encounter+difficulty are required'},'no-store');
-  try{const result=await loadHomeRaidExecutionV1({encounterId,difficulty});return jsonResponse(200,{ok:true,...result},'private, no-store');}
+  try{const [classified,facts]=await Promise.all([loadHomeRaidExecutionV1({encounterId,difficulty}),listHomePullFactsSnapshotsV1({encounterId,difficulty})]),objective=objectiveExecution(facts,{encounterId,difficulty}),result=mergeObjective(classified,objective);return jsonResponse(200,{ok:true,...result},'private, no-store');}
   catch(error){return jsonResponse(500,{ok:false,error:error instanceof Error?error.message:String(error),networkExecuted:false,wclCallsExecuted:0},'no-store');}
 };
