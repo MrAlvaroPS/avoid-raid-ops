@@ -53,3 +53,18 @@ test('metadata discovery marked as combat-inspected cannot enter untouched reser
   assert.equal(pool.candidates[0].eligible,false);
   assert.ok(pool.candidates[0].ineligibilityReasons.includes('combat-inspected-during-source-discovery'));
 });
+
+test('external guild owned by a configured HOME uploader is rejected',()=>{
+  const previous=process.env.AVOID_HOME_WCL_OWNER_IDS;
+  process.env.AVOID_HOME_WCL_OWNER_IDS='765001';
+  try{
+    const stability={fingerprint:'e'.repeat(40),patterns:[]};
+    const lineage=buildGlobalBossLearningSourceLineageV1({aggregate:{sourceReports:{},splits:{}},job:{sourceSeen:[],sourceQueue:[]},stability});
+    const pool=buildUntouchedHoldoutSourcePoolV1({scope:{encounterId:7711,difficulty:5,partition:8},stability,lineage,discoveredSources:[{type:'guild',id:888001,ownerId:765001,metadataOnlyDiscovery:true}]});
+    assert.equal(pool.candidates[0].homeSource,true);
+    assert.equal(pool.candidates[0].eligible,false);
+    assert.ok(pool.candidates[0].ineligibilityReasons.includes('home-source'));
+  }finally{
+    if(previous===undefined)delete process.env.AVOID_HOME_WCL_OWNER_IDS;else process.env.AVOID_HOME_WCL_OWNER_IDS=previous;
+  }
+});
