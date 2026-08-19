@@ -10,7 +10,7 @@ test('CRITICAL v3.9.11 FIRST LOAD: HOME history reader is physically isolated fr
   assert.match(refresh,/wclGraphql/);assert.match(refresh,/explicitRefresh:true/);
   assert.match(service,/req\.method===['"]GET['"]/);assert.match(service,/getPersistedAvoidHistoryIndexV1/);assert.match(service,/req\.method===['"]POST['"]/);assert.match(service,/confirmExecution:true is required/);
   assert.doesNotMatch(index,/\/wcl-runtime\.js/);assert.doesNotMatch(index,/\/wcl-bootstrap-v389\.js/);
-  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.11\.1/);assert.match(index,/WCL stays idle until you explicitly refresh history or load a report/);
+  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.11\.2/);assert.match(index,/WCL stays idle until you explicitly refresh history or load a report/);
 });
 
 test('CRITICAL v3.9.11 HEADER: pull selection, explicit history refresh and active live report are independent controls',async()=>{
@@ -19,6 +19,7 @@ test('CRITICAL v3.9.11 HEADER: pull selection, explicit history refresh and acti
   assert.match(runtime,/waitingForFirstCombat/);assert.match(runtime,/POLL_WAITING_MS=30000/);assert.match(runtime,/POLL_ACTIVE_MS=15000/);assert.match(runtime,/pullSelection:\{mode:['"]all['"]/);
   assert.match(runtime,/activeReportDoesNotMutateHomeHistory:true/);assert.match(runtime,/pullSelectionIsConsumerOptIn:true/);assert.match(runtime,/firstPageWclNetworkAllowed:false/);assert.match(runtime,/activeReportNeverFetchesHomeHistory:true/);
   assert.match(runtime,/window\.__AVOID_WCL_HISTORY__=state\.historyScope/);assert.match(runtime,/window\.__AVOID_ACTIVE_REPORT__=state\.activeReport/);assert.match(runtime,/window\.__AVOID_PULL_SELECTION__=state\.pullSelection/);
+  assert.match(runtime,/function installControls/);assert.match(runtime,/setInterval\(maintainShell,750\)/);assert.match(runtime,/historyRefreshing/);
   assert.match(css,/avoid-exec-group\.history/);assert.match(css,/avoid-exec-group\.active/);
   assert.match(context,/difficultyClassifiedPerFight:true/);assert.match(context,/emptyLiveReportIsNotFailure:true/);
   assert.match(doc,/A report\/pull selector is not a global application filter/);
