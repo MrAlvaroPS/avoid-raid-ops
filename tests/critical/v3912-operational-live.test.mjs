@@ -59,15 +59,15 @@ test('CRITICAL v3.9.12 HEADER: historical context is LOG then PULL, Active WCL s
   assert.match(runtime,/window\.__AVOID_WCL__=state\.activeData\.report\|\|null/);assert.match(runtime,/window\.__AVOID_WCL_TELEMETRY__=state\.activeData\.telemetry\|\|null/);
   assert.match(runtime,/\/api\/wcl\/operational-execution/);assert.doesNotMatch(runtime,/new URL\(['"]\/api\/wcl\/history['"]/);
   assert.match(css,/b\[data-app-release\]\{font-size:0!important\}/);assert.match(css,/content:attr\(data-app-release\)/);
-  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.12\.2/);assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.8/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.1/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.5/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.7/);assert.match(index,/avoid-mechanics-state-v3912\.js\?v=3\.9\.12\.1/);assert.match(index,/avoid-live-safe-fallback-v3912\.js\?v=3\.9\.12\.8/);
+  assert.match(index,/avoid-execution-context-v3911\.js\?v=3\.9\.12\.2/);assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.8/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.2/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.5/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.7/);assert.match(index,/avoid-mechanics-state-v3912\.js\?v=3\.9\.12\.2/);assert.match(index,/avoid-live-safe-fallback-v3912\.js\?v=3\.9\.12\.8/);
 });
 
 test('CRITICAL v3.9.12 RAID EXECUTION: Mechanics owns a stable longitudinal boss scope independent of Active WCL',async()=>{
   const [header,ui,bridge,scopeIsolation,css]=await Promise.all([read('public/iris-mechanics-header-v3910.js'),read('public/avoid-operational-ui-v3912.js'),read('public/raidops-v3912-mechanics-bridge.css'),read('public/avoid-mechanics-state-v3912.js'),read('public/raidops-v3912-operational.css')]);
   assert.match(header,/CURRENT MECHANICAL STATE/);assert.match(header,/Longitudinal AvoiD mechanic execution/);assert.doesNotMatch(header,/bossCount\(/);assert.doesNotMatch(header,/CURRENT RAID/);
   assert.match(ui,/MECHANIC EVOLUTION/);assert.match(ui,/ALL-TIME/);assert.match(ui,/RECENT/);assert.match(ui,/PREVIOUS/);assert.match(ui,/BOSS STATUS/);assert.match(ui,/MECHANICAL MODEL/);
-  assert.match(bridge,/data-tab="execution"/);assert.match(bridge,/display:block!important/);assert.match(bridge,/page-banner/);assert.match(bridge,/data-iris-mechanics-execution/);
-  assert.match(scopeIsolation,/__AVOID_MECHANICS_RAID_EXECUTION__/);assert.match(scopeIsolation,/avoid:execution-context/);assert.match(scopeIsolation,/avoid:active-report-data/);
+  assert.match(bridge,/data-tab="execution"/);assert.match(bridge,/display:block!important/);assert.match(bridge,/page-banner/);assert.match(bridge,/data-iris-mechanics-execution/);assert.match(bridge,/data-iris-mechanics-classified/);
+  assert.match(scopeIsolation,/__AVOID_MECHANICS_RAID_EXECUTION__/);assert.match(scopeIsolation,/avoid:execution-context/);assert.match(scopeIsolation,/avoid:active-report-data/);assert.match(scopeIsolation,/irisMechanicsClassified/);
   assert.match(ui,/LIVE · WAITING/);assert.match(ui,/OBSERVED MECHANICS · SELECTED PULL/);assert.match(ui,/CLASSIFIED FAILURES · SELECTED PULL/);assert.match(ui,/Boss cleared/);
   assert.match(css,/aop-observed-list/);assert.match(css,/aop-cleared/);assert.match(css,/aop-rl-brief/);assert.match(css,/aop-pressure-list/);
   assert.match(ui,/Pull Lab/);assert.match(ui,/REAL WCL PULLS/);assert.doesNotMatch(ui,/LIVE_PULLS_MOCK|goldenMocks/);
