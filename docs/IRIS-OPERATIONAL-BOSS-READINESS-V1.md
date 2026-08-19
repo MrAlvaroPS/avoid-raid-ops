@@ -71,12 +71,14 @@ Default v1 coverage gate:
 
 This is an **operational smoke/coverage gate**, not a scientific significance test. Failure produces `COVERAGE REVIEW`, never weaker thresholds or fabricated Live readiness.
 
+A mechanic may be **observed without being a failure**. Observational inferences such as pressure windows, state-linked impacts, phase-boundary casts or damage-distribution signals increment observation coverage when their exact event evidence appears, but they do not create `failedOccurrences`, player blame or mechanical accuracy. This distinction prevents the rehearsal gate from treating real observation as absence while preserving scoring safety.
+
 ```powershell
 npm run validate:operational-rehearsal -- --encounter <id> --difficulty Normal
 npm run validate:operational-rehearsal -- --encounter <id> --difficulty Normal --execute
 ```
 
-The first command is zero-network. The second explicitly executes bounded WCL observation.
+The first command is zero-network. It also exposes `packDiagnostics` from the persisted canonical corpus: generated mechanic inference/IDs, Wide/Deep presence and available actor-origin evidence. This diagnostic does not reclassify, train or promote anything. The second command explicitly executes bounded WCL observation.
 
 ## `prepare:boss`
 
@@ -98,6 +100,7 @@ The current-raid operational preflight is:
 ```powershell
 npm run prepare:raid -- --difficulty Normal
 npm run prepare:raid -- --difficulty Normal --execute
+npm run prepare:raid:watch -- --difficulty Normal
 ```
 
 Preview is zero-network and lists every current-raid boss with:
@@ -117,7 +120,9 @@ Execution walks the persisted current raid in encounter order. For every boss wi
 5. runs deterministic Operational Rehearsal when DATA READY;
 6. persists `LIVE READY` or `COVERAGE REVIEW`.
 
-The command stops safely when it reaches the configured global step budget or WCL rate reserve. Rerunning the same command resumes unfinished bosses. A systemic/operator pause is preserved rather than blindly retried.
+The bounded `--execute` form stops safely when it reaches the configured global step budget or WCL rate reserve. Rerunning the same command resumes unfinished bosses. A systemic/operator pause is preserved rather than blindly retried.
+
+The `--watch` form is the unattended operator path. Known unchanged `COVERAGE REVIEW` scopes are skipped at zero WCL unless `--force-rehearsal` is explicitly requested. Timed WCL checkpoints sleep until `resumeAt`. A raw HTTP/GraphQL 429 is also treated as a transient global throttle: current corpus/readiness state is preserved, the watcher backs off and retries instead of terminating or immediately hammering the endpoint again. `Ctrl+C` remains a safe manual stop.
 
 No boss IDs or names are embedded in production raid preparation.
 
