@@ -10,7 +10,7 @@ import {
   LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,
   LEGACY_RUNTIME_DEFENSIVES_RUNTIME_SOURCE,
   LEGACY_RUNTIME_DEFENSIVES_RUNTIME_TRANSPORT,
-  LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER,
+  LEGACY_RUNTIME_MECHANICS_DEFENSIVES_BRIDGES_PHYSICALLY_RETIRED,
   LEGACY_RUNTIME_MECHANICS_FALLBACK_HISTORICAL_WRITERS,
   LEGACY_RUNTIME_MECHANICS_FALLBACK_ACTIVE_WRITERS,
   LEGACY_RUNTIME_MECHANICS_FALLBACK_PHYSICALLY_RETIRED,
@@ -90,6 +90,7 @@ test('Mechanics and Defensive Audit legacy writers are physically retired after 
   assert.equal(LEGACY_RUNTIME_RESPONSIBILITIES.find(entry=>entry.id==='defensive-audit-presentation'),undefined);
 
   const legacy=await read('public/wcl-runtime.js');
+  assert.equal((legacy.match(/window\.applyMechanicsAndDefensives\?\.\(\)/g)||[]).length,0,'retired split fallback call site must be physically absent');
   for(const writer of LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS)assert.doesNotMatch(legacy,functionDeclaration(writer));
   assert.equal((legacy.match(/window\.applyTelemetryMechanics\?\.\(\)/g)||[]).length,1);
   assert.equal((legacy.match(/window\.applyIntelligenceMechanics\?\.\(\)/g)||[]).length,1);
@@ -98,35 +99,17 @@ test('Mechanics and Defensive Audit legacy writers are physically retired after 
   assert.equal((legacy.match(/window\.applyIntelligenceDefensives\?\.\(\)/g)||[]).length,1);
 });
 
-test('bridge is a passive no-op retirement hold after both source owners are live',async()=>{
-  const bridgeAsset=ACTIVE_LOCAL_SCRIPTS.find(entry=>entry.id==='mechanics-defensives-fallback-bridge');
-  const defensiveAsset=ACTIVE_LOCAL_SCRIPTS.find(entry=>entry.id==='defensive-audit-source-runtime');
-  const mechanicsAsset=ACTIVE_LOCAL_SCRIPTS.find(entry=>entry.id==='mechanics-source-runtime');
+test('retired split bridge is physically absent after the post-owner green checkpoint',async()=>{
+  assert.deepEqual(LEGACY_RUNTIME_MECHANICS_DEFENSIVES_BRIDGES_PHYSICALLY_RETIRED,['public/mechanics-defensives-fallback-bridge-v4.js']);
+  assert.equal(ACTIVE_LOCAL_SCRIPTS.some(entry=>entry.id==='mechanics-defensives-fallback-bridge'),false);
   const legacyIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(entry=>entry.id==='wcl-legacy-runtime');
-  const bridgeIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(entry=>entry.id==='mechanics-defensives-fallback-bridge');
   const defensiveIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(entry=>entry.id==='defensive-audit-source-runtime');
   const mechanicsIndex=ACTIVE_LOCAL_SCRIPTS.findIndex(entry=>entry.id==='mechanics-source-runtime');
-
-  assert.equal(bridgeAsset?.authority,'migration-bridge');
-  assert.equal(bridgeAsset?.role,'post-owner-retirement-hold-noop');
-  assert.equal(defensiveAsset?.authority,'source-owner');
-  assert.equal(defensiveAsset?.role,'single-source-defensive-audit-presentation');
-  assert.equal(defensiveAsset?.sourceOwner,LEGACY_RUNTIME_DEFENSIVES_RUNTIME_SOURCE);
-  assert.equal(mechanicsAsset?.authority,'source-owner');
-  assert.equal(mechanicsAsset?.role,'single-source-mechanics-presentation');
-  assert.equal(mechanicsAsset?.sourceOwner,LEGACY_RUNTIME_MECHANICS_RUNTIME_SOURCE);
-  assert.ok(bridgeIndex>legacyIndex);
-  assert.ok(defensiveIndex>bridgeIndex);
+  assert.ok(defensiveIndex>legacyIndex);
   assert.ok(mechanicsIndex>defensiveIndex);
-
-  const bridge=await read(LEGACY_RUNTIME_MECHANICS_DEFENSIVES_FALLBACK_OWNER);
-  assert.match(bridge,/window\.applyMechanicsAndDefensives=applySplitFallback/);
-  assert.match(bridge,/function applySplitFallback\(\)\{\}/);
-  assert.match(bridge,/writerPolicy:'post-owner-retirement-hold-noop'/);
-  assert.match(bridge,/defensiveAuditPresentationOwnerLive:true/);
-  assert.match(bridge,/defensiveParityShadow:false/);
-  assert.doesNotMatch(bridge,/\.shadow|window\.applyTelemetryMechanics=|window\.applyIntelligenceMechanics=|window\.applyTelemetryDefensives=|window\.applyIntelligenceDefensives=|screenWriter/);
-  assert.doesNotMatch(bridge,/queueMicrotask|MutationObserver|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
+  for(const retired of LEGACY_RUNTIME_MECHANICS_DEFENSIVES_BRIDGES_PHYSICALLY_RETIRED){
+    await assert.rejects(access(new URL(`../../${retired}`,import.meta.url)),error=>error?.code==='ENOENT');
+  }
 });
 
 test('Encounter Corpus owner cannot become Defensive Audit owner by implication',async()=>{
