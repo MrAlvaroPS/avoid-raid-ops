@@ -21,10 +21,12 @@ test('raid corpus preview is difficulty-scoped, excludes LFR by default and star
   assert.equal(preview.evidenceContract.crossDifficultyComparisonForbidden,true);
 });
 
-test('existing same-difficulty corpus is reused instead of restarted',async()=>{
-  const preview=await buildRaidCorpusBootstrapPreviewV1({catalog,learningPlan:learning,getStatus:async({difficulty})=>difficulty===3?{corpusId:'8001/d3/p7',status:'completed',phase:'complete',pullCount:321,deepPullCount:64,sourceStats:{total:22}}:null});
-  assert.equal(preview.scopes.find(row=>row.difficulty.id===3).bootstrapStatus,'reference-ready');
-  assert.equal(preview.scopes.find(row=>row.difficulty.id===4).bootstrapStatus,'startable-foundation');
+test('existing same-difficulty corpus ready/completed is reused instead of restarted',async()=>{
+  for(const status of ['ready','completed']){
+    const preview=await buildRaidCorpusBootstrapPreviewV1({catalog,learningPlan:learning,getStatus:async({difficulty})=>difficulty===3?{corpusId:'8001/d3/p7',status,phase:'complete',pullCount:321,deepPullCount:64,sourceStats:{total:22}}:null});
+    assert.equal(preview.scopes.find(row=>row.difficulty.id===3).bootstrapStatus,'reference-ready');
+    assert.equal(preview.scopes.find(row=>row.difficulty.id===4).bootstrapStatus,'startable-foundation');
+  }
 });
 
 test('foundation start is fingerprinted, bounded and never starts unavailable Mythic',async()=>{
