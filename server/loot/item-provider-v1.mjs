@@ -1,7 +1,7 @@
 import { getBlizzardAccessTokenV1, blizzardLocalizationV1 } from '../knowledge/providers/blizzard-game-data-v1.mjs';
 import { loadLootItemSnapshotV1, persistLootItemSnapshotV1 } from './item-cache-v1.mjs';
 
-export const LOOT_ITEM_PROVIDER_VERSION='loot-item-provider-v1.1';
+export const LOOT_ITEM_PROVIDER_VERSION='loot-item-provider-v1.2';
 const cleanRegion=value=>String(value||process.env.BLIZZARD_REGION||'eu').trim().toLowerCase()||'eu';
 const cleanLocale=value=>String(value||process.env.BLIZZARD_LOCALE||'en_US').trim()||'en_US';
 const positive=value=>{const n=Number(value);return Number.isInteger(n)&&n>0?n:null;};
@@ -19,23 +19,20 @@ async function requestJson(url,{accessToken,fetcher=fetch}={}){
 
 function normalizeItem(row,{locale='en_US'}={}){
   if(!row)return null;const id=positive(row.id);if(!id)return null;
-  const inventoryType=row.inventory_type||row.inventoryType||null,itemClass=row.item_class||row.itemClass||null,itemSubclass=row.item_subclass||row.itemSubclass||null;
+  const inventoryType=row.inventory_type||row.inventoryType||null,itemClass=row.item_class||row.itemClass||null,itemSubclass=row.item_subclass||row.itemSubclass||null,name=localized(row.name,locale)||`Item ${id}`;
   return{
-    id,
-    name:localized(row.name,locale)||`Item ${id}`,
+    id,name,names:{[locale]:name},
     quality:{type:row.quality?.type||null,name:localized(row.quality?.name,locale)},
     level:Number.isFinite(Number(row.level))?Number(row.level):null,
     requiredLevel:Number.isFinite(Number(row.required_level))?Number(row.required_level):null,
     itemClass:{id:positive(itemClass?.id),name:localized(itemClass?.name,locale)},
     itemSubclass:{id:positive(itemSubclass?.id),name:localized(itemSubclass?.name,locale)},
     inventoryType:{type:String(inventoryType?.type||'').trim()||null,name:localized(inventoryType?.name,locale)},
-    mediaId:positive(row.media?.id),
-    purchasePrice:Number.isFinite(Number(row.purchase_price))?Number(row.purchase_price):null,
-    sellPrice:Number.isFinite(Number(row.sell_price))?Number(row.sell_price):null,
-    maxCount:Number.isFinite(Number(row.max_count))?Number(row.max_count):null,
+    mediaId:positive(row.media?.id),purchasePrice:Number.isFinite(Number(row.purchase_price))?Number(row.purchase_price):null,sellPrice:Number.isFinite(Number(row.sell_price))?Number(row.sell_price):null,maxCount:Number.isFinite(Number(row.max_count))?Number(row.max_count):null,
     wowheadUrl:`https://www.wowhead.com/item=${id}`,
   };
 }
+function mergeItemNames(base,incoming){if(!base)return incoming;if(!incoming)return base;return{...base,...incoming,name:base.name||incoming.name,names:{...(base.names||{}),...(incoming.names||{})}};}
 
 export async function fetchLootItemV1(itemId,{region,locale,fetcher=fetch,refresh=false}={}){
   const id=positive(itemId);if(!id)throw new Error('itemId must be a positive integer');
@@ -53,15 +50,18 @@ export async function fetchLootItemV1(itemId,{region,locale,fetcher=fetch,refres
   }
 }
 
+async function searchLocale(text,{region,locale,limit,accessToken,fetcher}){
+  const url=new URL(`https://${region}.api.blizzard.com/data/wow/search/item`);url.searchParams.set('namespace',`static-${region}`);url.searchParams.set('locale',locale);url.searchParams.set(`name.${locale}`,text);url.searchParams.set('_pageSize',String(Math.max(1,Math.min(50,Number(limit)||12))));url.searchParams.set('_page','1');url.searchParams.set('orderby','id');
+  const raw=await withRetry(()=>requestJson(url.toString(),{accessToken,fetcher})),rows=(raw?.results||[]).slice(0,Math.max(1,Math.min(50,Number(limit)||12))),items=[];
+  for(const row of rows){const data=row?.data||null;if(data?.id){const item=normalizeItem(data,{locale});if(item){items.push(item);await persistLootItemSnapshotV1({item,raw:data,region,locale}).catch(()=>{});}continue;}const href=String(row?.key?.href||'').trim();if(!href)continue;try{const detail=await withRetry(()=>requestJson(href,{accessToken,fetcher})),item=normalizeItem(detail,{locale});if(item){items.push(item);await persistLootItemSnapshotV1({item,raw:detail,region,locale}).catch(()=>{});}}catch{}}
+  return{items,blizzardCalls:1+Math.max(0,rows.filter(row=>!row?.data?.id).length)};
+}
+
 export async function searchLootItemsV1(query,{region,locale,limit=12,fetcher=fetch}={}){
   const text=String(query||'').trim();if(!text)throw new Error('query is required');
   if(/^\d+$/.test(text)){const exact=await fetchLootItemV1(Number(text),{region,locale,fetcher});return{...exact,query:text,items:exact.item?[exact.item]:[]};}
-  const r=cleanRegion(region),l=cleanLocale(locale),token=await withRetry(()=>getBlizzardAccessTokenV1({fetcher}));
-  const url=new URL(`https://${r}.api.blizzard.com/data/wow/search/item`);url.searchParams.set('namespace',`static-${r}`);url.searchParams.set('locale',l);url.searchParams.set(`name.${l}`,text);url.searchParams.set('_pageSize',String(Math.max(1,Math.min(50,Number(limit)||12))));url.searchParams.set('_page','1');url.searchParams.set('orderby','id');
-  let raw=await withRetry(()=>requestJson(url.toString(),{accessToken:token.accessToken,fetcher}));
-  if(!Array.isArray(raw?.results)||raw.results.length===0){const retry=new URL(url);retry.searchParams.set('access_token',token.accessToken);raw=await withRetry(()=>requestJson(retry.toString(),{accessToken:token.accessToken,fetcher}));}
-  const rows=(raw?.results||[]).slice(0,Math.max(1,Math.min(50,Number(limit)||12))),items=[];
-  for(const row of rows){const data=row?.data||null;if(data?.id){const item=normalizeItem(data,{locale:l});if(item){items.push(item);await persistLootItemSnapshotV1({item,raw:data,region:r,locale:l}).catch(()=>{});}continue;}const href=String(row?.key?.href||'').trim();if(!href)continue;try{const detail=await withRetry(()=>requestJson(href,{accessToken:token.accessToken,fetcher})),item=normalizeItem(detail,{locale:l});if(item){items.push(item);await persistLootItemSnapshotV1({item,raw:detail,region:r,locale:l}).catch(()=>{});}}catch{}}
-  const unique=[...new Map(items.filter(Boolean).map(item=>[item.id,item])).values()];
-  return{version:LOOT_ITEM_PROVIDER_VERSION,provider:'blizzard-game-data',query:text,items:unique,usage:{oauthCalls:token.oauthCalls,blizzardCalls:1+Math.max(0,rows.filter(row=>!row?.data?.id).length)},negativeEvidence:false};
+  const r=cleanRegion(region),requested=cleanLocale(locale),token=await withRetry(()=>getBlizzardAccessTokenV1({fetcher})),locales=[...new Set([requested,'en_US','es_ES'])],merged=new Map();let calls=0;
+  for(const l of locales){try{const result=await searchLocale(text,{region:r,locale:l,limit,accessToken:token.accessToken,fetcher});calls+=result.blizzardCalls;for(const item of result.items)merged.set(item.id,mergeItemNames(merged.get(item.id),item));}catch(error){if(!retryableError(error))throw error;}}
+  const items=[...merged.values()].slice(0,Math.max(1,Math.min(50,Number(limit)||12)));
+  return{version:LOOT_ITEM_PROVIDER_VERSION,provider:'blizzard-game-data',query:text,searchLocales:locales,items,usage:{oauthCalls:token.oauthCalls,blizzardCalls:calls},negativeEvidence:false,evidenceContract:{identityCanonical:'blizzard-item-id',searchAcceptsEnglishOrSpanish:true,exactIdPreferred:true}};
 }
