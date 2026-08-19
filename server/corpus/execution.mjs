@@ -3,7 +3,9 @@ import { isVercelRuntime, corpusGet, corpusSet } from './storage.mjs';
 import { corpusAliasKey, jobKey } from './keys.mjs';
 
 async function resolveExecutionArgs(input={}){
-  const args={encounterId:Number(input.encounterId),difficulty:Number(input.difficulty||5),partition:Number(input.partition||0)};
+  const args={encounterId:Number(input.encounterId),difficulty:Number(input.difficulty),partition:Number(input.partition||0)};
+  if(!(args.encounterId>0))throw new Error('encounterId is required');
+  if(!(args.difficulty>0))throw new Error('difficulty is required; corpus execution never defaults to Mythic');
   if(args.partition>0)return args;
   const alias=await corpusGet(corpusAliasKey(args));
   if(!(Number(alias?.partition)>0))return null;
@@ -28,40 +30,18 @@ async function reusePersistedLocalDiscovery(input={}){
 }
 
 export function corpusExecutionDescriptor(){
-  if(isVercelRuntime()){
-    return {
-      runtime:'vercel',
-      corpusBuilder:'vercel-workflow',
-      workflow:{enabled:true,durable:true},
-      worker:{enabled:false,required:false},
-    };
-  }
-  return {
-    runtime:'local',
-    corpusBuilder:'local-worker',
-    workflow:{enabled:false,durable:false},
-    worker:{enabled:true,required:true,command:'npm run iris',persistentCheckpoints:true},
-  };
+  if(isVercelRuntime())return{runtime:'vercel',corpusBuilder:'vercel-workflow',workflow:{enabled:true,durable:true},worker:{enabled:false,required:false}};
+  return{runtime:'local',corpusBuilder:'local-worker',workflow:{enabled:false,durable:false},worker:{enabled:true,required:true,command:'dedicated raid corpus worker or npm run iris',persistentCheckpoints:true}};
 }
 
 export async function launchCorpusExecution(input={}){
-  const executionToken=crypto.randomUUID();
-  const hosted=isVercelRuntime();
-  const executionMode=hosted?'vercel-workflow':'local-worker';
-  const executionInput={...input,executionToken,executionMode};
-
+  if(!(Number(input.encounterId)>0))throw new Error('encounterId is required');
+  if(!(Number(input.difficulty)>0))throw new Error('difficulty is required; corpus execution never defaults to Mythic');
+  const executionToken=crypto.randomUUID(),hosted=isVercelRuntime(),executionMode=hosted?'vercel-workflow':'local-worker',executionInput={...input,executionToken,executionMode};
   if(!hosted)await reusePersistedLocalDiscovery(executionInput);
   let status=await activateCorpusExecution(executionInput,executionToken);
-
-  if(!hosted){
-    return {status,workflowRunId:null,executionToken,executionMode};
-  }
-
-  const [{start},{corpusBuildWorkflow}]=await Promise.all([
-    import('workflow/api'),
-    import('../../workflows/corpus-build.js'),
-  ]);
-  const run=await start(corpusBuildWorkflow,[executionInput]);
-  status=await attachWorkflowRun(executionInput,executionToken,run.runId);
-  return {status,workflowRunId:run.runId,executionToken,executionMode};
+  if(!hosted)return{status,workflowRunId:null,executionToken,executionMode};
+  const [{start},{corpusBuildWorkflow}]=await Promise.all([import('workflow/api'),import('../../workflows/corpus-build.js')]);
+  const run=await start(corpusBuildWorkflow,[executionInput]);status=await attachWorkflowRun(executionInput,executionToken,run.runId);
+  return{status,workflowRunId:run.runId,executionToken,executionMode};
 }
