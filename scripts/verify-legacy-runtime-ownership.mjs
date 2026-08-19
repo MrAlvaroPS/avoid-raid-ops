@@ -35,7 +35,7 @@ const declaredSet=new Set(declared);
 const classified=new Map();
 
 expect(LEGACY_RUNTIME_OWNERSHIP_VERSION==='legacy-runtime-ownership-v4','legacy runtime ownership version must stay explicit');
-expect(declared.length===64,`wcl-runtime.js must contain exactly 64 active function declarations after Progress, Players, Corpus and Mechanics presentation retirement; found ${declared.length}`);
+expect(declared.length===62,`wcl-runtime.js must contain exactly 62 active function declarations after Progress, Players, Corpus, Mechanics and Defensive Audit presentation retirement; found ${declared.length}`);
 expect(declared.length===declaredSet.size,'wcl-runtime.js contains duplicate function declarations');
 
 for(const responsibility of LEGACY_RUNTIME_RESPONSIBILITIES){
