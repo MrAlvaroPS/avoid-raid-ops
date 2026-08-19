@@ -68,6 +68,20 @@ test('CRITICAL PRODUCTION LIVE GATE: only the current rehearsal fingerprint can 
   assert.ok(gateAt>=0&&engineAt>gateAt,'Live readiness must be checked before production Operational Execution');
 });
 
+test('CRITICAL SAFE LIVE DEGRADATION: mechanic gating keeps objective telemetry visible without emitting failures or calls',async()=>{
+  const [service,ui,index]=await Promise.all([read('server/services/operational-execution-service.mjs'),read('public/avoid-live-safe-fallback-v3912.js'),read('index.html')]);
+  assert.match(service,/getTelemetry/);
+  assert.match(service,/safeTelemetryAllowedWhileMechanicsGated:true/);
+  assert.match(service,/mechanics:null,blocker:null,nextPullCalls:\[\],homeExecution:null/);
+  assert.match(ui,/SAFE TELEMETRY/);
+  assert.match(ui,/MECHANIC INTELLIGENCE/);
+  assert.match(ui,/NO UNVERIFIED MECHANIC CALL/);
+  assert.match(ui,/Objective pull telemetry above remains valid/);
+  assert.doesNotMatch(ui,/classified failure.*actor/i);
+  assert.match(index,/avoid-live-safe-fallback-v3912\.js\?v=3\.9\.12\.4/);
+  assert.doesNotMatch(ui,BOSS_SPECIFIC);
+});
+
 test('CRITICAL MULTI-BOSS LIVE: changing boss scope clears stale rich data before hydrating the new boss',async()=>{
   const source=await read('public/avoid-execution-context-v3911.js');
   assert.match(source,/lastActiveScopeKey/);
