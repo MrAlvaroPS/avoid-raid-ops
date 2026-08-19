@@ -2,7 +2,7 @@ import { paginatorEvents,eventAbilityId,eventSourceId } from '../wcl/normalizati
 import { fetchReportHeader } from './wide-profile.mjs';
 import { normalizeDeepProfile } from './deep-profile.mjs';
 import { fetchCompleteDeepEventData } from './deep-events-pagination.mjs';
-import { isHomeSourceProfile, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
+import { classifyGlobalBossSourceProfile, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null;};
 const ts=e=>num(e?.timestamp);
@@ -56,7 +56,10 @@ export function attachOriginEvidenceV373(profile,data){
 export async function fetchDeepProfileV373({code,encounterId,difficulty=5,partition=0}){
   const header=await fetchReportHeader({code,encounterId,difficulty,partition});
   if(!header||!header.fights?.length)return null;
-  if(isHomeSourceProfile(header))return null;
+  // Deep acquisition is the most expensive evidence path. It is never attempted
+  // unless WCL has already proven a concrete non-HOME guild identity.
+  const sourceIsolation=classifyGlobalBossSourceProfile(header);
+  if(sourceIsolation.eligible!==true)return null;
   const fightIDs=header.fights.map(f=>Number(f.id)).filter(Number.isFinite);if(!fightIDs.length)return null;
   const fetched=await fetchCompleteDeepEventData({code:String(code),fightIDs});
   const data=fetched.data;
@@ -66,6 +69,7 @@ export async function fetchDeepProfileV373({code,encounterId,difficulty=5,partit
   if(normalized){
     normalized.partition=Number(partition||header.partition||0);
     normalized.deepStreamPagination=fetched.pagination;
+    normalized.sourceIsolation=sourceIsolation;
   }
   const withOrigin=attachOriginEvidenceV373(normalized,data);
   return sanitizeGlobalBossProfile(withOrigin);
