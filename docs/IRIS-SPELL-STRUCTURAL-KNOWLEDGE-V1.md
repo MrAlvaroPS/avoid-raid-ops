@@ -104,6 +104,8 @@ Hard limits:
 
 A single failed filtered lookup does not erase successful sibling queries. Partial coverage is persisted explicitly and provider failure is non-negative evidence. If every requested Wago query fails, the resolution fails rather than manufacturing an empty structural graph.
 
+An HTTP-200 response with an actually empty body is treated as a successful zero-row query. A non-empty response with an unexpected schema remains unresolved/failure and is never converted into negative encounter evidence.
+
 ## Persistence
 
 Raw CSV is **never** persisted.
@@ -175,6 +177,49 @@ official-context-unresolved
 
 `unlisted` is not negative evidence. An internal/helper DB2 spell can be absent from the human-facing Journal and still structurally point to an official mechanic spell.
 
+## Downstream reuse
+
+### Ability Knowledge
+
+`resolveAbilityKnowledgeV1` now reads the current structural snapshot by WCL encounter ID at zero provider calls.
+
+Each requested ability can expose:
+
+```text
+providerSignals.spellStructure
+  status
+  build
+  structuralFingerprint
+  inbound[]
+  outbound[]
+  coverage
+  negativeEvidence = false
+```
+
+If a persisted structural build does not match the current Blizzard-derived build, Ability Knowledge refuses to use it rather than silently combining patch revisions.
+
+### Mechanic Episode Graph
+
+The Episode Graph now applies `mechanic-episode-structural-reconciliation-v1` after official Blizzard reconciliation.
+
+A direct DB2 relation between the Episode anchor and a candidate can change investigation priority to:
+
+```text
+investigate-direct-db2-link-with-wcl
+```
+
+This is especially useful when Blizzard places the spells in different human-facing branches: a direct structural link is a materially new hypothesis and therefore justifies empirical WCL verification instead of automatic deprioritization.
+
+Conversely, non-direct structural context does not cancel an official cross-branch deprioritization.
+
+When player-side actor provenance and suitable inbound DB2 structure align, Iris may emit the diagnostic semantic-origin state:
+
+```text
+encounter-applied-player-state-candidate
+```
+
+This **never rewrites `actorProvenance`** and never means the observed event has already been causally proven.
+
 ## Evidence contract
 
 A DB2 relation may explain implementation structure, but it cannot by itself establish:
@@ -227,43 +272,61 @@ Only Wago DB2 is contacted. Blizzard and WCL network calls remain zero.
 
 `latest` is zero-network and returns the accumulated snapshot for the current stored build.
 
-## Real smoke validation
+## Real Belo'ren validation — 2026-08-19
 
-The runtime provider must be validated against the current build after implementation/schema changes:
-
-```powershell
-npm run validate:spell-structure -- --wcl 3182 --abilities 1243560,1241163,1243866
-```
-
-The smoke must demonstrate:
-
-- persisted Blizzard namespace resolves to exact DB2 build `12.1.0.68914` for the current Belo'ren fixture;
-- Wago request budget is bounded and visible;
-- current-request query coverage is explicit;
-- accumulated latest reloads at 0 provider/WCL calls;
-- raw CSV is not persisted;
-- provider failures remain non-negative;
-- current-request relations are distinguishable from previously accumulated same-build relations.
-
-The current diagnostic structural target is:
+The real runtime smoke was executed for:
 
 ```text
-1243560
-  ? SpellEffect.EffectTriggerSpell
-  -> 1241163 Void Feather
+WCL encounter:      3182
+Blizzard Journal:   2739
+Blizzard namespace: static-12.1.0_68914-eu
+DB2 build:          12.1.0.68914
+seeds:              1241163, 1243560, 1243866
 ```
 
-The fixture is never hard-coded into production logic. The smoke test only reports whether the exact current build contains that relation.
+The six-query bounded plan made zero Blizzard and zero WCL calls. Four filtered queries resolved and two reverse queries returned a non-canonical empty/schema shape; those two remained non-negative unresolved coverage.
 
-If confirmed, the correct interpretation is initially only:
+The important relations confirmed in real DB2 data were:
 
-> build-pinned client structural metadata links 1243560 to the official encounter spell 1241163.
+```text
+1241162 Light Feather
+  -- EffectTriggerSpell -->
+1241163 Void Feather
 
-It is **not** automatically:
+official-to-official-structural-link
+```
 
-> 1243560 is a boss cast, 1243560 caused a particular observed aura event, or a player failed because of this relation.
+```text
+1241163 Void Feather
+  -- EffectTriggerSpell -->
+1241162 Light Feather
 
-Those claims remain WCL/evidence-contract questions.
+official-to-official-structural-link
+```
+
+and, most importantly:
+
+```text
+1243560 [not listed in Journal]
+  -- SpellEffect.EffectTriggerSpell -->
+1241163 Void Feather [official Journal member]
+
+DB2 row ID: 1243843
+effect index: 0
+effect: 32
+implicit target 0: 25
+official context: unlisted-source-to-official-target
+```
+
+This confirms the original diagnostic hypothesis that an internal/helper spell absent from the Journal can be structurally wired to a human-facing official mechanic spell.
+
+The correct claim is:
+
+> Build-pinned client DB2 metadata links spell `1243560` to official encounter spell `1241163 Void Feather` in client build `12.1.0.68914`.
+
+The incorrect stronger claims remain forbidden without WCL evidence:
+
+> `1243560` is necessarily a boss cast; `1243560` caused a particular observed aura event; or a player failed because of this relation.
 
 ## Position in the Iris pipeline
 
@@ -271,6 +334,8 @@ Those claims remain WCL/evidence-contract questions.
 Official Encounter Knowledge (Blizzard)
         ↓
 Spell Structural Knowledge (DB2/Wago)
+        ↓
+Ability Knowledge + Episode structural reconciliation
         ↓
 WCL empirical reconciliation
         ↓
