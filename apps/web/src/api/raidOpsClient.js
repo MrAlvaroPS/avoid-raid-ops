@@ -86,6 +86,7 @@ export const raidOpsClient = {
   reports: ({ report, guild, days = 120, force = false } = {}) => get(`/api/wcl/reports?${params({ report, guild, days, force: force ? 1 : undefined })}`, 30000),
   corpusStatus: ({ encounter, difficulty = 5, partition = 0 } = {}) => get(`/api/wcl/corpus?${params({ encounter, difficulty, partition })}`, 30000),
   corpusAction: (body = {}) => post(`/api/wcl/corpus`, body, 30000),
+  mechanicKnowledge: ({ encounter, difficulty = 5, partition = 0 } = {}) => get(`/api/wcl/mechanic-knowledge?${params({ encounter, difficulty, partition: partition || undefined })}`, 30000),
   knowledge: () => get(`/api/knowledge`, 15000),
   refreshKnowledge: ({ patch = "unknown", season = "unknown", build = "manual" } = {}) => post(`/api/knowledge`, { action: "refresh", patch, season, build }, 30000),
   activateKnowledge: () => post(`/api/knowledge`, { action: "activate" }, 30000),
