@@ -1,8 +1,9 @@
 import { corpusGet,corpusSet } from '../corpus/storage.mjs';
 import { loadLatestRaidCatalogV1 } from '../knowledge/raid-catalog-store-v1.mjs';
 import { getBlizzardAccessTokenV1,fetchBlizzardJournalEncounterV1,blizzardLocalizationV1 } from '../knowledge/providers/blizzard-game-data-v1.mjs';
+import { fetchLootItemV1 } from './item-provider-v1.mjs';
 
-export const RAID_LOOT_CATALOG_VERSION='raid-loot-catalog-v1';
+export const RAID_LOOT_CATALOG_VERSION='raid-loot-catalog-v1.1';
 const norm=value=>String(value||'').normalize('NFKD').replace(/\p{Diacritic}/gu,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const finite=value=>Number.isInteger(Number(value))&&Number(value)>0?Number(value):null;
 const keyFor=zoneId=>`loot/raid-catalog/v1/zone/${Number(zoneId)}/latest.json`;
@@ -37,8 +38,9 @@ export async function ensureRaidLootCatalogV1({refresh=false,...options}={}){
   const catalog=await refreshRaidLootCatalogV1(options);return{catalog,networkExecuted:true,usage:catalog.usage};
 }
 
-export async function searchRaidLootCatalogV1(query,{limit=30,refresh=false,...options}={}){
-  const text=String(query||'').trim();if(!text)throw new Error('query is required');const ensured=await ensureRaidLootCatalogV1({refresh,...options}),catalog=ensured.catalog;
-  const exactId=/^\d+$/.test(text)?Number(text):null,n=norm(text),matches=(catalog.items||[]).filter(item=>exactId?Number(item.id)===exactId:[item.name,...Object.values(item.names||{})].some(name=>norm(name).includes(n))).slice(0,Math.max(1,Math.min(100,Number(limit)||30)));
-  return{version:RAID_LOOT_CATALOG_VERSION,provider:'blizzard-journal-raid-loot',query:text,raid:{zoneId:catalog.zoneId,name:catalog.raidName},items:matches,networkExecuted:ensured.networkExecuted,usage:ensured.usage,catalog:{generatedAt:catalog.generatedAt,itemCount:catalog.items.length,locales:catalog.locales,coverage:catalog.coverage},evidenceContract:catalog.evidenceContract};
+export async function searchRaidLootCatalogV1(query,{limit=30,refresh=false,region=process.env.BLIZZARD_REGION||'eu',...options}={}){
+  const text=String(query||'').trim();if(!text)throw new Error('query is required');const ensured=await ensureRaidLootCatalogV1({refresh,region,...options}),catalog=ensured.catalog;
+  const exactId=/^\d+$/.test(text)?Number(text):null,n=norm(text),refs=(catalog.items||[]).filter(item=>exactId?Number(item.id)===exactId:[item.name,...Object.values(item.names||{})].some(name=>norm(name).includes(n))).slice(0,Math.max(1,Math.min(100,Number(limit)||30))),items=[];let detailCalls=0;
+  for(const ref of refs){try{const detail=await fetchLootItemV1(ref.id,{region});detailCalls+=Number(detail?.usage?.blizzardCalls||0);if(detail.item)items.push({...detail.item,name:ref.names?.en_US||detail.item.name,names:{...(detail.item.names||{}),...(ref.names||{})},bosses:ref.bosses,raidDrop:true});}catch{items.push({...ref,raidDrop:true});}}
+  return{version:RAID_LOOT_CATALOG_VERSION,provider:'blizzard-journal-raid-loot',query:text,raid:{zoneId:catalog.zoneId,name:catalog.raidName},items,networkExecuted:ensured.networkExecuted||detailCalls>0,usage:{oauthCalls:Number(ensured.usage?.oauthCalls||0),blizzardGameDataCalls:Number(ensured.usage?.blizzardGameDataCalls||0)+detailCalls},catalog:{generatedAt:catalog.generatedAt,itemCount:catalog.items.length,locales:catalog.locales,coverage:catalog.coverage},evidenceContract:catalog.evidenceContract};
 }
