@@ -4,7 +4,7 @@ import { loadLatestRaidCatalogV1,persistRaidCatalogV1 } from '../../../server/kn
 import { ensureRaidOfficialKnowledgeV1 } from '../../../server/knowledge/raid-official-bootstrap-v1.mjs';
 import { corpusStorageErrorInfo } from '../../../server/corpus/storage.mjs';
 
-const API_VERSION='raid-catalog-api-v3';
+const API_VERSION='raid-catalog-api-v2';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'private, no-store'}});
 
 async function readCatalog(){return loadLatestRaidCatalogV1().catch(()=>null);}
