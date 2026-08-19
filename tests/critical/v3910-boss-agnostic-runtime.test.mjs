@@ -9,6 +9,12 @@ const GLOBAL_BOSS_ROOTS=[
   'server/corpus','server/knowledge','server/wcl','server/services','server/iris','server/analysis',
   'routes/api/wcl','routes/api/knowledge','workflows',
 ];
+// Legacy bundled knowledge is an application/UI semantic fallback assembled from curated
+// rule packs. It is explicitly NOT an input to GLOBAL BOSS learning. Keep the exception
+// narrow and verify its truth boundary below rather than pretending the file is a learner.
+const APPLICATION_FALLBACK_FILES=new Set([
+  path.normalize('server/knowledge/game-knowledge-v1.mjs'),
+]);
 const FORBIDDEN=[
   {label:"validation boss name",pattern:/Belo'ren|Child of Al'ar/i},
   {label:'validation WCL encounter id',pattern:/\b3182\b/},
@@ -29,28 +35,32 @@ async function runtimeFiles(dir){
 }
 
 async function globalBossFiles(){return (await Promise.all(GLOBAL_BOSS_ROOTS.map(runtimeFiles))).flat();}
+async function learnerFiles(){return (await globalBossFiles()).filter(file=>!APPLICATION_FALLBACK_FILES.has(path.normalize(file)));}
 
 test('CRITICAL v3.9.10 PORTABILITY: GLOBAL BOSS runtime contains no current validation-boss constants',async()=>{
   const violations=[];
-  for(const file of await globalBossFiles()){
+  for(const file of await learnerFiles()){
     const text=await readFile(file,'utf8');
     for(const rule of FORBIDDEN)if(rule.pattern.test(text))violations.push(`${file}: ${rule.label}`);
   }
   assert.deepEqual(violations,[],`Boss-specific validation constants leaked into GLOBAL BOSS runtime:\n${violations.join('\n')}`);
 });
 
-test('CRITICAL v3.9.10 PORTABILITY: GLOBAL BOSS runtime cannot import curated encounter fallback packs',async()=>{
+test('CRITICAL v3.9.10 PORTABILITY: GLOBAL BOSS learner cannot import curated encounter fallback packs',async()=>{
   const violations=[];
-  for(const file of await globalBossFiles()){
+  for(const file of await learnerFiles()){
     const text=await readFile(file,'utf8');
     if(/rule-packs[\\/]encounters/i.test(text))violations.push(file);
   }
   assert.deepEqual(violations,[],`Curated encounter packs leaked into GLOBAL BOSS learning:\n${violations.join('\n')}`);
 
   const intelligence=await readFile('server/engines/intelligence-engine.mjs','utf8');
+  const bundledKnowledge=await readFile('server/knowledge/game-knowledge-v1.mjs','utf8');
   const packReadme=await readFile('server/rule-packs/encounters/README.md','utf8');
   assert.match(intelligence,/const pack=generatedModel\?\.pack\|\|getEncounterRulePack\(encounter\.encounterID\)/,'report application must prefer the generated model before curated fallback');
   assert.match(intelligence,/manual-fallback/,'curated encounter pack must remain explicitly labelled fallback');
+  assert.match(bundledKnowledge,/role:'semantic-seed'/,'legacy bundled knowledge must remain explicitly an application semantic seed');
+  assert.match(bundledKnowledge,/rawCombat:'WCL remains source of truth'/,'legacy application knowledge may never masquerade as GLOBAL BOSS empirical truth');
   assert.match(packReadme,/application\/evaluation fallbacks only/i);
   assert.match(packReadme,/do not train, validate, stabilize, hold out, or promote GLOBAL BOSS knowledge/i);
 });
