@@ -60,12 +60,14 @@ test('source report expansion fails before network for anything except a proven 
   await assert.rejects(()=>fetchSourceReports({source:{type:'guild',id:333,independenceProven:false},zoneId:900}),/verified external guild/);
 });
 
-test('GLOBAL profile assertion is fail-closed and persisted profiles carry the isolation version',()=>{
+test('GLOBAL profile assertion is fail-closed and persisted profiles carry isolation but no uploader identity',()=>{
   const scope={encounterId:8001,difficulty:3,partition:7};
   assert.equal(assertProfileAllowedInGlobalBossKnowledge({encounterId:8001,difficulty:3,partition:7,guild:{id:333},owner:{id:444}},scope),true);
   assert.throws(()=>assertProfileAllowedInGlobalBossKnowledge({encounterId:8001,difficulty:3,partition:7,guild:{id:111}},scope),/Home source/);
   assert.throws(()=>assertProfileAllowedInGlobalBossKnowledge({encounterId:8001,difficulty:3,partition:7,owner:{id:444}},scope),/independence is unverified/);
-  const clean=sanitizeGlobalBossProfile({code:'synthetic',fights:[{id:1,friendlyPlayers:[1,2,3]}]});
+  const clean=sanitizeGlobalBossProfile({code:'synthetic',guild:{id:333},owner:{id:444},fights:[{id:1,friendlyPlayers:[1,2,3]}]});
   assert.equal(clean.sourceIsolationVersion,GLOBAL_BOSS_SOURCE_ISOLATION_VERSION);
   assert.equal('friendlyPlayers' in clean.fights[0],false);
+  assert.equal('owner' in clean,false);
+  assert.equal(clean.guild.id,333);
 });
