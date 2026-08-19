@@ -13,7 +13,7 @@ test('CRITICAL v3.9.10 GLOBAL CORPUS: HOME isolation is fail-closed before expen
   ]);
   assert.match(scopes,/GLOBAL_BOSS_SOURCE_ISOLATION_VERSION/);
   assert.match(scopes,/external-origin-unverified/);
-  assert.match(scopes,/A missing guild identity is not interpreted as proof|not proof of\s+independence/i);
+  assert.match(scopes,/not proof of[\s\S]{0,60}independence/i);
   assert.match(sourceExpansion,/classifyGlobalBossSourceProfile/);
   assert.match(sourceExpansion,/source\.type!==['"]guild['"]\|\|source\.independenceProven!==true/);
   assert.doesNotMatch(sourceExpansion,/return\{type:['"]user['"]/);
