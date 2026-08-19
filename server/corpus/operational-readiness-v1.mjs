@@ -4,7 +4,7 @@ import { aggregateKey, corpusId } from './keys.mjs';
 import { getBossSamplingManifest, loadOperationalEncounterModelV2 } from './service-v2.mjs';
 import { getOperationalExecutionV1 } from '../engines/operational-execution-v1.mjs';
 
-export const OPERATIONAL_READINESS_VERSION='global-boss-operational-readiness-v2';
+export const OPERATIONAL_READINESS_VERSION='global-boss-operational-readiness-v3';
 export const OPERATIONAL_REHEARSAL_DEFAULTS=Object.freeze({reports:3,minSuccessfulReports:2,minObservedMechanics:3,minCoveragePct:30,maxTruncatedReports:0});
 
 const positive=(value,label)=>{const n=Number(value);if(!Number.isInteger(n)||n<=0)throw new Error(`${label} is required`);return n;};
