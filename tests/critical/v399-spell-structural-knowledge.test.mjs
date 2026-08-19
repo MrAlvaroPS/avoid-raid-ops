@@ -28,7 +28,8 @@ test('CRITICAL v3.9.9 STRUCTURAL BOUNDS: runtime cannot become a bulk DB2 crawle
   assert.match(provider,/WAGO_DB2_MAX_ROWS=5000/);
   assert.match(provider,/filter\[SpellID\]/);
   assert.match(provider,/EffectTriggerSpell/);
-  assert.match(provider,/if\(!text\.trim\(\)\)return/,'an HTTP-200 empty CSV may prove zero rows without becoming provider failure');
+  assert.match(provider,/text\.trim\(\)/,'empty-body handling must remain explicit');
+  assert.match(provider,/rows:\[\],responseRows:0,matchedRows:0,serverFilterVerified:true,emptyResponse:true/,'HTTP-200 empty CSV must remain successful zero-row coverage');
   assert.doesNotMatch(provider,/downloadAll|recursiveCrawl|wholeTableFallback/);
 });
 
