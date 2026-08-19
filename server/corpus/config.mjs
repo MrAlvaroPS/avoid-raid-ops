@@ -19,17 +19,12 @@ export const CORPUS_DEFAULTS = Object.freeze({
   minIndependentSourcesToPublish: 50,
   minValidationSourcesToPublish: 12,
   minValidationMeanToPublish: 0.66,
-  // Canonical global-boss sampling gates. These are evaluated after cached reports
-  // are rebalanced by independent source and progression outcome.
   maxSourceReportShareToPublish: 0.10,
   maxSourcePullShareToPublish: 0.12,
   maxDeepSourceReportShareToPublish: 0.20,
   maxDeepSourcePullShareToPublish: 0.25,
   minSourcesPerOutcomeToPublish: 8,
   minDeepSourcesPerOutcomeToPublish: 3,
-  // v3.7.1 safety hold: the legacy compiler persists candidates, while the
-  // encounter-origin policy is applied by the corpus API. Keep auto-publish
-  // disabled until the policy layer moves into the persisted compiler path.
   minLearnedPctToPublish: 101,
   minSemanticCoverageToPublish: 0.70,
   minSignalCoverageToPublish: 0.75,
@@ -37,12 +32,34 @@ export const CORPUS_DEFAULTS = Object.freeze({
   systemicFailureThreshold: 3,
 });
 
+// Fast, bounded fresh-tier reference. This is deliberately below the canonical
+// publication gates: it can support an EARLY GLOBAL REFERENCE, but can never be
+// mistaken for accepted/promoted GLOBAL BOSS knowledge.
+export const CORPUS_FOUNDATION_PROFILE = Object.freeze({
+  targetPulls: 300,
+  deepTargetPulls: 60,
+  maxCandidateReports: 1200,
+  maxRankingPages: 8,
+  maxSourcePages: 4,
+  sourcePageLimit: 50,
+});
+
+const bounded=(value,fallback,min,max)=>{const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):fallback;};
 export function clampCorpusConfig(input={}){
-  // v3.5 compatibility: targetReports/deepTargetReports are accepted but interpreted
-  // as pull targets. The UI sends targetPulls/deepTargetPulls from v3.5.1 onward.
+  const profile=String(input.corpusProfile||input.profile||'full').toLowerCase();
+  const base=profile==='foundation'?{...CORPUS_DEFAULTS,...CORPUS_FOUNDATION_PROFILE}:CORPUS_DEFAULTS;
   const rawTarget=Number(input.targetPulls ?? input.targetReports);
   const rawDeep=Number(input.deepTargetPulls ?? input.deepTargetReports);
-  const target=Math.max(100,Math.min(CORPUS_DEFAULTS.maxTargetPulls,rawTarget||CORPUS_DEFAULTS.targetPulls));
-  const deep=Math.max(20,Math.min(target,rawDeep||Math.min(CORPUS_DEFAULTS.deepTargetPulls,target)));
-  return {...CORPUS_DEFAULTS,targetPulls:Math.round(target),deepTargetPulls:Math.round(deep)};
+  const target=Math.max(100,Math.min(base.maxTargetPulls,rawTarget||base.targetPulls));
+  const deep=Math.max(20,Math.min(target,rawDeep||Math.min(base.deepTargetPulls,target)));
+  return {
+    ...base,
+    corpusProfile:profile==='foundation'?'foundation':'full',
+    targetPulls:Math.round(target),
+    deepTargetPulls:Math.round(deep),
+    maxCandidateReports:bounded(input.maxCandidateReports,base.maxCandidateReports,100,CORPUS_DEFAULTS.maxCandidateReports),
+    maxRankingPages:bounded(input.maxRankingPages,base.maxRankingPages,1,CORPUS_DEFAULTS.maxRankingPages),
+    maxSourcePages:bounded(input.maxSourcePages,base.maxSourcePages,1,CORPUS_DEFAULTS.maxSourcePages),
+    sourcePageLimit:bounded(input.sourcePageLimit,base.sourcePageLimit,10,CORPUS_DEFAULTS.sourcePageLimit),
+  };
 }
