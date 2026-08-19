@@ -112,12 +112,13 @@ test('CRITICAL v3.9.9 CONTRACTS: Blizzard is official published metadata while W
   assert.ok(source.prohibited.includes('treating-journal-as-observed-pull-evidence'));
   assert.equal(findIrisCapability('knowledge.encounter.preview').autonomy,'automatic');
   assert.equal(findIrisCapability('knowledge.encounter.resolve').status,'available');
-  const [architecture,operations,pipeline,pkg]=await Promise.all([read('IRIS-ARCHITECTURE.md'),read('IRIS-OPERATIONS.md'),read('docs/IRIS-BOSS-AGNOSTIC-LEARNING-PIPELINE-V1.md'),read('package.json')]);
+  const [architecture,operations,pipeline,pkgText]=await Promise.all([read('IRIS-ARCHITECTURE.md'),read('IRIS-OPERATIONS.md'),read('docs/IRIS-BOSS-AGNOSTIC-LEARNING-PIPELINE-V1.md'),read('package.json')]);
   assert.match(architecture,/Blizzard Encounter Journal/);
   assert.match(architecture,/Warcraft Logs is combat truth/);
   assert.match(operations,/official-encounter-semantic-graph-v1/);
   assert.match(pipeline,/Official encounter knowledge resolution/);
-  assert.match(pkg,/"version": "0\.3\.9-9-vercel\.0"/);
+  const overlay=String(JSON.parse(pkgText).version||'').match(/^0\.3\.9-(\d+)-vercel\.0$/);
+  assert.ok(overlay&&Number(overlay[1])>=9,'package must remain on v3.9 overlay 9 or later');
 });
 
 test('CRITICAL v3.9.9 DOCTRINE: future Iris work must retain official, structural and observed decision procedure',async()=>{
