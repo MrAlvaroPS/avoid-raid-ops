@@ -5,6 +5,7 @@ query AvoidActiveReportManifest($code: String!) {
     code title startTime endTime revision visibility
     zone { id name }
     guild { id name }
+    owner { id }
     fights(killType: Encounters) {
       id encounterID name difficulty kill startTime endTime fightPercentage bossPercentage inProgress
     }
