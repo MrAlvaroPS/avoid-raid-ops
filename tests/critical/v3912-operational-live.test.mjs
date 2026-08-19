@@ -23,6 +23,17 @@ test('CRITICAL v3.9.12 LIVE: operational execution is exact-difficulty, complete
   assert.match(store,/longitudinalAcrossAllPersistedPulls:true/);assert.match(store,/singlePullCannotReplaceAggregate:true/);assert.match(store,/mechanicallyReadyIsNotOverallKillability:true/);
 });
 
+test('CRITICAL v3.9.12 OPERATIONAL STREAMS: runtime uses the same untranslated WCL spell identity contract as corpus and has a bounded parity probe',async()=>{
+  const [intelligence,corpus,probe,pkg]=await Promise.all([read('server/wcl/queries/intelligence.mjs'),read('server/wcl/queries/corpus.mjs'),read('scripts/iris-operational-stream-probe.mjs'),read('package.json')]);
+  assert.match(corpus,/friendDamage:events\(dataType:DamageTaken[^\n]+translate:false/);
+  const operationalEventCalls=[...intelligence.matchAll(/events\([^\n]+\)/g)].map(m=>m[0]);
+  assert.ok(operationalEventCalls.length>=9,'expected operational event queries and continuation queries');
+  for(const call of operationalEventCalls)assert.match(call,/translate:false/,'operational WCL spell identity must not diverge from corpus translation semantics');
+  assert.match(probe,/allDamage:events/);assert.match(probe,/filteredDamage:events/);assert.match(probe,/clientMatchedEvents/);assert.match(probe,/unfilteredComparisonIsDiagnosticOnly:true/);assert.match(probe,/doesNotTrain:true/);assert.match(probe,/doesNotPromote:true/);
+  assert.match(pkg,/validate:operational-streams/);
+  assert.doesNotMatch(probe,BOSS_SPECIFIC,'stream probe must remain boss-agnostic');
+});
+
 test('CRITICAL v3.9.12 HEADER: historical context is LOG then PULL, Active WCL stays independent and live scope rollover clears old boss data',async()=>{
   const [runtime,css,index]=await Promise.all([read('public/avoid-execution-context-v3911.js'),read('public/raidops-v3911-execution.css'),read('index.html')]);
   const logAt=runtime.indexOf('<small>LOG</small>'),pullAt=runtime.indexOf('<small>PULL</small>'),activeAt=runtime.indexOf('ACTIVE WCL');
