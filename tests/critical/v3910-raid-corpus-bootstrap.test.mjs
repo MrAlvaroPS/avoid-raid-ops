@@ -29,14 +29,23 @@ test('CRITICAL v3.9.10 RAID CORPUS: fresh-tier bootstrap is generic, difficulty-
   assert.equal(pkg.scripts['work:raid-corpus'],'node --env-file=.env.local scripts/iris-raid-corpus-worker.mjs');
 });
 
-test('CRITICAL v3.9.10 MECHANICS HEADER: report-independent Mechanics owns and restores header context',async()=>{
-  const [header,index]=await Promise.all([read('public/iris-mechanics-header-v3910.js'),read('index.html')]);
+test('CRITICAL v3.9.10 MECHANICS HEADER: report-independent Mechanics owns truthful current-raid context and restores it',async()=>{
+  const [header,referenceUi,index]=await Promise.all([read('public/iris-mechanics-header-v3910.js'),read('public/iris-mechanics-global-reference-v3910.js'),read('index.html')]);
   assert.match(header,/iris-k-scope-raid/);
   assert.match(header,/\.breadcrumbs/);
   assert.match(header,/\.selectors > button:not\(\.live\)/);
   assert.match(header,/function restore\(/);
   assert.match(header,/MutationObserver/);
-  assert.match(header,/raidSpan\.textContent=name\.toUpperCase\(\)/);
-  assert.match(index,/iris-mechanics-header-v3910\.js\?v=3\.9\.10\.5/);
-  assert.doesNotMatch(header,bossFixture);
+  assert.match(header,/name\.toUpperCase\(\)/);
+  assert.match(header,/RAID-FIRST INTELLIGENCE/);
+  assert.match(header,/Boss Mechanics/);
+  assert.match(header,/Official boss mechanics, same-difficulty GLOBAL public evidence and AvoiD execution/);
+  assert.match(header,/CURRENT RAID/);
+  assert.doesNotMatch(header,/MECHANICAL ACCURACY|\+5 vs matched peers/);
+  assert.match(referenceUi,/GLOBAL PUBLIC REFERENCE/);
+  assert.match(referenceUi,/FOUNDATION READY/);
+  assert.match(referenceUi,/not accepted mechanic knowledge/i);
+  assert.match(index,/iris-mechanics-global-reference-v3910\.js\?v=3\.9\.10\.6/);
+  assert.match(index,/iris-mechanics-header-v3910\.js\?v=3\.9\.10\.7/);
+  assert.doesNotMatch(header,bossFixture);assert.doesNotMatch(referenceUi,bossFixture);
 });
