@@ -32,6 +32,19 @@ export const CORPUS_DEFAULTS = Object.freeze({
   systemicFailureThreshold: 3,
 });
 
+// Fastest bounded reference intended to make a brand-new boss operational for AvoiD.
+// It is deliberately below publication/Foundation maturity and may only be consumed
+// through the explicitly tagged Operational Reference contract after canonical HOME
+// exclusion/source checks pass.
+export const CORPUS_OPERATIONAL_PROFILE = Object.freeze({
+  targetPulls: 100,
+  deepTargetPulls: 20,
+  maxCandidateReports: 500,
+  maxRankingPages: 4,
+  maxSourcePages: 2,
+  sourcePageLimit: 50,
+});
+
 // Fast, bounded fresh-tier reference. This is deliberately below the canonical
 // publication gates: it can support an EARLY GLOBAL REFERENCE, but can never be
 // mistaken for accepted/promoted GLOBAL BOSS knowledge.
@@ -46,15 +59,17 @@ export const CORPUS_FOUNDATION_PROFILE = Object.freeze({
 
 const bounded=(value,fallback,min,max)=>{const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):fallback;};
 export function clampCorpusConfig(input={}){
-  const profile=String(input.corpusProfile||input.profile||'full').toLowerCase();
-  const base=profile==='foundation'?{...CORPUS_DEFAULTS,...CORPUS_FOUNDATION_PROFILE}:CORPUS_DEFAULTS;
+  const requested=String(input.corpusProfile||input.profile||'full').toLowerCase();
+  const profile=requested==='operational'?'operational':requested==='foundation'?'foundation':'full';
+  const overlay=profile==='operational'?CORPUS_OPERATIONAL_PROFILE:profile==='foundation'?CORPUS_FOUNDATION_PROFILE:{};
+  const base={...CORPUS_DEFAULTS,...overlay};
   const rawTarget=Number(input.targetPulls ?? input.targetReports);
   const rawDeep=Number(input.deepTargetPulls ?? input.deepTargetReports);
   const target=Math.max(100,Math.min(base.maxTargetPulls,rawTarget||base.targetPulls));
   const deep=Math.max(20,Math.min(target,rawDeep||Math.min(base.deepTargetPulls,target)));
   return {
     ...base,
-    corpusProfile:profile==='foundation'?'foundation':'full',
+    corpusProfile:profile,
     targetPulls:Math.round(target),
     deepTargetPulls:Math.round(deep),
     maxCandidateReports:bounded(input.maxCandidateReports,base.maxCandidateReports,100,CORPUS_DEFAULTS.maxCandidateReports),
