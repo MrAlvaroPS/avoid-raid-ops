@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
   statuses: write
 
 concurrency:
@@ -23,6 +23,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+      - name: Apply approved Pull Lab migration once
+        if: github.event_name == 'pull_request'
+        run: |
+          if grep -q 'function applyPullLab() {' public/wcl-runtime.js; then
+            python3 scripts/migrate-pull-lab-owner-once.py
+            git diff --check
+            node --test tests/unit/pull-lab-runtime-v4.test.mjs tests/unit/active-assets-manifest-v4.test.mjs tests/unit/runtime-dom-safety-v389.test.mjs tests/unit/legacy-runtime-ownership-v4.test.mjs
+            node scripts/verify-legacy-runtime-ownership.mjs
+            node scripts/sync-active-asset-html.mjs --check
+            git config user.name "AvoiD v4 migration"
+            git config user.email "actions@users.noreply.github.com"
+            git add apps/web/src/features/pull-lab/runtime.js public/pull-lab-runtime.js public/wcl-runtime.js config/legacy-runtime-ownership.mjs config/active-assets.mjs index.html tests/unit/pull-lab-runtime-v4.test.mjs tests/unit/active-assets-manifest-v4.test.mjs tests/unit/runtime-dom-safety-v389.test.mjs tests/unit/legacy-runtime-ownership-v4.test.mjs
+            test "$(git diff --cached --name-only | wc -l)" -eq 10
+            git commit -m "refactor(v4): promote Pull Lab source owner"
+            git push origin HEAD:${{ github.head_ref }}
+          else
+            echo "Pull Lab legacy writer already retired; migration step is a no-op."
+          fi
       - name: Node 22
         uses: actions/setup-node@v4
         with:
