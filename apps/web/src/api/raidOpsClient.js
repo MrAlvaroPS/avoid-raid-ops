@@ -3,15 +3,9 @@ const RETRY_DELAY_MS = 500;
 
 export class RaidOpsApiError extends Error {
   constructor(message, { status = 0, code = "REQUEST_FAILED", service = "unknown", retryable = false, cause = null } = {}) {
-    super(message, { cause });
-    this.name = "RaidOpsApiError";
-    this.status = status;
-    this.code = code;
-    this.service = service;
-    this.retryable = retryable;
+    super(message, { cause }); this.name = "RaidOpsApiError"; this.status = status; this.code = code; this.service = service; this.retryable = retryable;
   }
 }
-
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const params = values => new URLSearchParams(Object.fromEntries(Object.entries(values).filter(([, value]) => value != null && value !== "")));
 const serviceName = url => { try { return new URL(url, location.origin).pathname; } catch { return String(url); } };
@@ -37,16 +31,16 @@ const get = (url, timeoutMs) => requestJson(url, { timeoutMs });
 const post = (url, body, timeoutMs = 30000) => requestJson(url, { method: "POST", body, timeoutMs, retries: 0 });
 
 export const raidOpsClient = {
-  report: ({ report, guild, encounter } = {}) => get(`/api/wcl/report?${params({ report, guild, encounter })}`, 45000),
-  telemetry: ({ report, encounter } = {}) => get(`/api/wcl/telemetry?${params({ report, encounter })}`, 60000),
-  history: ({ report, guild, encounter } = {}) => get(`/api/wcl/history?${params({ report, guild, encounter })}`, 60000),
-  intelligence: ({ report, encounter } = {}) => get(`/api/wcl/intelligence?${params({ report, encounter })}`, 60000),
-  status: ({ report, encounter } = {}) => get(`/api/wcl/status?${params({ report, encounter })}`, 15000),
+  report: ({ report, guild, encounter, difficulty } = {}) => get(`/api/wcl/report?${params({ report, guild, encounter, difficulty })}`, 45000),
+  telemetry: ({ report, encounter, difficulty } = {}) => get(`/api/wcl/telemetry?${params({ report, encounter, difficulty })}`, 60000),
+  history: ({ report, guild, encounter, difficulty } = {}) => get(`/api/wcl/history?${params({ report, guild, encounter, difficulty })}`, 60000),
+  intelligence: ({ report, encounter, difficulty } = {}) => get(`/api/wcl/intelligence?${params({ report, encounter, difficulty })}`, 60000),
+  status: ({ report, encounter, difficulty } = {}) => get(`/api/wcl/status?${params({ report, encounter, difficulty })}`, 15000),
   reports: ({ report, guild, days = 120, force = false } = {}) => get(`/api/wcl/reports?${params({ report, guild, days, force: force ? 1 : undefined })}`, 30000),
-  corpusStatus: ({ encounter, difficulty = 5, partition = 0 } = {}) => get(`/api/wcl/corpus?${params({ encounter, difficulty, partition })}`, 30000),
+  corpusStatus: ({ encounter, difficulty, partition = 0 } = {}) => get(`/api/wcl/corpus?${params({ encounter, difficulty, partition })}`, 30000),
   corpusAction: (body = {}) => post(`/api/wcl/corpus`, body, 30000),
   raidCatalog: ({ refresh = false, official = true } = {}) => get(`/api/knowledge/raid-catalog?${params({ refresh: refresh ? 1 : undefined, official: official ? 1 : 0 })}`, 60000),
-  mechanicKnowledge: ({ encounter, difficulty = 5, partition = 0 } = {}) => get(`/api/wcl/mechanic-knowledge?${params({ encounter, difficulty, partition: partition || undefined })}`, 30000),
+  mechanicKnowledge: ({ encounter, journal, difficulty, difficultyName, partition = 0 } = {}) => get(`/api/wcl/mechanic-knowledge?${params({ encounter, journal, difficulty, difficultyName, partition: partition || undefined })}`, 30000),
   knowledge: () => get(`/api/knowledge`, 15000),
   refreshKnowledge: ({ patch = "unknown", season = "unknown", build = "manual" } = {}) => post(`/api/knowledge`, { action: "refresh", patch, season, build }, 30000),
   activateKnowledge: () => post(`/api/knowledge`, { action: "activate" }, 30000),
