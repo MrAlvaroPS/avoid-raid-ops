@@ -73,12 +73,16 @@ This is an **operational smoke/coverage gate**, not a scientific significance te
 
 A mechanic may be **observed without being a failure**. Observational inferences such as pressure windows, state-linked impacts, phase-boundary casts or damage-distribution signals increment observation coverage when their exact event evidence appears, but they do not create `failedOccurrences`, player blame or mechanical accuracy. This distinction prevents the rehearsal gate from treating real observation as absence while preserving scoring safety.
 
+The rehearsal fingerprint includes its readiness contract version. A classifier/readiness semantic change invalidates an older `COVERAGE REVIEW` automatically, allowing one new deterministic rehearsal. An unchanged current review is skipped to avoid repeatedly spending WCL on the same known result.
+
 ```powershell
 npm run validate:operational-rehearsal -- --encounter <id> --difficulty Normal
 npm run validate:operational-rehearsal -- --encounter <id> --difficulty Normal --execute
 ```
 
 The first command is zero-network. It also exposes `packDiagnostics` from the persisted canonical corpus: generated mechanic inference/IDs, Wide/Deep presence and available actor-origin evidence. This diagnostic does not reclassify, train or promote anything. The second command explicitly executes bounded WCL observation.
+
+A raw WCL 429 during rehearsal is never persisted as coverage evidence. It remains a transient throttle condition for the caller/watcher.
 
 ## `prepare:boss`
 
