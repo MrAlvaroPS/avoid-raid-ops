@@ -14,6 +14,7 @@ test('CRITICAL v3.9.10 MECHANICS UI: boss+difficulty scope is generic and contai
   assert.match(runtime,/data-difficulty/);
   assert.match(runtime,/Cross-difficulty evidence forbidden/);
   assert.match(runtime,/window\.__AVOID_WCL__/);
+  assert.match(runtime,/LOAD THIS EXECUTION SCOPE/);
   assert.doesNotMatch(runtime,/searchParams\.set\(['"]difficulty['"],\s*['"]5['"]\)/);
   assert.match(react,/DIFFICULTY/);
   assert.match(react,/journalEncounterId/);
@@ -35,6 +36,6 @@ test('CRITICAL v3.9.10 MECHANICS API: difficulty is mandatory and the read model
   assert.match(service,/evaluateMatchedNullBaselineV1/);
   assert.match(service,/buildIndependentEvidenceGroupsV1/);
   assert.match(service,/buildStatisticalStabilityV1/);
-  assert.match(index,/iris-mechanics-knowledge-v3910\.js\?v=3\.9\.10\.2/);
-  assert.match(index,/raidops-v3910-difficulty\.css/);
+  assert.match(index,/iris-mechanics-knowledge-v3910\.js\?v=3\.9\.10\.3/);
+  assert.match(index,/raidops-v3910-difficulty\.css\?v=3\.9\.10\.3/);
 });
