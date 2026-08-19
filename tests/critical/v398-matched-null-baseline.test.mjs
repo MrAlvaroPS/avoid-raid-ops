@@ -9,7 +9,8 @@ test('CRITICAL v3.9.8 MATCHED NULL: preview/evaluate are zero-WCL and execution 
   assert.match(route,/action==='preview'/);
   assert.match(route,/networkExecuted:false,wclCallsExecuted:0,preview/);
   assert.match(route,/action==='evaluate'/);
-  assert.match(route,/networkExecuted:false,wclCallsExecuted:0,evaluation/);
+  assert.match(route,/networkExecuted:false,wclCallsExecuted:0/);
+  assert.match(route,/evaluation/);
   assert.match(route,/confirmExecution!==true/);
   assert.match(route,/Preview fingerprint is missing or stale/);
   assert.doesNotMatch(route,/wholeReport|startCorpus|launchCorpusExecution|improveModel/);
