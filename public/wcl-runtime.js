@@ -644,68 +644,6 @@ function applyTelemetryComposition() {
   buildRosterIntelligencePanel(players);
 }
 
-function applyTelemetryDefensives() {
-  if (!telemetry?.players?.length) return;
-  const heading = qsa(".page-banner h2").find(x => x.textContent.trim() === "Defensive Audit");
-  if (!heading) return;
-  const dbanner=document.querySelector(".page-banner"); if(dbanner){text(dbanner.querySelector(".badge"),"OBSERVED DEFENSIVE DATA");text(dbanner.querySelector(":scope > div > p"),"Deaths and observed consumable/cast data from WCL. Defensive availability and preventability remain pending until cooldown reconstruction.");}
-
-  const banner = document.querySelector(".banner-stat");
-  if (banner?.querySelector("label")?.textContent.trim() === "PREVENTABLE DEATHS") {
-    text(banner.querySelector("b"), "—");
-    text(banner.querySelector("small"), `${telemetry.deaths?.firstDeathCount ?? 0} first deaths · ${telemetry.deaths?.meaningfulCount ?? 0} before wipe cutoff`);
-  }
-
-  setPendingStat("PERSONAL COVERAGE", "Defensive catalogue + cooldown reconstruction required");
-  setPendingStat("HEALTHSTONE USE", "Uses detectable; eligible-opportunity rate pending");
-  setPendingStat("HEALING POTION USE", "Uses detectable; eligible-opportunity rate pending");
-  setPendingStat("DIED WITH PERSONAL", "Availability cannot yet be asserted");
-  setPendingStat("DIED WITH CONSUMABLE", "Inventory cannot be proven by WCL");
-
-  const panel = panelByTitle("Player defensive accountability");
-  if (panel) {
-    setPanelSubtitle("Player defensive accountability", "Current report · observed WCL uses; availability model pending");
-    const rows = qsa(".audit-table > div:not(.at-head)", panel);
-    rows.forEach((row, idx) => {
-      const p = telemetry.players[idx];
-      if (!p) { row.style.display="none"; return; }
-      row.style.display="";
-      const cells = Array.from(row.children);
-      const use = telemetry.consumables?.detectedUsesByPlayerName?.[String(p.name).toLowerCase()] || {healthstone:0,potion:0};
-      if (cells[0]) {
-        text(cells[0].querySelector("i"), String(p.name)[0]);
-        text(cells[0].querySelector("b"), p.name);
-      }
-      if (cells[1]) {
-        text(cells[1].querySelector("b"), "Rule pack pending");
-        text(cells[1].querySelector("small"), "Buff/cast data loaded");
-      }
-      if (cells[2]) text(cells[2], "—");
-      if (cells[3]) text(cells[3].querySelector("b") || cells[3], "—");
-      if (cells[4]) text(cells[4].querySelector("b") || cells[4], String(use.healthstone || 0));
-      if (cells[5]) text(cells[5].querySelector("b") || cells[5], String(use.potion || 0));
-      if (cells[6]) { const enc=p.encounter||p; text(cells[6], `${enc.firstDeaths ?? 0} first · ${enc.meaningfulDeaths ?? 0} meaningful`); }
-    });
-  }
-
-  const controls=document.querySelector(".audit-controls"); if(controls){const badge=controls.querySelector(".badge");if(badge)text(badge,"WINDOW CLASSIFICATION PENDING");}
-  const plan=panelByTitle("Defensive plan vs execution"); if(plan){text(plan.querySelector(".panel-title p"),"Assignment plan / cooldown catalogue not ingested yet");qsa(".cd-plan > div",plan).forEach((row,idx)=>{const time=row.querySelector("time"),span=row.querySelector("span"),em=row.querySelector("em"),badge=row.querySelector(".badge");text(time,"—");text(span?.querySelector("b"),idx===0?"Raid cooldown plan pending":"—");text(span?.querySelector("small"),"No assignment source connected");text(em,"—");if(badge)text(badge,"PENDING");});}
-
-  const replay = qsa(".panel").find(p => p.querySelector(".death-replay"));
-  if (replay) {
-    const h3 = replay.querySelector(".panel-title h3");
-    const sub = replay.querySelector(".panel-title p");
-    text(h3, "Death replay · event window pending");
-    text(sub, `Deaths are normalized into raw, wipeCutoff ${telemetry.deaths?.wipeCutoff ?? 5}, and first-death scopes; ±10s replay is next.`);
-    qsa(".death-replay > div", replay).forEach((r,idx) => {
-      text(r.querySelector("time"), "—");
-      text(r.querySelector("span"), idx === 0 ? "Real death events connected" : "Detailed event context pending");
-      text(r.querySelector("b"), idx === 0 ? String(telemetry.bestPullEvents?.deathCount ?? 0) : "—");
-    });
-    const verdict=replay.closest("article.panel")?.querySelector(".verdict"); if(verdict){text(verdict.querySelector(".badge"),"CAUSALITY PENDING");text(verdict.querySelector("p"),"No death is classified as preventable until pre-death damage, mitigation, resources and cooldown availability are reconstructed.");}
-  }
-}
-
 function applyLiveStatus(status) {
   if (!status?.ok) return;
   const heading = qsa(".live-command h2").find(x => x.textContent.trim() === "Raid Night Control Room");
@@ -884,45 +822,6 @@ function applyIntelligenceCommandCenter() {
   }
 }
 
-function applyIntelligenceDefensives() {
-  if(intelligence?.status!=="ready")return;
-  const heading=qsa(".page-banner h2").find(x=>x.textContent.trim()==="Defensive Audit");
-  if(!heading)return;
-  const chains=(intelligence.deathChains?.chains||[]).filter(c=>c.probableCause);
-  const replay=qsa(".panel").find(p=>p.querySelector(".death-replay"));
-  const chain=chains.slice().sort((a,b)=>(Number(b.deathAtMs)||0)-(Number(a.deathAtMs)||0))[0];
-  if(replay&&chain){
-    text(replay.querySelector(".panel-title h3"),`Death evidence · ${chain.player||playerNameById(chain.actorId)}`);
-    text(replay.querySelector(".panel-title p"),`Pull ${chain.fightId} · probable cause window ${Math.round((intelligence.deathChains?.windowMs||10000)/1000)}s`);
-    const rows=qsa(".death-replay > div",replay);
-    rows.forEach(r=>r.style.display="none");
-    const evidence=chain.evidence||[];
-    evidence.slice(0,Math.max(0,rows.length-1)).reverse().forEach((e,idx)=>{
-      const row=rows[idx];if(!row)return;row.style.display="";
-      text(row.querySelector("time"),fmtDuration((chain.fightRelativeMs||0)-(e.deltaMs||0)));
-      text(row.querySelector("span"),e.mechanicName||e.reason||"Mechanic evidence");
-      text(row.querySelector("b"),`${Math.round((e.deltaMs||0)/100)/10}s before`);
-    });
-    const deathRow=rows[Math.min(evidence.length,rows.length-1)];
-    if(deathRow){deathRow.style.display="";deathRow.className="death";text(deathRow.querySelector("time"),fmtDuration(chain.fightRelativeMs));text(deathRow.querySelector("span"),`${chain.player||playerNameById(chain.actorId)} dies`);text(deathRow.querySelector("b"),chain.killingBlow||"DEATH");}
-    const verdict=replay.querySelector(".verdict");
-    if(verdict){text(verdict.querySelector(".badge"),`${confidenceLabel(chain.confidence)} CAUSE SIGNAL`);text(verdict.querySelector("p"),`${chain.probableCause?.mechanicName||"Mechanic"} is the highest-ranked preceding classified event. Defensive availability is not yet inferred, so this is not labelled preventable.`);}
-  }
-
-  const plan=panelByTitle("Defensive plan vs execution");
-  if(plan){
-    text(plan.querySelector(".panel-title h3"),"Defensive availability");
-    text(plan.querySelector(".panel-title p"),"Not inferred in v3.4.2 · requires versioned cooldown catalogue + assignments");
-    qsa(".cd-plan > div",plan).forEach((row,idx)=>{
-      text(row.querySelector("time"),"—");
-      text(row.querySelector("span b"),idx===0?"Observed mechanic windows":"Cooldown reconstruction pending");
-      text(row.querySelector("span small"),idx===0?`${intelligence.mechanics?.summary?.failedOccurrences||0} normalized failed executions in analytical pulls`:"No readiness claim made");
-      text(row.querySelector("em"),"—");
-      text(row.querySelector(".badge"),"PENDING");
-    });
-  }
-}
-
 function latestPullActorSignals() {
   const failures=intelligence?.latestPull?.failures||[];
   const chains=intelligence?.latestPull?.deathChains||[];
@@ -1002,7 +901,7 @@ function applyIntelligenceLive() {
 function applyIntelligence() {
   applyIntelligenceCommandCenter();
   window.applyIntelligenceMechanics?.();
-  applyIntelligenceDefensives();
+  window.applyIntelligenceDefensives?.();
   applyIntelligenceLive();
 }
 
@@ -1011,7 +910,7 @@ function applySupplemental() {
   window.applyTelemetryMechanics?.();
   applyTelemetryDamageHealing();
   applyTelemetryComposition();
-  applyTelemetryDefensives();
+  window.applyTelemetryDefensives?.();
   window.applyHistoryData?.();
   applyPullIntelligenceToCommand();
 }

@@ -6,6 +6,7 @@ All meaningful product changes are recorded here. Git history remains the detail
 
 ### Repository refactor
 
+- Promoted Defensive Audit to its feature-owned single presentation runtime after zero-mismatch browser parity; the two legacy Defensive writers are now physically retired while the split fallback bridge remains a temporary no-op retirement hold.
 - Started the 4.0.0 repository reorganization on `refactor/reorganizacion-2026-08-17`.
 - `4.0.0` is the release target, not an in-progress version claim. The product/package version must not be changed to `4.0.0` until the refactor is complete and all required stability gates are green.
 - `main` remains the production branch and is not modified by migration work until the refactor is ready to merge.

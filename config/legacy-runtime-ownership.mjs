@@ -19,13 +19,13 @@ export const LEGACY_RUNTIME_MECHANICS_ACTIVE_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_MECHANICS_PHYSICALLY_RETIRED=Object.freeze([...LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS]);
 export const LEGACY_RUNTIME_MECHANICS_WRITERS=LEGACY_RUNTIME_MECHANICS_HISTORICAL_WRITERS;
 export const LEGACY_RUNTIME_DEFENSIVES_HISTORICAL_WRITERS=Object.freeze(['applyTelemetryDefensives','applyIntelligenceDefensives']);
-export const LEGACY_RUNTIME_DEFENSIVES_ACTIVE_WRITERS=Object.freeze([...LEGACY_RUNTIME_DEFENSIVES_HISTORICAL_WRITERS]);
-export const LEGACY_RUNTIME_DEFENSIVES_PHYSICALLY_RETIRED=Object.freeze([]);
+export const LEGACY_RUNTIME_DEFENSIVES_ACTIVE_WRITERS=Object.freeze([]);
+export const LEGACY_RUNTIME_DEFENSIVES_PHYSICALLY_RETIRED=Object.freeze([...LEGACY_RUNTIME_DEFENSIVES_HISTORICAL_WRITERS]);
 export const LEGACY_RUNTIME_DEFENSIVES_WRITERS=LEGACY_RUNTIME_DEFENSIVES_HISTORICAL_WRITERS;
 export const LEGACY_RUNTIME_MECHANICS_SHADOWED_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_MECHANICS_PARITY_SHADOWED_WRITERS=Object.freeze([]);
 export const LEGACY_RUNTIME_DEFENSIVES_SHADOWED_WRITERS=Object.freeze([]);
-export const LEGACY_RUNTIME_DEFENSIVES_PARITY_SHADOWED_WRITERS=Object.freeze([...LEGACY_RUNTIME_DEFENSIVES_HISTORICAL_WRITERS]);
+export const LEGACY_RUNTIME_DEFENSIVES_PARITY_SHADOWED_WRITERS=Object.freeze([]);
 
 export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('shared-dom-formatting','shared-ui','shared-helper','public/wcl-runtime.js','extract-to-browser-shared-module',[
@@ -45,9 +45,6 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   ]),
   responsibility('players-data-bridge','players','compatibility-support','public/player-intelligence-v392.js','extract-shared-player-data-helpers',[
     'telemetryPlayerNameMap','roleLabel','playerOutput','reliabilityValue','reliabilityText','reliabilityMeta',
-  ]),
-  responsibility('defensive-audit-presentation','defensive-audit','parity-shadow-source-runtime',LEGACY_RUNTIME_DEFENSIVES_SOURCE_OWNER,'retire-legacy-writers-after-green-source-parity',[
-    ...LEGACY_RUNTIME_DEFENSIVES_WRITERS,
   ]),
   responsibility('composition','composition','compatibility-writer','public/wcl-runtime.js','move-to-composition-source-owner',[
     'applyComposition','classifyMelee','classKey','cleanTalentName','hasResolvedTalent','classDisplay','rosterCharacterMeta','removeRosterIntelligenceOutsideComposition','buildRosterIntelligencePanel','applyTelemetryComposition',

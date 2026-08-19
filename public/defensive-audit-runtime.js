@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION='4.0.0-migration5-shadow1';
+  const VERSION='4.0.0-migration5-owner1';
   const qsa=(selector,root=document)=>root?[...root.querySelectorAll(selector)]:[];
   const text=(node,value)=>{
     if(!node||value===undefined||value===null)return;
@@ -170,58 +170,6 @@
     }
   }
 
-  const snapshot=()=>{
-    if(!defensiveAuditActive())return null;
-    const accountability=panelByTitle('Player defensive accountability');
-    const plan=panelByTitle('Defensive plan vs execution')||panelByTitle('Defensive availability');
-    const replay=qsa('.panel').find(panel=>panel.querySelector('.death-replay'));
-    return JSON.stringify({
-      banner:document.querySelector('.page-banner')?.textContent||'',
-      bannerStat:document.querySelector('.banner-stat')?.textContent||'',
-      stats:document.querySelector('.stats-row')?.textContent||'',
-      accountability:accountability?.textContent||'',
-      accountabilityDisplay:qsa('.audit-table > div:not(.at-head)',accountability).map(row=>row.style.display||''),
-      controls:document.querySelector('.audit-controls')?.textContent||'',
-      plan:plan?.textContent||'',
-      replay:replay?.textContent||'',
-      replayDisplay:qsa('.death-replay > div',replay).map(row=>row.style.display||''),
-      replayClasses:qsa('.death-replay > div',replay).map(row=>row.className||''),
-    });
-  };
-
-  let checks=0,mismatches=0,lastMismatch=null;
-  const publish=()=>{
-    window.__AVOID_DEFENSIVE_AUDIT_SOURCE_RUNTIME_STATE__=Object.freeze({
-      version:VERSION,
-      sourceOwner:'apps/web/src/features/defensive-audit/runtime.js',
-      transport:'public/defensive-audit-runtime.js',
-      mode:'parity-shadow',
-      checks,
-      mismatches,
-      lastMismatch,
-      directRequests:0,
-      timers:0,
-      observers:0,
-    });
-  };
-
-  function shadow(){
-    if(!defensiveAuditActive())return;
-    applyTelemetryDefensives();
-    applyIntelligenceDefensives();
-    const expected=snapshot();
-    queueMicrotask(()=>{
-      if(!defensiveAuditActive())return;
-      const actual=snapshot();
-      checks+=1;
-      if(actual!==expected){
-        mismatches+=1;
-        lastMismatch={at:Date.now(),expectedLength:expected?.length||0,actualLength:actual?.length||0};
-        console.warn('[AvoiD v4 Defensive Audit parity] source-runtime output differs from legacy final DOM');
-      }
-      publish();
-    });
-  }
 
   window.applyTelemetryDefensives=applyTelemetryDefensives;
   window.applyIntelligenceDefensives=applyIntelligenceDefensives;
@@ -229,9 +177,20 @@
     version:VERSION,
     sourceOwner:'apps/web/src/features/defensive-audit/runtime.js',
     transport:'public/defensive-audit-runtime.js',
+    mode:'single-source-owner',
+    writerPolicy:'single-defensive-audit-presentation-owner',
+    historicalWriters:Object.freeze(['applyTelemetryDefensives','applyIntelligenceDefensives']),
     applyTelemetryDefensives,
     applyIntelligenceDefensives,
-    shadow,
+    directRequests:0,
+    timers:0,
+    observers:0,
   });
-  publish();
+  window.__AVOID_DEFENSIVE_AUDIT_SOURCE_RUNTIME_STATE__=Object.freeze({
+    version:VERSION,
+    mode:'single-source-owner',
+    directRequests:0,
+    timers:0,
+    observers:0,
+  });
 })();
