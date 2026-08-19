@@ -29,7 +29,7 @@ function policy(input={}){
     targetReservedSources:Math.max(3,Math.min(12,Number(input.targetReservedSources)||UNTOUCHED_HOLDOUT_DEFAULTS.targetReservedSources)),
     minimumEvaluableSources:Math.max(3,Math.min(10,Number(input.minimumEvaluableSources)||UNTOUCHED_HOLDOUT_DEFAULTS.minimumEvaluableSources)),
     minimumSupportiveSourceShare:clamp(input.minimumSupportiveSourceShare,UNTOUCHED_HOLDOUT_DEFAULTS.minimumSupportiveSourceShare,0.5,1),
-    maximumContradictorySourceShare:clamp(input.maximumContradictorySourceShare,UNTOUCHED_HOLDOUT_DEFAULTS.maximumContradictorySourceShare,0,0.5),
+    maximumContradictorySourceShare:clamp(input.maximumContradictorySourceShare,UNTOUCHED_HOLDOUT_DEFAULTS.maximumContradictORYSourceShare,0,0.5),
     minimumSourcePrevalenceDelta:clamp(input.minimumSourcePrevalenceDelta,UNTOUCHED_HOLDOUT_DEFAULTS.minimumSourcePrevalenceDelta,0,1),
     minimumMedianPrevalenceDelta:clamp(input.minimumMedianPrevalenceDelta,UNTOUCHED_HOLDOUT_DEFAULTS.minimumMedianPrevalenceDelta,0,1),
   };
@@ -46,6 +46,7 @@ function supportedPatterns(stability){
 function normalizeSourceCandidate(row){
   const value=typeof row==='string'?{source:row}:row||{};
   const source=sourceKey(value.source||value.sourceKey);
+  const seedReportCode=String(value.seedReportCode||value.reportCode||'').trim()||null;
   const reasons=[];
   if(!source)reasons.push('missing-source-identity');
   if(value.homeSource!==false)reasons.push('home-source-status-not-explicitly-false');
@@ -53,7 +54,7 @@ function normalizeSourceCandidate(row){
   if(value.priorLearningUse!==false)reasons.push('prior-learning-use-status-not-explicitly-false');
   if(value.combatEvidenceObservedBeforeReservation!==false)reasons.push('prior-combat-evidence-status-not-explicitly-false');
   return{
-    source,
+    source,seedReportCode,
     metadataOnlyDiscovery:value.metadataOnlyDiscovery===true,
     homeSource:value.homeSource===true,
     preexistingCorpusMember:value.preexistingCorpusMember===true,
@@ -88,14 +89,14 @@ export function buildUntouchedHoldoutReservationV1({stability,sourceCandidates=[
   const payload={
     version:UNTOUCHED_HOLDOUT_VERSION,policyVersion:UNTOUCHED_HOLDOUT_POLICY_VERSION,stabilityFingerprint:stability.fingerprint,
     episodeId:stability.episodeId,empiricalEvidenceFingerprint:stability.empiricalEvidenceFingerprint||null,reservedAt:timestamp,
-    frozenCandidatePatterns:frozenPatterns.map(row=>row.patternKey),reservedSources:reservedSources.map(row=>row.source),config:settings,
+    frozenCandidatePatterns:frozenPatterns.map(row=>row.patternKey),reservedSources:reservedSources.map(row=>({source:row.source,seedReportCode:row.seedReportCode||null})),config:settings,
   };
   return{
     ...payload,fingerprint:digest(payload),status,config:settings,frozenCandidatePatterns:frozenPatterns,reservedSources,
     rejectedSources:rejected,acquisitionRequired:status==='reservation-ready',
     evidenceContract:{
       candidateSetFrozen:true,sourceSetFrozen:true,sourceSelectionUsesCombatOutcomes:false,
-      reservationRequiresExplicitlyUnseenSources:true,preexistingCorpusSourcesForbidden:true,legacyValidationIsUntouchedHoldout:false,
+      sourceSeedMetadataFrozenBeforeCombatEvidence:true,reservationRequiresExplicitlyUnseenSources:true,preexistingCorpusSourcesForbidden:true,legacyValidationIsUntouchedHoldout:false,
       holdoutMayNotDiscoverNewCandidates:true,holdoutMayNotRetuneThresholds:true,failedHoldoutRequiresNewCandidateAndNewReservation:true,
       homeAvoidDataUsed:false,wclCallsExecuted:0,providerNetworkCallsExecuted:0,automaticPromotion:false,
     },
