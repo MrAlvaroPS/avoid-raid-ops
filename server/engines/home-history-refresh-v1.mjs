@@ -16,7 +16,7 @@ async function listGuildRaidReports({guildId,zoneId,days=180,maxPages=5}){
   return{reports:[...byCode.values()].sort((a,b)=>Number(a.startTime)-Number(b.startTime)),window:{start,end,days},pagination:{pagesScanned:page-1,total:total??byCode.size,truncated:hasMore},networkCalls:page-1};
 }
 const reportHasInProgress=summary=>(summary?.scopes||[]).some(scope=>Number(scope.inProgressPulls||0)>0);
-function reportNeedsRefresh(listed,previousSummary,now=Date.now()){if(!previousSummary)return true;if(Number(listed.endTime||0)!==Number(previousSummary.endTime||0))return true;if(reportHasInProgress(previousSummary))return true;if(Number(listed.endTime||0)>now-12*60*60*1000)return true;return false;}
+function reportNeedsRefresh(listed,previousSummary,now=Date.now()){if(!previousSummary)return true;if(Number(listed.revision||0)!==Number(previousSummary.revision||0))return true;if(Number(listed.endTime||0)!==Number(previousSummary.endTime||0))return true;if(reportHasInProgress(previousSummary))return true;if(Number(listed.endTime||0)>now-12*60*60*1000)return true;return false;}
 
 export async function refreshPersistedAvoidHistoryV1({guildId=homeGuildId(),days=180,maxPages=5,maxChangedReports=40,concurrency=3}={}){
   const catalog=await loadLatestRaidCatalogV1().catch(()=>null),zoneId=positive(catalog?.currentRaid?.zoneId);if(!zoneId)throw new Error('Persisted current raid catalog is required before refreshing AvoiD history');
