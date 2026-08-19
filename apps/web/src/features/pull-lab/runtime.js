@@ -174,95 +174,16 @@
     return true;
   }
 
-  function snapshot(root=document){
-    const heading=qsa('.page-banner h2',root).find(x=>x.textContent.trim()==='Pull Lab');
-    if(!heading)return null;
-    const deltaPanel=qsa('article.panel',root).find(panel=>panel.querySelector('.delta-list'));
-    const comparator=panelByTitle('Pull metrics comparator',root);
-    const select=root.querySelector('.pull-select');
-    const sync=root.querySelector('.sync-timeline');
-    return JSON.stringify({
-      pullSelect:select?.outerHTML||null,
-      timeline:sync?.outerHTML||null,
-      delta:deltaPanel?.outerHTML||null,
-      comparator:comparator?.outerHTML||null,
-    });
-  }
-
-  function resetDynamicFields(root){
-    const heading=qsa('.page-banner h2',root).find(x=>x.textContent.trim()==='Pull Lab');
-    if(!heading)return false;
-    qsa('.pull-select b',root).forEach(node=>text(node,'__PULL__'));
-    const sync=root.querySelector('.sync-timeline');
-    if(sync){
-      qsa(':scope > label',sync).forEach(node=>text(node,'__PULL__'));
-      qsa(':scope > div i',sync).forEach(node=>{node.style.display='';node.style.left='';node.style.width='';});
-      qsa(':scope > div u.death',sync).forEach(node=>{node.style.display='';});
-      qsa(':scope > small span',sync).forEach(node=>text(node,'__TIME__'));
-    }
-    const deltaPanel=qsa('article.panel',root).find(panel=>panel.querySelector('.delta-list'));
-    if(deltaPanel){
-      text(deltaPanel.querySelector('.panel-title h3'),'Why pull 25 was better');
-      text(deltaPanel.querySelector('.panel-title p'),'Automated delta analysis');
-      qsa('.delta-list p',deltaPanel).forEach(row=>{
-        text(row.querySelector('.badge'),'__DELTA__');
-        text(row.querySelector('span > b'),'__LABEL__');
-        text(row.querySelector('span > small'),'__DETAIL__');
-        row.classList.remove('pending');
-      });
-    }
-    const table=panelByTitle('Pull metrics comparator',root)?.querySelector('.compare-table');
-    if(table){
-      const head=table.querySelector('.ct-head');
-      const h=head?[...head.children]:[];
-      [1,2,4].forEach(index=>{if(h[index])text(h[index],'__HEAD__');});
-      qsa(':scope > div:not(.ct-head)',table).forEach(row=>{
-        for(let index=1;index<=4;index++)if(row.children[index])text(row.children[index],'__VALUE__');
-      });
-    }
-    return true;
-  }
-
-  const state={
-    mode:'parity-shadow',
-    checks:0,
-    mismatches:0,
-    lastMismatch:null,
-    directRequests:0,
-    timers:0,
-    observers:0,
-  };
-
-  function shadowAgainstLegacy(){
-    const legacy=snapshot(document);
-    if(legacy==null)return {...state,skipped:'pull-lab-not-visible'};
-    const clone=document.body.cloneNode(true);
-    resetDynamicFields(clone);
-    applyPullLabToRoot(clone,window.__AVOID_WCL_TELEMETRY__);
-    const source=snapshot(clone);
-    state.checks+=1;
-    if(source!==legacy){
-      state.mismatches+=1;
-      state.lastMismatch={legacy,source};
-    }else{
-      state.lastMismatch=null;
-    }
-    return {...state};
-  }
-
   window.applyPullLabSource=()=>applyPullLabToRoot(document,window.__AVOID_WCL_TELEMETRY__);
-  window.__AVOID_PULL_LAB_SOURCE_RUNTIME_STATE__=state;
   window.__AVOID_PULL_LAB_SOURCE_RUNTIME__=Object.freeze({
-    version:'4.0.0-migration7-shadow1',
+    version:'4.0.0-migration7-owner1',
     sourceOwner:'apps/web/src/features/pull-lab/runtime.js',
     transport:'public/pull-lab-runtime.js',
-    mode:'parity-shadow',
-    writerPolicy:'legacy-authoritative-source-shadow-only',
+    mode:'single-source-owner',
+    writerPolicy:'single-pull-lab-presentation-owner',
     sources:Object.freeze(['window.__AVOID_WCL_TELEMETRY__']),
-    shadows:Object.freeze(['applyPullLab']),
     directRequests:0,
     timers:0,
     observers:0,
-    shadowAgainstLegacy,
   });
 })();

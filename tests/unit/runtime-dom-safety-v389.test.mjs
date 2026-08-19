@@ -40,23 +40,22 @@ test('CRITICAL DOM LIVENESS: active overlay runtimes cannot construct MutationOb
   }
 });
 
-test('CRITICAL PULL LAB PARITY SOURCE: feature source and transport are identical, passive and non-authoritative', async () => {
+test('CRITICAL PULL LAB SOURCE OWNER: feature source and transport are identical, passive and authoritative', async () => {
   const [source,transport] = await Promise.all([
     read('apps/web/src/features/pull-lab/runtime.js'),
     read('public/pull-lab-runtime.js'),
   ]);
   assert.equal(transport,source);
   assert.match(source,/window\.applyPullLabSource=/);
-  assert.match(source,/mode:'parity-shadow'/);
-  assert.match(source,/writerPolicy:'legacy-authoritative-source-shadow-only'/);
+  assert.match(source,/mode:'single-source-owner'/);
+  assert.match(source,/writerPolicy:'single-pull-lab-presentation-owner'/);
   assert.match(source,/directRequests:0/);
   assert.match(source,/timers:0/);
   assert.match(source,/observers:0/);
-  assert.match(source,/shadowAgainstLegacy/);
+  assert.doesNotMatch(source,/parity-shadow|shadowAgainstLegacy|resetDynamicFields|mismatches|lastMismatch/);
   assert.doesNotMatch(source,OBSERVER_CONSTRUCTION);
   assert.doesNotMatch(source,/\.observe\s*\(/);
   assert.doesNotMatch(source,/setInterval|setTimeout|requestAnimationFrame|fetch\s*\(|queueMicrotask|addEventListener/);
-  assert.equal((source.match(/shadowAgainstLegacy\s*\(\s*\)/g)||[]).length,1,'Pull Lab parity shadow must be declared but never auto-run');
 });
 
 test('CRITICAL MECHANICS SOURCE OWNER: feature source and stable public transport are identical and passive', async () => {
@@ -169,7 +168,7 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   const dataHub = index.indexOf('/data-hub-v390.js?v=3.9.0');
   const reindex = index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const legacy = index.indexOf('/wcl-runtime.js?v=3.8.5');
-  const pullLabShadow = index.indexOf('/pull-lab-runtime.js?v=4.0.0-migration7-shadow1');
+  const pullLabSource = index.indexOf('/pull-lab-runtime.js?v=4.0.0-migration7-owner1');
   const defensiveSource = index.indexOf('/defensive-audit-runtime.js?v=4.0.0-migration5-owner1');
   const mechanicsSource = index.indexOf('/mechanics-runtime.js?v=4.0.0-migration4-owner1');
   const commandCenter = index.indexOf('/command-center-runtime.js?v=4.0.0-migration6-owner1');
@@ -178,8 +177,8 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   assert.ok(dataHub > bootstrap, 'data hub must wrap the bootstrap fetch layer, not bypass it');
   assert.ok(reindex > dataHub, 'knowledge reindex guard must listen after the data hub is initialized');
   assert.ok(legacy > reindex, 'legacy compatibility runtime must load after data platform layers');
-  assert.ok(pullLabShadow > legacy, 'Pull Lab parity source must load after the authoritative legacy writer exists');
-  assert.ok(defensiveSource > pullLabShadow, 'Defensive Audit source owner must remain after the passive Pull Lab shadow');
+  assert.ok(pullLabSource > legacy, 'Pull Lab source owner must load after the legacy data/orchestration runtime');
+  assert.ok(defensiveSource > pullLabSource, 'Defensive Audit source owner must remain after the Pull Lab source owner');
   assert.ok(mechanicsSource > defensiveSource, 'Mechanics source owner must remain after the Defensive Audit source owner');
   assert.ok(commandCenter > mechanicsSource, 'Command Center source owner must remain after the Mechanics source owner');
   assert.ok(progress > commandCenter, 'Progress must install its active-screen wrapper after the Command Center source owner');

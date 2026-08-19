@@ -30,10 +30,10 @@ export const LEGACY_RUNTIME_PULL_LAB_SOURCE_OWNER='apps/web/src/features/pull-la
 export const LEGACY_RUNTIME_PULL_LAB_RUNTIME_SOURCE='apps/web/src/features/pull-lab/runtime.js';
 export const LEGACY_RUNTIME_PULL_LAB_RUNTIME_TRANSPORT='public/pull-lab-runtime.js';
 export const LEGACY_RUNTIME_PULL_LAB_HISTORICAL_WRITERS=Object.freeze(['applyPullLab']);
-export const LEGACY_RUNTIME_PULL_LAB_ACTIVE_WRITERS=Object.freeze(['applyPullLab']);
-export const LEGACY_RUNTIME_PULL_LAB_SHADOWED_WRITERS=Object.freeze(['applyPullLab']);
-export const LEGACY_RUNTIME_PULL_LAB_PARITY_SHADOWED_WRITERS=Object.freeze(['applyPullLab']);
-export const LEGACY_RUNTIME_PULL_LAB_PHYSICALLY_RETIRED=Object.freeze([]);
+export const LEGACY_RUNTIME_PULL_LAB_ACTIVE_WRITERS=Object.freeze([]);
+export const LEGACY_RUNTIME_PULL_LAB_SHADOWED_WRITERS=Object.freeze([]);
+export const LEGACY_RUNTIME_PULL_LAB_PARITY_SHADOWED_WRITERS=Object.freeze([]);
+export const LEGACY_RUNTIME_PULL_LAB_PHYSICALLY_RETIRED=Object.freeze(['applyPullLab']);
 
 export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   responsibility('shared-dom-formatting','shared-ui','shared-helper','public/wcl-runtime.js','extract-to-browser-shared-module',[
@@ -44,9 +44,6 @@ export const LEGACY_RUNTIME_RESPONSIBILITIES=Object.freeze([
   ]),
   responsibility('command-center','command-center','compatibility-writer','public/wcl-runtime.js','move-to-command-center-source-owner',[
     'applyCommandCenter','applyTelemetryCoreCorrections','applyPullIntelligenceToCommand','applyIntelligenceCommandCenter',
-  ]),
-  responsibility('pull-lab','pull-lab','compatibility-writer-shadowed','public/wcl-runtime.js','promote-pull-lab-source-after-browser-parity',[
-    'applyPullLab',
   ]),
   responsibility('damage-healing','damage-healing','compatibility-writer','public/wcl-runtime.js','move-to-damage-healing-source-owner',[
     'applyDamageHealing','applyTelemetryDamageHealing',

@@ -25,7 +25,7 @@ const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
 test('legacy WCL runtime responsibilities are explicit and contain no miscellaneous bucket',()=>{
   assert.equal(LEGACY_RUNTIME_OWNERSHIP.version,'legacy-runtime-ownership-v4');
   assert.equal(LEGACY_RUNTIME_OWNERSHIP.path,'public/wcl-runtime.js');
-  assert.ok(LEGACY_RUNTIME_RESPONSIBILITIES.length>=10);
+  assert.ok(LEGACY_RUNTIME_RESPONSIBILITIES.length>=9);
   for(const entry of LEGACY_RUNTIME_RESPONSIBILITIES){
     assert.ok(entry.functions.length>0,entry.id);
     assert.doesNotMatch(`${entry.id} ${entry.domain}`,/misc|other|unknown/i);
