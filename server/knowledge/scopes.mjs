@@ -161,8 +161,13 @@ export function sanitizeGlobalBossProfile(profile = {}) {
     const { friendlyPlayers, ...rest } = fight;
     return rest;
   };
+  // GLOBAL persisted evidence keeps guild-level source independence but never keeps
+  // uploader/owner identity. Besides reducing identity retention, this makes legacy
+  // owner-only profiles source-incomplete at canonical sampling time instead of
+  // accidentally reviving a `user:<id>` training source.
+  const { owner, ...withoutOwner } = profile || {};
   return {
-    ...profile,
+    ...withoutOwner,
     knowledgeScope: 'global-boss',
     knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
     sourceIsolationVersion: GLOBAL_BOSS_SOURCE_ISOLATION_VERSION,
