@@ -78,7 +78,7 @@ export function buildUntouchedHoldoutSourcePoolV1({scope,stability,lineage,disco
   const prior=new Set(lineage.priorLearningSourceKeys||[]),observed=new Set(lineage.observedCombatSourceKeys||[]),seen=new Set(),candidates=[];
   for(const raw of discoveredSources||[]){
     const row=normalizedDiscoverySource(raw);if(!row||seen.has(row.source))continue;seen.add(row.source);
-    const homeSource=row.type==='guild'?Number(row.id)===Number(homeGuildId()):row.type==='user'?isHomeOwnerId(row.id):row.ownerId?isHomeOwnerId(row.ownerId):false;
+    const homeSource=(row.type==='guild'&&Number(row.id)===Number(homeGuildId()))||(row.type==='user'&&isHomeOwnerId(row.id))||(row.ownerId!=null&&isHomeOwnerId(row.ownerId));
     const preexistingCorpusMember=observed.has(row.source);
     const priorLearningUse=lineage.complete===true?prior.has(row.source):null;
     const combatEvidenceObservedBeforeReservation=lineage.complete===true?observed.has(row.source):null;
