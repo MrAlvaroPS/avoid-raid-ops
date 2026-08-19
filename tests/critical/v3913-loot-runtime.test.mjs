@@ -9,7 +9,7 @@ test('Loot is wired after the operational runtime with profile bridge and its ow
   const index=await read('index.html');
   assert.match(index,/raidops-v3913-loot\.css\?v=3\.9\.13\.0/);
   assert.match(index,/loot-profile-bridge-v3913\.js\?v=3\.9\.13\.0/);
-  assert.match(index,/loot-runtime-v3913\.js\?v=3\.9\.13\.0/);
+  assert.match(index,/loot-runtime-v3913\.js\?v=3\.9\.13\.1/);
   assert.ok(index.indexOf('avoid-operational-ui-v3912.js')<index.indexOf('loot-profile-bridge-v3913.js'));
   assert.ok(index.indexOf('loot-profile-bridge-v3913.js')<index.indexOf('loot-runtime-v3913.js'));
 });
@@ -36,6 +36,18 @@ test('Loot prefers observed WCL CombatantInfo and only falls back to Armory',asy
   assert.match(runner,/bonusIdsPreserved:false/);
   assert.match(service,/observedCombatantInfoPreferred:true/);
   assert.match(service,/armoryFallbackAllowed:true/);
+});
+
+test('temporary WCL guild roster is local to Loot and observed CombatantInfo wins',async()=>{
+  const [runtime,store,engine,query]=await Promise.all([read('public/loot-runtime-v3913.js'),read('server/home/roster-store-v1.mjs'),read('server/engines/home-roster-engine.mjs'),read('server/wcl/queries/home-roster.mjs')]);
+  assert.match(query,/members\(page:\$page,limit:\$limit\)/);
+  assert.match(store,/wcl-guild-members-temporary/);
+  assert.match(store,/wcl-combatant-info-observed/);
+  assert.match(runtime,/TEMP DIRECTORY/);
+  assert.match(runtime,/\/api\/wcl\/home-roster/);
+  assert.match(runtime,/for\(const obs of observedRoster\(\)\)/);
+  assert.match(engine,/networkExecuted:false/);
+  assert.doesNotMatch(runtime,/__AVOID_WCL_TELEMETRY__\s*=/);
 });
 
 test('Loot is inserted below Composition and does not globally filter the app',async()=>{
