@@ -5,3 +5,10 @@
 .canvas[data-avoid-operational-mechanics="1"]:has(.iris-mechanics-tabs [data-tab="knowledge"].active)>.avoid-operational-root[data-kind="mechanics"]{display:none!important}
 .canvas[data-avoid-operational-mechanics="1"]>.page-banner{display:none!important}
 .canvas[data-avoid-operational-mechanics="1"]>[data-iris-mechanics-execution="1"]:not(.avoid-operational-root){display:none!important}
+/* If HOME pull facts exist but no mechanic has been classified yet, do not present empty
+   mechanics tables/accuracy chrome as if it were intelligence. Keep objective progression
+   and the model maturity header only. */
+.canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-exec-stats>span:nth-child(2),
+.canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-exec-stats>span:nth-child(3),
+.canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-panel{display:none!important}
+.canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-exec-hero p:after{content:" Iris has objective AvoiD pull history for this scope, but no mechanic trend is certified yet; empty mechanic tables are intentionally suppressed.";color:#8ca5ae}
