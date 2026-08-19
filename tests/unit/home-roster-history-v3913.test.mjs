@@ -28,6 +28,18 @@ test('HOME history promotes only actual raid participants into raidActivity with
   assert.equal(guest.raidActivity.attendancePct,50);
 });
 
+test('current-raid rebuild clears stale raidActivity for characters absent from current reports',()=>{
+  const previous={guildId:7,guild:{id:7},members:[
+    {name:'OldRaider',className:'Mage',directory:{temporary:true},raidActivity:{confirmedFromHomeLogs:true,pulls:99},observed:{source:'wcl-combatant-info-observed'}},
+    {name:'CurrentRaider',className:'Warrior',directory:{temporary:true},raidActivity:{confirmedFromHomeLogs:true,pulls:99},observed:null},
+  ]};
+  const reports=[{reportCode:'NEW',startTime:200000,masterData:{actors:[{id:1,name:'CurrentRaider',type:'Player',subType:'Warrior'}]},fights:[{id:1,encounterID:3470,difficulty:3,startTime:1000,friendlyPlayers:[1]}]}];
+  const merged=mergeHistoryRosterV1(previous,reports,{syncedAt:222222});
+  assert.equal(merged.members.find(row=>row.name==='OldRaider').raidActivity,null);
+  assert.ok(merged.members.find(row=>row.name==='OldRaider').observed);
+  assert.equal(merged.members.find(row=>row.name==='CurrentRaider').raidActivity.pulls,1);
+});
+
 test('a later guild-directory refresh preserves raid participation markers',()=>{
   const history={guildId:7,guild:{id:7},raidRoster:{activeMembers:1,totalRaidPulls:4},members:[{name:'Raider',className:'Warrior',raidActivity:{confirmedFromHomeLogs:true,pulls:4},observed:null,directory:{temporary:true}}]};
   const incoming={guildId:7,guild:{id:7},members:[{name:'Raider',className:'Warrior',raidActivity:null,observed:null,directory:{temporary:true}},{name:'Alt',className:'Mage',raidActivity:null,observed:null,directory:{temporary:true}}]};
