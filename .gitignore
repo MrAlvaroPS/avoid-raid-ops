@@ -5,6 +5,10 @@ apps/web/node_modules/
 !.env.example
 .raidops-corpus/
 .raidops-data/
+.raidops-sim/
+raidops-sim/
+.raidops-simc/
+raidops-simc/
 dist/
 .output/
 coverage/
