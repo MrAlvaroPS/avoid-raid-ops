@@ -44,7 +44,7 @@ test('CRITICAL v3.9.10 MECHANICS UI: DB2 table presence is not mislabeled as dif
   assert.match(provider,/journalSectionXDifficultyIsApplicabilityRestriction:true/);
 });
 
-test('CRITICAL v3.9.10 MECHANICS API: difficulty is mandatory and the read model stays persisted-evidence-only / zero-network',async()=>{
+test('CRITICAL v3.9.10 MECHANICS API: difficulty is mandatory and read model exposes GLOBAL reference maturity without network',async()=>{
   const [route,service,index]=await Promise.all([read('routes/api/wcl/mechanic-knowledge.js'),read('server/services/mechanic-knowledge-view-service.mjs'),read('index.html')]);
   assert.match(route,/difficulty is required; boss knowledge is never loaded across difficulties/);
   assert.match(route,/networkExecuted:false/);
@@ -53,11 +53,15 @@ test('CRITICAL v3.9.10 MECHANICS API: difficulty is mandatory and the read model
   assert.doesNotMatch(route,/wclGraphql|fetch\(/);
   assert.doesNotMatch(service,/wclGraphql|fetch\(/);
   assert.match(service,/Cross-difficulty model load rejected/);
+  assert.match(service,/Cross-difficulty GLOBAL reference rejected/);
   assert.match(service,/Cross-difficulty aggregate rejected/);
   assert.match(service,/Cross-difficulty Episode rejected/);
+  assert.match(service,/globalReferenceMaturity/);
+  assert.match(service,/foundationReferenceIsOperationalComparisonNotAcceptedKnowledge:true/);
   assert.match(service,/evaluateMatchedNullBaselineV1/);
   assert.match(service,/buildIndependentEvidenceGroupsV1/);
   assert.match(service,/buildStatisticalStabilityV1/);
   assert.match(index,/iris-mechanics-knowledge-v3910\.js\?v=3\.9\.10\.4/);
+  assert.match(index,/iris-mechanics-global-reference-v3910\.js\?v=3\.9\.10\.6/);
   assert.match(index,/raidops-v3910-difficulty\.css\?v=3\.9\.10\.4/);
 });
