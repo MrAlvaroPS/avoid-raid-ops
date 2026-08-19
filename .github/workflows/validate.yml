@@ -40,6 +40,19 @@ jobs:
           node-version: 22
       - name: Install Node dependencies
         run: npm install --no-audit --no-fund
+      - name: Sync generated active asset HTML
+        run: |
+          npm run sync:assets
+          if ! git diff --quiet -- index.html; then
+            git diff --check -- index.html
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add index.html
+            git commit -m "chore(v4): sync Defensive Audit active assets"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "Active asset HTML already synchronized"
+          fi
       - name: Install Data Truth browser dependencies
         run: |
           python3 -m pip install --disable-pip-version-check playwright==1.54.0
