@@ -7,12 +7,33 @@ import { getCorpusStatus } from './service.mjs';
 import { BOSS_SAMPLING_POLICY_VERSION } from './sampling-v2.mjs';
 import { IRIS_KNOWLEDGE_CONTRACT_VERSION } from '../knowledge/scopes.mjs';
 
+export const OPERATIONAL_REFERENCE_VERSION='global-boss-operational-reference-v1';
+export const OPERATIONAL_REFERENCE_THRESHOLDS=Object.freeze({minWidePulls:100,minDeepPulls:20,minWideSources:8,minDeepSources:3});
+
 async function resolveArgs(input = {}) {
   const args = { encounterId: Number(input.encounterId), difficulty: Number(input.difficulty || 5), partition: Number(input.partition || 0) };
   if (args.partition > 0) return args;
   const alias = await corpusGet(corpusAliasKey(args));
   if (!(Number(alias?.partition) > 0)) return null;
   return { ...args, partition: Number(alias.partition) };
+}
+
+function canonicalSourceSafety(model,sampling,args){
+  if(!model||!sampling)return false;
+  if(sampling.policyVersion!==BOSS_SAMPLING_POLICY_VERSION)return false;
+  if(sampling.contractVersion!==IRIS_KNOWLEDGE_CONTRACT_VERSION)return false;
+  if(Number(sampling?.scope?.encounterId)!==Number(args.encounterId)
+      ||Number(sampling?.scope?.difficulty)!==Number(args.difficulty)
+      ||Number(sampling?.scope?.partition)!==Number(args.partition))return false;
+  if(Number(sampling.homeSourceSelectedReports||0)!==0)return false;
+  if(Number(sampling.homeGuildSelectedReports||0)!==0)return false;
+  if(Number(sampling.homeOwnerSelectedReports||0)!==0)return false;
+  if(Number(sampling.selectedWrongScopeReports||0)!==0)return false;
+  if(Number(sampling.selectedMissingSourceReports||0)!==0)return false;
+  if(model?.knowledgeContract?.version!==IRIS_KNOWLEDGE_CONTRACT_VERSION)return false;
+  if(model?.knowledgeContract?.homeGuildParticipatesInBossModel!==false)return false;
+  if(model?.knowledgeContract?.knownHomeUploadersParticipateInBossModel!==false)return false;
+  return true;
 }
 
 export async function recompileCorpusModelV2(input = {}) {
@@ -23,7 +44,7 @@ export async function recompileCorpusModelV2(input = {}) {
   if (!job) throw new Error('Corpus job has not been started');
   const config = clampCorpusConfig(input);
   const { aggregate, model, manifest } = await rebuildCanonicalBossCorpus({ args, job, currentAggregate, config, purgeHomeGuild: true });
-  job.engineVersion = '3.7.6-sampling-v3';
+  job.engineVersion = '3.9.12-sampling-v3';
   job.status = 'ready';
   job.phase = 'complete';
   job.updatedAt = Date.now();
@@ -44,10 +65,34 @@ export async function getBossSamplingManifest(input = {}) {
   return corpusGet(globalBossSamplingKey(args));
 }
 
-// Application/runtime consumers must use this loader instead of the legacy raw
-// published-model loader. It rejects any pre-contract model even if an older version
-// once marked it published, preventing legacy/AvoiD-contaminated evidence from silently
-// becoming the encounter truth after the knowledge-boundary upgrade.
+export async function loadOperationalEncounterModelV2(input={}){
+  const args=await resolveArgs(input);if(!args)return null;
+  const [model,sampling]=await Promise.all([corpusGet(modelKey(args)),corpusGet(globalBossSamplingKey(args))]);
+  if(!canonicalSourceSafety(model,sampling,args)||!model?.pack)return null;
+  const t={...OPERATIONAL_REFERENCE_THRESHOLDS,...(input.thresholds||{})};
+  const evidence={
+    widePulls:Number(sampling?.wide?.pulls||0),deepPulls:Number(sampling?.deep?.pulls||0),
+    wideSources:Number(sampling?.wide?.sources||0),deepSources:Number(sampling?.deep?.sources||0),
+    wideReports:Number(sampling?.wide?.reports||0),deepReports:Number(sampling?.deep?.reports||0),
+  };
+  const checks={
+    widePulls:evidence.widePulls>=Number(t.minWidePulls),deepPulls:evidence.deepPulls>=Number(t.minDeepPulls),
+    wideSources:evidence.wideSources>=Number(t.minWideSources),deepSources:evidence.deepSources>=Number(t.minDeepSources),
+  };
+  if(!Object.values(checks).every(Boolean))return null;
+  return{
+    ...model,
+    operationalReference:{
+      version:OPERATIONAL_REFERENCE_VERSION,status:model.status==='published'?'published-compatible':'operational-unpublished',
+      scope:{encounterId:args.encounterId,difficulty:args.difficulty,partition:args.partition},evidence,thresholds:t,checks,
+      sourceIsolation:'canonical-sampling-fail-closed',acceptedKnowledge:model.status==='published',automaticPromotion:false,
+      meaning:model.status==='published'?'Published model also satisfies the operational floor.':'Bounded same-difficulty public reference safe for operational classification only; it is not accepted/promoted boss knowledge.'
+    }
+  };
+}
+
+// Application/runtime consumers that require accepted knowledge must use this loader.
+// It rejects any pre-contract or merely operational model even if a candidate pack exists.
 export async function loadPublishedEncounterModelV2(input = {}) {
   const args = await resolveArgs(input);
   if (!args) return null;
@@ -56,18 +101,6 @@ export async function loadPublishedEncounterModelV2(input = {}) {
     corpusGet(globalBossSamplingKey(args)),
   ]);
   if (!model || model.status !== 'published' || !sampling) return null;
-  if (sampling.policyVersion !== BOSS_SAMPLING_POLICY_VERSION) return null;
-  if (sampling.contractVersion !== IRIS_KNOWLEDGE_CONTRACT_VERSION) return null;
-  if (Number(sampling?.scope?.encounterId) !== Number(args.encounterId)
-      || Number(sampling?.scope?.difficulty) !== Number(args.difficulty)
-      || Number(sampling?.scope?.partition) !== Number(args.partition)) return null;
-  if (Number(sampling.homeSourceSelectedReports || 0) !== 0) return null;
-  if (Number(sampling.homeGuildSelectedReports || 0) !== 0) return null;
-  if (Number(sampling.homeOwnerSelectedReports || 0) !== 0) return null;
-  if (Number(sampling.selectedWrongScopeReports || 0) !== 0) return null;
-  if (Number(sampling.selectedMissingSourceReports || 0) !== 0) return null;
-  if (model?.knowledgeContract?.version !== IRIS_KNOWLEDGE_CONTRACT_VERSION) return null;
-  if (model?.knowledgeContract?.homeGuildParticipatesInBossModel !== false) return null;
-  if (model?.knowledgeContract?.knownHomeUploadersParticipateInBossModel !== false) return null;
+  if(!canonicalSourceSafety(model,sampling,args))return null;
   return model;
 }
