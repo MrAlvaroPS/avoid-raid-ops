@@ -79,6 +79,7 @@ For every encounter, Iris follows the same evidence ladder when the relevant sta
    - Generic structural hypotheses include cast interruption, wipe association, damage exposure, raid pressure, phase-boundary concentration, state alignment, and verified temporal relations.
    - Reconcile hypotheses against the official Blizzard hierarchy to reject or downgrade semantic neighbors that belong to different published branches.
    - Use exact-build DB2 relations to explain internal/helper ID wiring when present, without converting structure into combat causality.
+   - A direct anchor↔candidate DB2 relation may reprioritize the empirical question, but does not itself answer it.
    - A local hypothesis never becomes an accepted mechanic merely because its confidence is high, Blizzard publishes the spell, or DB2 links the IDs.
 
 7. **Semantic evidence planning**
@@ -88,28 +89,49 @@ For every encounter, Iris follows the same evidence ladder when the relevant sta
    - Query anchor occurrences first, then only the narrow temporal/actor/target context needed around those anchors.
    - Do not fall back to whole-report scanning for convenience.
 
-8. **Independent-source verification**
-   - Empirical semantic/provenance claims require reproduction across independent sources under a versioned evidence contract.
-   - Missing or contradictory evidence remains unresolved; it is never converted into success.
-   - Official Journal membership or DB2 structure may corroborate meaning/implementation but cannot substitute for the empirical denominator required by the claim.
+8. **Candidate-wise specificity + exact provenance**
+   - Verify each structurally eligible candidate independently against the same background/control contract.
+   - Require exact semantic-pattern actor provenance where the mechanical claim needs encounter origin.
+   - Provider hierarchy/structure may classify or reprioritize a candidate, but cannot satisfy these empirical gates.
+   - Failed specificity/provenance remains a stop condition unless materially new evidence creates a new hypothesis.
 
-9. **Post-verifier evidence layers**
-   - Exact-pattern actor provenance, Episode Graph, Matched Null and later Promotion-v3 gates remain versioned evidence products.
-   - Provider/structural metadata can explain or classify a candidate but cannot bypass a failed specificity/provenance/null/holdout gate.
-   - A failed hard matched-specificity/provenance/null gate is a stop condition for repeated acquisition unless a materially new independent hypothesis exists.
+9. **Episode Graph + Matched Null**
+   - Build the Episode from eligible exact patterns while preserving context-only player-origin/mixed nodes.
+   - Apply official Blizzard and exact-build structural reconciliation as versioned interpretation layers.
+   - Evaluate paired same-fight Matched Null controls under the complete Episode exclusion guard.
+   - Matched controls are empirical evidence and are addressed by the original empirical Episode fingerprint; provider-only reinterpretation must not force identical WCL reacquisition.
+   - Only `matched-specificity-supported` patterns may advance beyond Matched Null.
 
-10. **Promotion**
-   - Converting a verified structural/semantic claim into an accepted/scoreable mechanic requires the separately versioned promotion contract.
-   - Promotion must define denominator, eligibility, null policy, player attribution rules, validation requirements, contradiction policy and score impact.
-   - `official-member`, `structural-link`, `provider-supported` or `mechanically-supported` are not synonyms for `accepted`.
+10. **Independent Evidence Groups**
+   - Group only Matched Null-supported patterns by canonical independent source identity (`guild`, else uploader/owner, else report fallback).
+   - Multiple reports/pulls from one guild/uploader remain one independent evidence group.
+   - Use only persisted paired anchor/null evidence; this stage performs zero WCL/provider calls.
+   - Record source-level supportive/contradictory/neutral direction descriptively.
+   - Require independent group coverage before advancing, but do **not** claim statistical stability here.
+   - HOME/AvoiD reports never contribute to this GLOBAL BOSS gate.
 
-11. **AvoiD application/evaluation**
+11. **Statistical Stability** `[next layer]`
+   - Evaluate whether effect direction/magnitude is stable across the independent groups established above.
+   - Define contradiction tolerance, source-balanced effect aggregation, dispersion/uncertainty and minimum support under a separately versioned contract.
+   - Do not let one high-volume guild dominate by pull/report count.
+   - This layer is not yet implemented by `independent-evidence-groups-v1`.
+
+12. **Untouched Holdout** `[later]`
+   - Test the surviving claim against source-isolated evidence that was not used to discover, tune or stabilize the mechanic.
+   - Holdout failure blocks Promotion; holdout data never feeds backward silently into training.
+
+13. **Promotion** `[later]`
+   - Converting a verified claim into an accepted/scoreable mechanic requires the separately versioned Promotion Contract.
+   - Promotion must define denominator, eligibility, null policy, player attribution rules, contradiction policy, holdout requirements and score impact.
+   - `official-member`, `structural-link`, `provider-supported`, `mechanically-supported`, `matched-specificity-supported` and `independent-groups-evidence-available` are not synonyms for `accepted`.
+
+14. **AvoiD application/evaluation**
    - HOME/AvoiD reports are not GLOBAL BOSS training or holdout evidence.
    - Apply official/accepted encounter knowledge to AvoiD's WCL evidence to diagnose actual execution.
    - Compare pulls, players, assignments and progression only from AvoiD-observed data under versioned evaluation contracts.
    - Prefer 1–3 high-value next-pull actions over generic analytics volume.
 
-12. **Publication breadth**
+15. **Publication breadth**
    - Publication/sample-size work remains separate from `learningNext`.
    - A boss may need more reports for publication even when the best next learning action is official/structural reconciliation, local synthesis or a surgical semantic probe.
 
@@ -124,6 +146,8 @@ Not every boss must execute every stage:
 - If provenance is already decisive, skip provenance acquisition.
 - If local structural evidence is sufficient for the empirical question, do not spend WCL on semantic probing yet.
 - If official/structural metadata resolves only meaning/implementation but not observed behavior, continue with WCL evidence rather than treating metadata as occurrence.
+- If Matched Null has zero supported patterns, Independent Evidence Groups must report no eligible candidates instead of resurrecting earlier diagnostic neighbors.
+- If independent group coverage is insufficient, stop before Statistical Stability or acquire only genuinely new independent public sources if publication/learning requires it.
 - If a candidate failed the applicable hard gate and no new hypothesis exists, stop spending WCL on it.
 - If no deterministic local structure exists, escalate only the explicit unresolved evidence question.
 - If a future encounter produces a new structural pattern not covered by the generic hypothesis vocabulary, add a **generic evidence feature**, not a boss-name branch.
@@ -147,7 +171,9 @@ changed   -> persist new official revision
              if client build changed -> start a new DB2 structural accumulation
              else                    -> preserve same-build accumulated structure
              ↓
-             mark affected interpretations for re-evaluation
+             rederive interpretation fingerprints
+             ↓
+             reuse Matched Null empirical controls when the empirical Episode fingerprint is unchanged
 ```
 
 Never rewrite historical WCL evidence. Historical raw events remain immutable even if Blizzard later changes IDs, hierarchy, wording or mechanic behavior. Never merge structural relations across different client builds.
@@ -171,6 +197,8 @@ DB2 trigger relation == observed combat causality
 DB2/Wago absence == spell absent from encounter
 Blizzard spell 403/404 == not an encounter spell
 provider semanticOrigin == WCL actorProvenance
+many reports from one guild == many independent evidence groups
+provider reinterpretation == reacquire identical Matched Null WCL controls
 ```
 
 The following are allowed outside the generic learner when clearly separated:
@@ -201,5 +229,14 @@ For Spell Structural Knowledge, the portability test must additionally prove:
 - provider failures remain non-negative;
 - same-build accumulation preserves prior relations while a new build starts a clean snapshot;
 - DB2 structure does not set observed occurrence, causality, provenance success or automatic promotion.
+
+For Independent Evidence Groups, the portability test must additionally prove:
+
+- only `matched-specificity-supported` patterns enter the layer;
+- reports from the same canonical source collapse into one group;
+- supporting/contradictory/neutral direction is source-level and descriptive only;
+- HOME/AvoiD data is absent;
+- zero WCL/provider calls;
+- no statistical-stability, holdout or Promotion claim is produced.
 
 The generic learning modules must remain free of literal current-validation-boss names/IDs. This guardrail exists to prevent a successful one-boss experiment from quietly becoming hard-coded product behavior.
