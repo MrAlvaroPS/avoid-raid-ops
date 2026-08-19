@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 const OBSERVER_CONSTRUCTION = /\bnew\s+(?:window\.)?MutationObserver\s*\(/;
@@ -13,7 +13,6 @@ const ACTIVE_OVERLAYS = [
   'public/data-hub-v390.js',
   'public/knowledge-reindex-v390.js',
   'public/wcl-runtime.js',
-  'public/mechanics-defensives-fallback-bridge-v4.js',
   'public/defensive-audit-runtime.js',
   'public/mechanics-runtime.js',
   'public/command-center-history-bridge-v4.js',
@@ -75,20 +74,13 @@ test('CRITICAL DEFENSIVE SOURCE OWNER: feature source and stable public transpor
   assert.doesNotMatch(source,/setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
 });
 
-test('CRITICAL MECHANICS/DEFENSIVES BRIDGE: post-owner retirement hold is a passive no-op', async () => {
-  const source = await read('public/mechanics-defensives-fallback-bridge-v4.js');
-  assert.match(source,/function applySplitFallback\(\)\{\}/);
-  assert.match(source,/window\.applyMechanicsAndDefensives=applySplitFallback/);
-  assert.match(source,/writerPolicy:'post-owner-retirement-hold-noop'/);
-  assert.match(source,/mechanicsPresentationOwnerLive:true/);
-  assert.match(source,/defensiveAuditPresentationOwnerLive:true/);
-  assert.match(source,/defensiveParityShadow:false/);
-  assert.doesNotMatch(source,/\.shadow|__AVOID_MECHANICS_SOURCE_RUNTIME__\?\.shadow|__AVOID_DEFENSIVE_AUDIT_SOURCE_RUNTIME__\?\.shadow/);
-  assert.doesNotMatch(source,/window\.applyTelemetryMechanics=|window\.applyIntelligenceMechanics=/);
-  assert.doesNotMatch(source,/window\.applyTelemetryDefensives=|window\.applyIntelligenceDefensives=|screenWriter/);
-  assert.doesNotMatch(source,OBSERVER_CONSTRUCTION);
-  assert.doesNotMatch(source,/\.observe\s*\(/);
-  assert.doesNotMatch(source,/queueMicrotask|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/);
+test('CRITICAL MECHANICS/DEFENSIVES BRIDGE: post-owner retirement bridge is physically absent', async () => {
+  const retired=new URL('../../public/mechanics-defensives-fallback-bridge-v4.js',import.meta.url);
+  await assert.rejects(access(retired),error=>error?.code==='ENOENT');
+  const index=await read('index.html');
+  assert.ok(!index.includes('/mechanics-defensives-fallback-bridge-v4.js'),'retired split bridge must not remain in release wiring');
+  const legacy=await read('public/wcl-runtime.js');
+  assert.doesNotMatch(legacy,/window\.applyMechanicsAndDefensives\?\.\(\)/,'retired split fallback call site must not remain in legacy orchestration');
 });
 
 test('CRITICAL COMMAND CENTER HISTORY BRIDGE: migration bridge is passive and request-free', async () => {
@@ -145,7 +137,6 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   const dataHub = index.indexOf('/data-hub-v390.js?v=3.9.0');
   const reindex = index.indexOf('/knowledge-reindex-v390.js?v=3.9.0');
   const legacy = index.indexOf('/wcl-runtime.js?v=3.8.5');
-  const fallbackBridge = index.indexOf('/mechanics-defensives-fallback-bridge-v4.js?v=4.0.0-migration5-owner1');
   const defensiveSource = index.indexOf('/defensive-audit-runtime.js?v=4.0.0-migration5-owner1');
   const mechanicsSource = index.indexOf('/mechanics-runtime.js?v=4.0.0-migration4-owner1');
   const historyBridge = index.indexOf('/command-center-history-bridge-v4.js?v=4.0.0-migration1');
@@ -154,8 +145,7 @@ test('CRITICAL RELEASE WIRING: bootstrap and v3.9 cache/data layers load before 
   assert.ok(dataHub > bootstrap, 'data hub must wrap the bootstrap fetch layer, not bypass it');
   assert.ok(reindex > dataHub, 'knowledge reindex guard must listen after the data hub is initialized');
   assert.ok(legacy > reindex, 'legacy compatibility runtime must load after data platform layers');
-  assert.ok(fallbackBridge > legacy, 'post-owner no-op bridge must load after legacy global declarations');
-  assert.ok(defensiveSource > fallbackBridge, 'Defensive Audit source owner must install after the temporary no-op bridge');
+  assert.ok(defensiveSource > legacy, 'Defensive Audit source owner must load directly after the legacy compatibility layer');
   assert.ok(mechanicsSource > defensiveSource, 'Mechanics source owner must remain after the Defensive Audit source owner');
   assert.ok(historyBridge > mechanicsSource, 'Command Center history bridge must remain after the Mechanics source owner');
   assert.ok(progress > historyBridge, 'Progress must install its active-screen wrapper after the Command Center bridge');
