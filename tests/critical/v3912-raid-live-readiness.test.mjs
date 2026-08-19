@@ -45,6 +45,10 @@ test('CRITICAL RAID PREP: current-raid preparation is generic, checkpointed, una
   assert.match(source,/dataReadyDoesNotImplyLiveReady:true/);
   assert.match(source,/unchangedCoverageReviewIsNotRepeated:true/);
   assert.match(source,/legacyCoverageReviewRehearsedOnceAfterContractChange:true/);
+  assert.match(source,/emptyOperationalPackNeverRehearsed:true/);
+  assert.match(source,/coverageStatus=emptyOperationalPack\?'model-review'/);
+  assert.match(source,/MODEL REVIEW/);
+  assert.match(source,/topRejected/);
   assert.doesNotMatch(source,BOSS_SPECIFIC);
 });
 
