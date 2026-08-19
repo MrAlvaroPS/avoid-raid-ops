@@ -28,6 +28,7 @@ test('CRITICAL v3.9.9 STRUCTURAL BOUNDS: runtime cannot become a bulk DB2 crawle
   assert.match(provider,/WAGO_DB2_MAX_ROWS=5000/);
   assert.match(provider,/filter\[SpellID\]/);
   assert.match(provider,/EffectTriggerSpell/);
+  assert.match(provider,/if\(!text\.trim\(\)\)return/,'an HTTP-200 empty CSV may prove zero rows without becoming provider failure');
   assert.doesNotMatch(provider,/downloadAll|recursiveCrawl|wholeTableFallback/);
 });
 
@@ -73,4 +74,31 @@ test('CRITICAL v3.9.9 STRUCTURAL SOURCE/CAPABILITY: Wago is discoverable only as
   const preview=findIrisCapability('knowledge.spell-structure.preview');assert.equal(preview.autonomy,'automatic');
   const resolve=findIrisCapability('knowledge.spell-structure.resolve');assert.equal(resolve.autonomy,'bounded');
   const latest=findIrisCapability('knowledge.spell-structure.latest');assert.equal(latest.autonomy,'automatic');
+});
+
+test('CRITICAL v3.9.9 ABILITY KNOWLEDGE: stored DB2 wiring is read-only context and stale builds are rejected',async()=>{
+  const source=await read('server/knowledge/ability-knowledge-v1.mjs');
+  assert.match(source,/loadLatestSpellStructuralKnowledgeV1/);
+  assert.match(source,/structuralStoredLookupNetworkCalls:0/);
+  assert.match(source,/spellStructure:structuralSignal/);
+  assert.match(source,/Stored structural build .* does not match current official Blizzard build/);
+  assert.match(source,/observedOccurrence:false/);
+  assert.match(source,/causalCombatEvidence:false/);
+  assert.match(source,/promotionEffect:'none'/);
+});
+
+test('CRITICAL v3.9.9 EPISODE STRUCTURE: DB2 may reprioritize a hypothesis but never becomes causality/provenance/promotion',async()=>{
+  const [reconciler,route]=await Promise.all([
+    read('server/corpus/mechanic-episode-structural-reconciliation-v1.mjs'),
+    read('routes/api/wcl/mechanic-episode.js'),
+  ]);
+  assert.match(reconciler,/investigate-direct-db2-link-with-wcl/);
+  assert.match(reconciler,/encounter-applied-player-state-candidate/);
+  assert.match(reconciler,/structuralMetadataCanPromote:false/);
+  assert.match(reconciler,/structuralMetadataCanSatisfyExactPatternProvenance:false/);
+  assert.match(reconciler,/structuralMetadataCanOverrideActorProvenance:false/);
+  assert.match(reconciler,/structuralDirectLinkIsCausalCombatEvidence:false/);
+  assert.match(route,/loadLatestSpellStructuralKnowledgeV1/);
+  assert.match(route,/stale-build-rejected/);
+  assert.match(route,/enrichMechanicEpisodeWithStructuralKnowledgeV1/);
 });
