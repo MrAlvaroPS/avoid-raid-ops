@@ -22,10 +22,11 @@ import {
 } from '../config/legacy-runtime-ownership.mjs';
 
 const root=new URL('../',import.meta.url);
-const [legacy,progress,commandBridge,players,encounter]=await Promise.all([
+const [legacy,progress,commandSource,commandTransport,players,encounter]=await Promise.all([
   readFile(new URL(LEGACY_RUNTIME_PATH,root),'utf8'),
   readFile(new URL('public/progress-runtime-v3713.js',root),'utf8'),
-  readFile(new URL('public/command-center-history-bridge-v4.js',root),'utf8'),
+  readFile(new URL('apps/web/src/features/command-center/runtime.js',root),'utf8'),
+  readFile(new URL('public/command-center-runtime.js',root),'utf8'),
   readFile(new URL('public/player-intelligence-v392.js',root),'utf8'),
   readFile(new URL('public/encounter-intelligence-v375.js',root),'utf8'),
 ]);
@@ -64,19 +65,19 @@ expect((legacy.match(/window\.applyTelemetryMechanics\?\.\(\)/g)||[]).length===1
 expect((legacy.match(/window\.applyIntelligenceMechanics\?\.\(\)/g)||[]).length===1,'intelligence orchestration must delegate Mechanics intelligence to exactly one source-owned binding');
 
 const legacyAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='wcl-legacy-runtime');
-const commandBridgeAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
+const commandCenterAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-source-runtime');
 const encounterAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='encounter-intelligence');
 const progressAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='progress-runtime');
 const playersAsset=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='player-intelligence');
 expect(legacyAsset?.authority==='compatibility','wcl-runtime.js must remain compatibility-only in active asset ownership');
-expect(commandBridgeAsset?.authority==='migration-bridge'&&commandBridgeAsset?.owner==='command-center','Command Center bridge must remain an explicit migration-only owner');
+expect(commandCenterAsset?.authority==='source-owner'&&commandCenterAsset?.owner==='command-center-source'&&commandCenterAsset?.sourceOwner==='apps/web/src/features/command-center/runtime.js','Command Center must be owned by its feature source runtime');
 expect(encounterAsset?.authority==='primary'&&encounterAsset?.owner==='mechanics-corpus','Encounter Intelligence must remain the primary Mechanics/Corpus owner');
 expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='corpus-ui-stability'),'retired Corpus stability guard must not remain active');
 expect(progressAsset?.authority==='primary'&&progressAsset?.owner==='progress','Progress runtime must remain the primary Progress owner');
 expect(playersAsset?.authority==='primary'&&playersAsset?.owner==='players','Player Intelligence runtime must remain the primary Players owner');
-expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(commandBridgeAsset),'Command Center bridge must load after the compatibility runtime call sites');
+expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(commandCenterAsset),'Command Center source owner must load after the compatibility runtime call sites');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(encounterAsset),'canonical Corpus owner must remain after the compatibility runtime in the reviewed load order');
-expect(ACTIVE_LOCAL_SCRIPTS.indexOf(commandBridgeAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Command Center bridge must load before Progress installs its historical active-screen guards');
+expect(ACTIVE_LOCAL_SCRIPTS.indexOf(commandCenterAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(progressAsset),'Command Center source owner must load before Progress installs its historical active-screen guards');
 expect(ACTIVE_LOCAL_SCRIPTS.indexOf(legacyAsset)<ACTIVE_LOCAL_SCRIPTS.indexOf(playersAsset),'canonical Players owner must load after the compatibility runtime and consume its shared data/helper bridge');
 expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),'temporary Progress retirement guard must not return');
 expect(!ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='mechanics-defensives-fallback-bridge'),'retired Mechanics/Defensive split bridge must not remain active');
@@ -153,15 +154,18 @@ expect((encounter.match(/\bfetch\s*\(/g)||[]).length===2,'Corpus closure must ad
 expect(!/MutationObserver|requestAnimationFrame/.test(encounter),'Corpus canonical owner may not add observers or guard animation loops');
 try{await access(new URL('public/corpus-ui-stability-v1.js',root));fail.push('retired Corpus stability guard file still exists')}catch{}
 
-expect((legacy.match(/window\.applyProgressCurve\?\.\(\)/g)||[]).length===1,'Command Center must call the extracted curve through exactly one optional global bridge binding');
-expect((legacy.match(/window\.applyHistoryData\?\.\(\)/g)||[]).length===1,'supplemental orchestration must call extracted history through exactly one optional global bridge binding');
-expect(/window\.applyProgressCurve=applyCommandCenterProgressCurve/.test(commandBridge),'Command Center bridge must own the progression-curve global binding');
-expect(/window\.applyHistoryData=applyCommandCenterHistory/.test(commandBridge),'Command Center bridge must own the history global binding');
-expect(/window\.__AVOID_WCL__/.test(commandBridge),'Command Center curve must consume the already-loaded report payload');
-expect(/window\.__AVOID_WCL_HISTORY__/.test(commandBridge),'Command Center history must consume the already-loaded History payload');
-expect(/findOwnText\('Command Center'\)/.test(commandBridge),'Command Center bridge must stay scoped to Command Center');
-expect(!/Are we actually getting better\?/.test(commandBridge),'Command Center bridge may not write the Progress screen');
-expect(!/MutationObserver|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/.test(commandBridge),'Command Center bridge may not introduce observers, polling, timers, animation loops or network requests');
+expect((legacy.match(/window\.applyProgressCurve\?\.\(\)/g)||[]).length===1,'Command Center must call the extracted curve through exactly one optional source-owned binding');
+expect((legacy.match(/window\.applyHistoryData\?\.\(\)/g)||[]).length===1,'supplemental orchestration must call extracted history through exactly one optional source-owned binding');
+expect(commandSource===commandTransport,'Command Center public transport must stay byte-identical to its feature-owned source');
+expect(/window\.applyProgressCurve=applyCommandCenterProgressCurve/.test(commandSource),'Command Center source owner must own the progression-curve global binding');
+expect(/window\.applyHistoryData=applyCommandCenterHistory/.test(commandSource),'Command Center source owner must own the history global binding');
+expect(/window\.__AVOID_WCL__/.test(commandSource),'Command Center curve must consume the already-loaded report payload');
+expect(/window\.__AVOID_WCL_HISTORY__/.test(commandSource),'Command Center history must consume the already-loaded History payload');
+expect(/findOwnText\('Command Center'\)/.test(commandSource),'Command Center source owner must stay scoped to Command Center');
+expect(/mode:'single-source-owner'/.test(commandSource),'Command Center runtime must publish single-source ownership');
+expect(/writerPolicy:'single-command-center-progression-history-owner'/.test(commandSource),'Command Center runtime must publish its writer policy');
+expect(!/Are we actually getting better\?/.test(commandSource),'Command Center source owner may not write the Progress screen');
+expect(!/MutationObserver|setInterval|setTimeout|requestAnimationFrame|fetch\s*\(/.test(commandSource),'Command Center source owner may not introduce observers, polling, timers, animation loops or network requests');
 
 expect(!/function\s+neutralizeMissingHistory\s*\(\s*\)/.test(legacy),'legacy missing-history declaration must be physically retired');
 expect(!/neutralizeMissingHistory\s*\(\s*\)\s*;/.test(legacy),'legacy supplemental orchestration must not invoke the retired missing-history writer');
@@ -195,6 +199,6 @@ console.log(` - ${LEGACY_RUNTIME_CORPUS_PHYSICALLY_RETIRED.length} historical Co
 console.log(` - ${LEGACY_RUNTIME_CORPUS_WORKFLOW_HELPERS_PHYSICALLY_RETIRED.length} legacy Corpus workflow helpers are physically retired from wcl-runtime.js`);
 console.log(' - canonical Encounter Intelligence creates/places the Corpus card, owns the compatibility binding and retains the existing 1500ms polling owner');
 console.log(' - shared Players data/helper bridge remains active for the canonical dossier owner');
-console.log(' - Command Center owns extracted progression-curve and cross-night history bindings through one passive bridge');
+console.log(' - Command Center owns extracted progression-curve and cross-night history bindings through one passive feature source owner');
 console.log(' - missing-History presentation is now exclusively owned by canonical Progress; the legacy body and call are physically absent');
 console.log(` - status distribution ${JSON.stringify(statusCounts)}`);

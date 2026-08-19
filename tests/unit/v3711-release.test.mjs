@@ -23,13 +23,13 @@ test('index uses one generated compatibility stylesheet while preserving histori
   assert.deepEqual(styleSources.slice(-6),['/raidops-v3711.css?v=3.7.11','/raidops-v3712.css?v=3.7.12','/raidops-v3713.css?v=3.8.5','/raidops-v386.css?v=3.8.6','/raidops-v390.css?v=3.9.0','/raidops-v392.css?v=3.9.2']);
   assert.match(index,/main\.css[\s\S]*raidops-active\.css\?v=3\.9\.2-css1/);
   for(const source of styleSources)assert.ok(!index.includes(source),`${source} must be a bundle source, not an individual production request`);
-  assert.match(index,/wcl-bootstrap-v389\.js\?v=3\.8\.9\.1/);assert.match(index,/data-hub-v390\.js\?v=3\.9\.0/);assert.match(index,/knowledge-reindex-v390\.js\?v=3\.9\.0/);assert.match(index,/wcl-runtime\.js\?v=3\.8\.5/);assert.match(index,/command-center-runtime\.js\?v=4\.0\.0-migration6-transport1/);assert.match(index,/encounter-intelligence-v375\.js\?v=3\.8\.5/);assert.match(index,/progress-runtime-v3713\.js\?v=3\.8\.5/);assert.match(index,/iris-runtime-v3713\.js\?v=3\.8\.9\.1/);assert.match(index,/player-intelligence-v392\.js\?v=3\.9\.2/);
+  assert.match(index,/wcl-bootstrap-v389\.js\?v=3\.8\.9\.1/);assert.match(index,/data-hub-v390\.js\?v=3\.9\.0/);assert.match(index,/knowledge-reindex-v390\.js\?v=3\.9\.0/);assert.match(index,/wcl-runtime\.js\?v=3\.8\.5/);assert.match(index,/command-center-runtime\.js\?v=4\.0\.0-migration6-owner1/);assert.match(index,/encounter-intelligence-v375\.js\?v=3\.8\.5/);assert.match(index,/progress-runtime-v3713\.js\?v=3\.8\.5/);assert.match(index,/iris-runtime-v3713\.js\?v=3\.8\.9\.1/);assert.match(index,/player-intelligence-v392\.js\?v=3\.9\.2/);
   assert.doesNotMatch(index,/corpus-ui-stability-v1\.js/,'physically retired Corpus guard must not return to runtime layering');
   assert.doesNotMatch(index,/progress-runtime-v3712\.js\?v=3\.7\.12/);assert.doesNotMatch(index,/iris-runtime-v3712\.js\?v=3\.7\.12/);assert.doesNotMatch(index,/player-intelligence-v386\.js\?v=3\.8\.9\.1/);
   assert.ok(index.indexOf('/wcl-bootstrap-v389.js?v=3.8.9.1')<index.indexOf('/data-hub-v390.js?v=3.9.0'));
   assert.ok(index.indexOf('/data-hub-v390.js?v=3.9.0')<index.indexOf('/wcl-runtime.js?v=3.8.5'));
-  assert.ok(index.indexOf('/wcl-runtime.js?v=3.8.5')<index.indexOf('/command-center-runtime.js?v=4.0.0-migration6-transport1'));
-  assert.ok(index.indexOf('/command-center-runtime.js?v=4.0.0-migration6-transport1')<index.indexOf('/encounter-intelligence-v375.js?v=3.8.5'));
+  assert.ok(index.indexOf('/wcl-runtime.js?v=3.8.5')<index.indexOf('/command-center-runtime.js?v=4.0.0-migration6-owner1'));
+  assert.ok(index.indexOf('/command-center-runtime.js?v=4.0.0-migration6-owner1')<index.indexOf('/encounter-intelligence-v375.js?v=3.8.5'));
   assert.ok(index.indexOf('/encounter-intelligence-v375.js?v=3.8.5')<index.indexOf('/progress-runtime-v3713.js?v=3.8.5'));
   assert.ok(index.indexOf('/iris-runtime-v3713.js?v=3.8.9.1')<index.indexOf('/player-intelligence-v392.js?v=3.9.2'));
 });
