@@ -17,7 +17,7 @@ test('difficulty structural view keeps connected helpers but excludes official a
   const heroicOfficial={fingerprint:'b'.repeat(40),difficulty:{id:4,name:'Heroic',db2DifficultyId:15},applicability:{sectionDifficultyMetadataAvailable:true},abilities:[{abilityId:910001},{abilityId:910002}]};
   const view=buildSpellStructuralDifficultyViewV1({structuralKnowledge:structural,baseOfficialGraph:baseOfficial,difficultyOfficialView:heroicOfficial});
   assert.equal(view.scope.difficulty,4);
-  assert.deepEqual(view.relations.map(row=>row.providerRowId),[1,3,2].sort((a,b)=>a-b).sort(()=>0));
+  assert.deepEqual(view.relations.map(row=>row.providerRowId),[1,3,2]);
   const ids=new Set(view.relations.flatMap(row=>[row.sourceAbilityId,row.targetAbilityId]));
   assert.ok(ids.has(920001));
   assert.ok(ids.has(920002));
