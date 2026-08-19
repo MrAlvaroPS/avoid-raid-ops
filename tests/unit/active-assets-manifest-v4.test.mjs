@@ -33,11 +33,14 @@ test('active compatibility asset manifest makes the current production stack exp
   assert.equal(mechanicsSource?.authority,'source-owner');
   assert.equal(mechanicsSource?.role,'single-source-mechanics-presentation');
   assert.equal(mechanicsSource?.retirement,'keep-stable-source-owned-transport');
-  const historyBridge=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
-  assert.equal(historyBridge?.src,'/command-center-runtime.js?v=4.0.0-migration6-transport1');
-  assert.equal(historyBridge?.owner,'command-center');
-  assert.equal(historyBridge?.authority,'migration-bridge');
-  assert.equal(historyBridge?.retirement,'promote-stable-transport-to-source-owner');
+  const commandCenterSource=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-source-runtime');
+  assert.equal(commandCenterSource?.src,'/command-center-runtime.js?v=4.0.0-migration6-owner1');
+  assert.equal(commandCenterSource?.owner,'command-center-source');
+  assert.equal(commandCenterSource?.sourceOwner,'apps/web/src/features/command-center/runtime.js');
+  assert.equal(commandCenterSource?.authority,'source-owner');
+  assert.equal(commandCenterSource?.role,'single-source-command-center-progression-history');
+  assert.equal(commandCenterSource?.retirement,'keep-stable-source-owned-transport');
+  assert.equal(ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='command-center-history-bridge'),false,'Command Center migration bridge must no longer be the active asset identity');
   assert.equal(ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),false,'temporary retirement guard must not survive physical source deletion');
   assert.equal(ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='corpus-ui-stability'),false,'Corpus migration guard must be physically retired after the green post-retirement checkpoint');
 });
@@ -52,12 +55,12 @@ test('runtime domains have one primary owner while the monolithic WCL runtime is
   assert.equal(legacy.retirement,'decompose-per-domain-before-retirement');
   const defensiveSource=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='defensive-audit-source-runtime');
   const mechanicsSource=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='mechanics-source-runtime');
-  const historyBridge=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
+  const commandCenterSource=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-source-runtime');
   const progress=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='progress-runtime');
   assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(legacy)<ACTIVE_LOCAL_SCRIPTS.indexOf(defensiveSource));
   assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(defensiveSource)<ACTIVE_LOCAL_SCRIPTS.indexOf(mechanicsSource));
-  assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(mechanicsSource)<ACTIVE_LOCAL_SCRIPTS.indexOf(historyBridge));
-  assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(historyBridge)<ACTIVE_LOCAL_SCRIPTS.indexOf(progress));
+  assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(mechanicsSource)<ACTIVE_LOCAL_SCRIPTS.indexOf(commandCenterSource));
+  assert.ok(ACTIVE_LOCAL_SCRIPTS.indexOf(commandCenterSource)<ACTIVE_LOCAL_SCRIPTS.indexOf(progress));
 });
 
 test('versioned runtime families identify exactly one active generation in the manifest',()=>{
