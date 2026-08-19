@@ -13,13 +13,15 @@ test('CRITICAL OPERATIONAL REHEARSAL: DATA READY is separate from LIVE READY and
   assert.match(source,/rehearsalDoesNotTrain:true/);
   assert.match(source,/rehearsalDoesNotPromote:true/);
   assert.match(source,/sameDifficultyOnly:true/);
-  assert.match(source,/selectedWideCodes/);
+  assert.match(source,/operationalModelFingerprint/);
+  assert.match(source,/rehearsalFingerprint/);
+  assert.match(source,/staleCoverageReviewCannotBlockChangedModel:true/);
   assert.match(source,/coverage-review/);
   assert.match(source,/live-ready/);
   assert.doesNotMatch(source,BOSS_SPECIFIC);
 });
 
-test('CRITICAL RAID PREP: current-raid preparation is generic, sequential/checkpointed and never borrows another difficulty',async()=>{
+test('CRITICAL RAID PREP: current-raid preparation is generic, checkpointed, unattended-safe and never borrows another difficulty',async()=>{
   const source=await read('scripts/iris-prepare-raid.mjs');
   assert.match(source,/catalog\.currentRaid\.encounters/);
   assert.match(source,/availability\.status!=='public-evidence-available'/);
@@ -27,9 +29,14 @@ test('CRITICAL RAID PREP: current-raid preparation is generic, sequential/checkp
   assert.match(source,/recompileCorpusModelV2/);
   assert.match(source,/previewOperationalRehearsalV1/);
   assert.match(source,/executeOperationalRehearsalV1/);
-  assert.match(source,/rate-limit reserve reached/);
+  assert.match(source,/--watch/);
+  assert.match(source,/WATCH SLEEP/);
+  assert.match(source,/resumeAt/);
+  assert.match(source,/unchanged coverage-review/);
+  assert.match(source,/--force-rehearsal/);
   assert.match(source,/sameDifficultyOnly:true/);
   assert.match(source,/dataReadyDoesNotImplyLiveReady:true/);
+  assert.match(source,/unchangedCoverageReviewIsNotRepeated:true/);
   assert.doesNotMatch(source,BOSS_SPECIFIC);
 });
 
@@ -58,6 +65,15 @@ test('CRITICAL DIFFICULTY IDENTITY: operational loaders have no implicit Mythic 
   const source=await read('server/corpus/service-v2.mjs');
   assert.match(source,/difficulty is required/);
   assert.doesNotMatch(source,/input\.difficulty\s*\|\|\s*5/);
+});
+
+test('CRITICAL MECHANICS PUBLIC REFERENCE: canonical corpus evidence is visible without pretending it is accepted knowledge',async()=>{
+  const [service,ui]=await Promise.all([read('server/services/global-raid-reference-service.mjs'),read('public/iris-mechanics-global-reference-v3910.js')]);
+  assert.match(service,/canonicalCountsPreferredWhenOperationalReady:true/);
+  assert.match(service,/wideSources/);assert.match(service,/deepSources/);assert.match(service,/candidateSources/);
+  assert.match(ui,/PUBLIC CORPUS AVAILABLE/);assert.match(ui,/DATA READY/);assert.match(ui,/not accepted mechanic knowledge/i);
+  assert.match(ui,/const maturity=String\(ref\?\.maturity/);
+  assert.doesNotMatch(ui,/row=ref\?\.reference/);
 });
 
 test('CRITICAL IRIS CAPABILITIES: raid preparation and rehearsal are machine-readable instead of operator folklore',async()=>{
