@@ -13,5 +13,12 @@ test('SimulationCraft nightly parser accepts current Windows x64 filename famili
   assert.equal(rows.length,2);
   assert.equal(rows[0].commit,'abcdef1');
   assert.equal(rows[1].commit,'1234567');
+  assert.equal(rows[0].transport,'https');
   assert.match(rows[0].url,/downloads\.simulationcraft\.org\/nightly\/simc-/);
+});
+
+test('SimulationCraft nightly parser records official HTTP fallback explicitly',()=>{
+  const rows=parseSimcNightlyIndexV1('<a href="simc-1210.01.ce7b1a2-win64.7z">nightly</a>','http://downloads.simulationcraft.org/nightly/');
+  assert.equal(rows[0].transport,'http');
+  assert.equal(rows[0].commit,'ce7b1a2');
 });
