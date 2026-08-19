@@ -19,7 +19,8 @@ async function inspect(row){
   return{scope,corpus,operational,rehearsal};
 }
 function compact(row,state){
-  return{boss:row.boss.name,encounterId:row.boss.wclEncounterId,difficulty:row.availability?.difficulty?.name||requestedDifficulty,availability:row.availability?.status||'unknown',publicSources:Number(row.availability?.publicSources||0),corpus:state.corpus?{status:state.corpus.status,phase:state.corpus.phase,pulls:Number(state.corpus.pullCount||0),deepPulls:Number(state.corpus.deepPullCount||0),sources:Number(state.corpus.sourceStats?.total||0),resumeAt:Number(state.corpus.resumeAt||0)||null}:null,dataReady:Boolean(state.operational),coverageStatus:state.rehearsal?.status||null,liveReady:state.rehearsal?.liveReady===true};
+  const legacyReview=state.rehearsal?.storedPrevious?.status==='coverage-review'&&!state.rehearsal?.storedPrevious?.rehearsalFingerprint;
+  return{boss:row.boss.name,encounterId:row.boss.wclEncounterId,difficulty:row.availability?.difficulty?.name||requestedDifficulty,availability:row.availability?.status||'unknown',publicSources:Number(row.availability?.publicSources||0),corpus:state.corpus?{status:state.corpus.status,phase:state.corpus.phase,pulls:Number(state.corpus.pullCount||0),deepPulls:Number(state.corpus.deepPullCount||0),sources:Number(state.corpus.sourceStats?.total||0),resumeAt:Number(state.corpus.resumeAt||0)||null}:null,dataReady:Boolean(state.operational),coverageStatus:legacyReview?'coverage-review':state.rehearsal?.status||null,liveReady:state.rehearsal?.liveReady===true};
 }
 function summarize(final){
   return{liveReady:final.filter(x=>x.liveReady).length,dataReady:final.filter(x=>x.dataReady).length,coverageReview:final.filter(x=>x.coverageStatus==='coverage-review').length,rehearsalRequired:final.filter(x=>x.dataReady&&x.coverageStatus==='rehearsal-required').length,building:final.filter(x=>x.corpus&&['running','rate-limited'].includes(x.corpus.status)).length,paused:final.filter(x=>x.corpus?.status==='paused').length,notStarted:final.filter(x=>x.availability==='public-evidence-available'&&!x.corpus&&!x.dataReady).length,waiting:final.filter(x=>x.status==='waiting-for-public-evidence'||x.availability!=='public-evidence-available').length,total:final.length};
@@ -51,9 +52,10 @@ async function runPass(passNumber=1){
     }
     if(state.operational&&rehearse&&state.rehearsal?.liveReady!==true){
       const preview=state.rehearsal||await previewOperationalRehearsalV1({...state.scope,reports});
-      const unchangedReview=preview.status==='coverage-review'&&preview.stored&&String(preview.stored.rehearsalFingerprint||'')===String(preview.fingerprint||'');
-      if(unchangedReview&&!forceRehearsal){
-        console.log(`REHEARSAL SKIP · ${name} · unchanged coverage-review ${preview.stored.coverage?.observedMechanics||0}/${preview.stored.coverage?.packMechanics||0} mechanics · use --force-rehearsal only after intentional inspection.`);
+      const currentReview=preview.status==='coverage-review'&&preview.stored&&String(preview.stored.rehearsalFingerprint||'')===String(preview.fingerprint||'');
+      const legacyReview=preview.storedPrevious?.status==='coverage-review'&&!preview.storedPrevious?.rehearsalFingerprint;
+      if((currentReview||legacyReview)&&!forceRehearsal){
+        const saved=preview.stored||preview.storedPrevious;console.log(`REHEARSAL SKIP · ${name} · persisted coverage-review ${saved?.coverage?.observedMechanics||0}/${saved?.coverage?.packMechanics||0} mechanics · no WCL repeated. Use --force-rehearsal only after intentional inspection/model change.`);
       }else if(preview.selectedReports?.length){
         console.log(`REHEARSAL · ${name} · ${preview.selectedReports.length} deterministic canonical reports`);const result=await executeOperationalRehearsalV1({...state.scope,reports,confirmExecution:true,previewFingerprint:preview.fingerprint});progressed=true;console.log(`REHEARSAL RESULT · ${name} · ${result.status} · ${result.coverage.observedMechanics}/${result.coverage.packMechanics} mechanics · ${result.coverage.coveragePct}% coverage`);
       }
@@ -63,7 +65,7 @@ async function runPass(passNumber=1){
   }
   for(const row of rows){if(final.some(x=>x.boss===row.boss.name))continue;final.push(compact(row,await inspect(row)));}
   const summary=summarize(final);
-  console.log(JSON.stringify({mode:watch?'watch':'execute',pass:passNumber,raid:{name:catalog.currentRaid.name,zoneId:catalog.currentRaid.zoneId},difficulty:{id:difficulty,name:rows[0]?.availability?.difficulty?.name||requestedDifficulty},steps:totalSteps,summary,scopes:final,evidenceContract:{sameDifficultyOnly:true,homeExcludedFailClosed:true,dataReadyDoesNotImplyLiveReady:true,rehearsalDoesNotTrain:true,rehearsalDoesNotPromote:true,unchangedCoverageReviewIsNotRepeated:true,automaticPromotion:false}},null,2));
+  console.log(JSON.stringify({mode:watch?'watch':'execute',pass:passNumber,raid:{name:catalog.currentRaid.name,zoneId:catalog.currentRaid.zoneId},difficulty:{id:difficulty,name:rows[0]?.availability?.difficulty?.name||requestedDifficulty},steps:totalSteps,summary,scopes:final,evidenceContract:{sameDifficultyOnly:true,homeExcludedFailClosed:true,dataReadyDoesNotImplyLiveReady:true,rehearsalDoesNotTrain:true,rehearsalDoesNotPromote:true,unchangedCoverageReviewIsNotRepeated:true,legacyCoverageReviewIsNotRepeated:true,automaticPromotion:false}},null,2));
   return{final,summary,totalSteps,rateLimited,earliestResumeAt,progressed};
 }
 
@@ -71,7 +73,7 @@ let pass=0;
 while(true){
   const result=await runPass(++pass),s=result.summary;
   const automaticTerminal=s.liveReady+s.coverageReview+s.waiting+s.paused===s.total;
-  if(!watch){console.log(s.liveReady===s.total?'\nOK: every public scope in this raid+difficulty is LIVE READY.':'\nCHECKPOINT: rerun with --execute for another bounded pass, or use --watch to resume automatically. COVERAGE REVIEW is persisted and will not be repeated unless the model changes.');break;}
+  if(!watch){console.log(s.liveReady===s.total?'\nOK: every public scope in this raid+difficulty is LIVE READY.':'\nCHECKPOINT: rerun with --execute for another bounded pass, or use --watch to resume automatically. COVERAGE REVIEW is persisted and will not be repeated unless explicitly forced.');break;}
   if(automaticTerminal){console.log(`\nWATCH COMPLETE · ${s.liveReady} LIVE READY · ${s.coverageReview} COVERAGE REVIEW · ${s.paused} PAUSED · ${s.waiting} WAITING. No automatically safe work remains.`);break;}
   if(result.rateLimited){
     const resumeAt=Number(result.earliestResumeAt||0),waitMs=Math.max(5000,resumeAt-Date.now()+1500);console.log(`\nWATCH SLEEP · WCL checkpoint · resume ${resumeAt?new Date(resumeAt).toISOString():'after safety delay'} · ${(waitMs/60000).toFixed(1)} min. Leave this process running; Ctrl+C stops safely.`);await sleep(waitMs);continue;
