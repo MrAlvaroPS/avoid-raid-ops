@@ -39,6 +39,40 @@ function canonicalSourceSafety(model,sampling,args){
   return true;
 }
 
+const uniq=values=>[...new Set((values||[]).map(Number).filter(Number.isFinite))];
+function abilityDeep(aggregate,id,cohort,key){
+  return ['train','validation'].reduce((sum,split)=>sum+Number(aggregate?.splits?.[split]?.abilities?.[String(id)]?.deep?.[cohort]?.[key]||0),0);
+}
+function mechanicMetric(mechanic){
+  const inference=String(mechanic?.inference||'');
+  if(inference==='failure-aura-is-failure')return{kind:'enemy-aura-applications',ids:uniq(mechanic.failureAuraIds),keys:['enemyBuffApplications','enemyDebuffApplications']};
+  if(['phase-transition-observed','phase-boundary-observed','stateful-cast-observed','wipe-associated-cast','completed-cast-is-failure'].includes(inference))return{kind:'cast-occurrences',ids:uniq([...(mechanic.opportunityCastIds||[]),...(mechanic.castIds||[])]),keys:['begins','casts'],preferFirst:true};
+  const damageIds=uniq([...(mechanic.damageIds||[]),...(mechanic.failureDamageIds||[])]);
+  if(damageIds.length)return{kind:'damage-occurrences',ids:damageIds,keys:['damageOccurrences']};
+  const castIds=uniq([...(mechanic.opportunityCastIds||[]),...(mechanic.castIds||[])]);
+  if(castIds.length)return{kind:'cast-occurrences',ids:castIds,keys:['begins','casts'],preferFirst:true};
+  return null;
+}
+function cohortMetric(aggregate,metric,cohort){
+  if(!metric?.ids?.length)return 0;
+  if(metric.preferFirst){
+    const first=metric.ids.reduce((sum,id)=>sum+abilityDeep(aggregate,id,cohort,metric.keys[0]),0);
+    if(first>0)return first;
+    return metric.ids.reduce((sum,id)=>sum+abilityDeep(aggregate,id,cohort,metric.keys[1]),0);
+  }
+  return metric.ids.reduce((sum,id)=>sum+metric.keys.reduce((sub,key)=>sub+abilityDeep(aggregate,id,cohort,key),0),0);
+}
+function operationalBenchmark(pack,aggregate){
+  if(!pack||!aggregate)return null;
+  const killPulls=Number(aggregate.deepKillPulls||0),wipePulls=Number(aggregate.deepWipePulls||0),allPulls=killPulls+wipePulls;
+  const mechanics=(pack.mechanics||[]).map(mechanic=>{
+    const metric=mechanicMetric(mechanic);if(!metric)return null;
+    const kill=cohortMetric(aggregate,metric,'kill'),wipe=cohortMetric(aggregate,metric,'wipe'),all=kill+wipe;
+    return{key:mechanic.key,name:mechanic.name||mechanic.key,metric:metric.kind,deepPulls:allPulls,killPulls,wipePulls,meanPerPull:allPulls?all/allPulls:null,killMeanPerPull:killPulls?kill/killPulls:null,wipeMeanPerPull:wipePulls?wipe/wipePulls:null};
+  }).filter(Boolean);
+  return{version:'global-observational-benchmark-v1',source:'canonical-deep-corpus',semantics:'descriptive occurrence means only; not a failure threshold, percentile, blame signal or promotion gate',deepPulls:allPulls,killPulls,wipePulls,mechanics};
+}
+
 export async function recompileCorpusModelV2(input = {}) {
   await assertCorpusStorage();
   const args = await resolveArgs(input);
@@ -70,7 +104,7 @@ export async function getBossSamplingManifest(input = {}) {
 
 export async function loadOperationalEncounterModelV2(input={}){
   const args=await resolveArgs(input);if(!args)return null;
-  const [model,sampling]=await Promise.all([corpusGet(modelKey(args)),corpusGet(globalBossSamplingKey(args))]);
+  const [model,sampling,aggregate]=await Promise.all([corpusGet(modelKey(args)),corpusGet(globalBossSamplingKey(args)),corpusGet(aggregateKey(args))]);
   if(!canonicalSourceSafety(model,sampling,args)||!model?.pack)return null;
   const t={...OPERATIONAL_REFERENCE_THRESHOLDS,...(input.thresholds||{})};
   const evidence={
@@ -89,6 +123,7 @@ export async function loadOperationalEncounterModelV2(input={}){
       version:OPERATIONAL_REFERENCE_VERSION,status:model.status==='published'?'published-compatible':'operational-unpublished',
       scope:{encounterId:args.encounterId,difficulty:args.difficulty,partition:args.partition},evidence,thresholds:t,checks,
       sourceIsolation:'canonical-sampling-fail-closed',acceptedKnowledge:model.status==='published',automaticPromotion:false,
+      benchmark:operationalBenchmark(model.pack,aggregate),
       meaning:model.status==='published'?'Published model also satisfies the operational floor.':'Bounded same-difficulty public reference safe for operational classification only; it is not accepted/promoted boss knowledge.'
     }
   };
@@ -97,13 +132,10 @@ export async function loadOperationalEncounterModelV2(input={}){
 // Application/runtime consumers that require accepted knowledge must use this loader.
 // It rejects any pre-contract or merely operational model even if a candidate pack exists.
 export async function loadPublishedEncounterModelV2(input = {}) {
-  const args = await resolveArgs(input);
-  if (!args) return null;
-  const [model, sampling] = await Promise.all([
-    corpusGet(modelKey(args)),
-    corpusGet(globalBossSamplingKey(args)),
-  ]);
-  if (!model || model.status !== 'published' || !sampling) return null;
+  const args=await resolveArgs(input);
+  if(!args)return null;
+  const [model,sampling]=await Promise.all([corpusGet(modelKey(args)),corpusGet(globalBossSamplingKey(args))]);
+  if(!model||model.status!=='published'||!sampling)return null;
   if(!canonicalSourceSafety(model,sampling,args))return null;
   return model;
 }
