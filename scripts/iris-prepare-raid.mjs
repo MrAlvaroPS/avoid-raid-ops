@@ -18,6 +18,7 @@ const raw429Delay=()=>Math.min(15*60_000,60_000*Math.pow(2,Math.min(4,Math.max(0
 const noteRaw429=({error,boss,stage})=>{raw429Streak++;const resumeAt=Date.now()+raw429Delay();console.log(`WCL 429 · ${boss} · ${stage} · transient IP throttle · checkpoint preserved · retry ${new Date(resumeAt).toISOString()} · attempt ${raw429Streak}`);return resumeAt;};
 const clearRaw429=()=>{raw429Streak=0;};
 const compactError=value=>String(value||'').replace(/\s+/g,' ').trim().slice(0,220);
+const rejectedSummary=operational=>(operational?.rejected||[]).slice(0,8).map(row=>({name:row.name||row.key||null,inference:row.inference||null,reason:row.reason||null,trainingConfidence:Number.isFinite(Number(row.trainingConfidence))?Number(row.trainingConfidence):null,validationScore:Number.isFinite(Number(row.validationScore))?Number(row.validationScore):null}));
 
 async function inspect(row){
   const scope={encounterId:Number(row.boss.wclEncounterId),difficulty,partition:Number(row.availability?.partition||catalog.currentRaid.defaultPartition?.id||0)},corpus=await getCorpusStatus(scope).catch(()=>null),operational=await loadOperationalEncounterModelV2(scope).catch(()=>null);
@@ -25,10 +26,11 @@ async function inspect(row){
   return{scope,corpus,operational,rehearsal};
 }
 function compact(row,state){
-  return{boss:row.boss.name,encounterId:row.boss.wclEncounterId,difficulty:row.availability?.difficulty?.name||requestedDifficulty,availability:row.availability?.status||'unknown',publicSources:Number(row.availability?.publicSources||0),corpus:state.corpus?{status:state.corpus.status,phase:state.corpus.phase,pulls:Number(state.corpus.pullCount||0),deepPulls:Number(state.corpus.deepPullCount||0),sources:Number(state.corpus.sourceStats?.total||0),resumeAt:Number(state.corpus.resumeAt||0)||null,...(state.corpus.status==='paused'?{pauseReason:compactError(state.corpus.message||state.corpus.lastError||state.corpus.error)||null}:{})}:null,dataReady:Boolean(state.operational),coverageStatus:state.rehearsal?.status||null,liveReady:state.rehearsal?.liveReady===true};
+  const packMechanics=state.operational?Number(state.rehearsal?.packDiagnostics?.mechanics?.length??state.operational?.pack?.mechanics?.length??0):null,emptyOperationalPack=Boolean(state.operational)&&packMechanics===0,coverageStatus=emptyOperationalPack?'model-review':state.rehearsal?.status||null;
+  return{boss:row.boss.name,encounterId:row.boss.wclEncounterId,difficulty:row.availability?.difficulty?.name||requestedDifficulty,availability:row.availability?.status||'unknown',publicSources:Number(row.availability?.publicSources||0),corpus:state.corpus?{status:state.corpus.status,phase:state.corpus.phase,pulls:Number(state.corpus.pullCount||0),deepPulls:Number(state.corpus.deepPullCount||0),sources:Number(state.corpus.sourceStats?.total||0),resumeAt:Number(state.corpus.resumeAt||0)||null,...(state.corpus.status==='paused'?{pauseReason:compactError(state.corpus.message||state.corpus.lastError||state.corpus.error)||null}:{})}:null,dataReady:Boolean(state.operational),coverageStatus,liveReady:!emptyOperationalPack&&state.rehearsal?.liveReady===true,...(emptyOperationalPack?{modelReview:{reason:'empty-operational-pack',acceptedMechanics:Number(state.operational?.validation?.acceptedMechanics||0),rejectedMechanics:Number(state.operational?.validation?.rejectedMechanics||0),topRejected:rejectedSummary(state.operational),learningBottleneck:state.operational?.learning?.bottleneck||null,learningCaps:state.operational?.learning?.caps||[]}}:{})};
 }
 function summarize(final){
-  return{liveReady:final.filter(x=>x.liveReady).length,dataReady:final.filter(x=>x.dataReady).length,coverageReview:final.filter(x=>x.coverageStatus==='coverage-review').length,rehearsalRequired:final.filter(x=>x.dataReady&&x.coverageStatus==='rehearsal-required').length,building:final.filter(x=>x.corpus&&['running','rate-limited'].includes(x.corpus.status)).length,paused:final.filter(x=>x.corpus?.status==='paused').length,notStarted:final.filter(x=>x.availability==='public-evidence-available'&&!x.corpus&&!x.dataReady).length,waiting:final.filter(x=>x.status==='waiting-for-public-evidence'||x.availability!=='public-evidence-available').length,total:final.length};
+  return{liveReady:final.filter(x=>x.liveReady).length,dataReady:final.filter(x=>x.dataReady).length,coverageReview:final.filter(x=>x.coverageStatus==='coverage-review').length,modelReview:final.filter(x=>x.coverageStatus==='model-review').length,rehearsalRequired:final.filter(x=>x.dataReady&&x.coverageStatus==='rehearsal-required').length,building:final.filter(x=>x.corpus&&['running','rate-limited'].includes(x.corpus.status)).length,paused:final.filter(x=>x.corpus?.status==='paused').length,notStarted:final.filter(x=>x.availability==='public-evidence-available'&&!x.corpus&&!x.dataReady).length,waiting:final.filter(x=>x.status==='waiting-for-public-evidence'||x.availability!=='public-evidence-available').length,total:final.length};
 }
 
 console.log(`\nIRIS RAID PREP · ${catalog.currentRaid.name} · ${rows[0]?.availability?.difficulty?.name||requestedDifficulty}${watch?' · WATCH':''}`);
@@ -63,14 +65,18 @@ async function runPass(passNumber=1){
       state=await inspect(row);
     }
     if(state.operational&&rehearse&&state.rehearsal?.liveReady!==true){
-      const preview=state.rehearsal||await previewOperationalRehearsalV1({...state.scope,reports});
-      const currentReview=preview.status==='coverage-review'&&preview.stored&&String(preview.stored.rehearsalFingerprint||'')===String(preview.fingerprint||'');
-      if(currentReview&&!forceRehearsal){
-        const saved=preview.stored;console.log(`REHEARSAL SKIP · ${name} · current-contract coverage-review ${saved?.coverage?.observedMechanics||0}/${saved?.coverage?.packMechanics||0} mechanics · no WCL repeated. Use --force-rehearsal only after intentional model change.`);
-      }else if(preview.selectedReports?.length){
-        const legacy=preview.storedPrevious?.status==='coverage-review';console.log(`REHEARSAL · ${name} · ${preview.selectedReports.length} deterministic canonical reports${legacy?' · legacy review invalidated by execution-contract change':''}`);
-        try{const result=await executeOperationalRehearsalV1({...state.scope,reports,confirmExecution:true,previewFingerprint:preview.fingerprint});clearRaw429();progressed=true;console.log(`REHEARSAL RESULT · ${name} · ${result.status} · ${result.coverage.observedMechanics}/${result.coverage.packMechanics} mechanics · ${result.coverage.coveragePct}% coverage`);}
-        catch(error){if(isRawWcl429(error)){throttle(error,name,'rehearsal');final.push(compact(row,await inspect(row)));console.log('CHECKPOINT · rehearsal throttled by WCL; persisted readiness/corpus state is safe.');break;}throw error;}
+      const preview=state.rehearsal||await previewOperationalRehearsalV1({...state.scope,reports}),packMechanics=Number(preview.packDiagnostics?.mechanics?.length??state.operational?.pack?.mechanics?.length??0);
+      if(packMechanics===0){
+        const rejected=Number(state.operational?.validation?.rejectedMechanics||0);console.log(`MODEL REVIEW · ${name} · operational pack has 0 accepted mechanics · ${rejected} candidates rejected · zero-WCL rehearsal skipped.`);
+      }else{
+        const currentReview=preview.status==='coverage-review'&&preview.stored&&String(preview.stored.rehearsalFingerprint||'')===String(preview.fingerprint||'');
+        if(currentReview&&!forceRehearsal){
+          const saved=preview.stored;console.log(`REHEARSAL SKIP · ${name} · current-contract coverage-review ${saved?.coverage?.observedMechanics||0}/${saved?.coverage?.packMechanics||0} mechanics · no WCL repeated. Use --force-rehearsal only after intentional model change.`);
+        }else if(preview.selectedReports?.length){
+          const legacy=preview.storedPrevious?.status==='coverage-review';console.log(`REHEARSAL · ${name} · ${preview.selectedReports.length} deterministic canonical reports${legacy?' · legacy review invalidated by execution-contract change':''}`);
+          try{const result=await executeOperationalRehearsalV1({...state.scope,reports,confirmExecution:true,previewFingerprint:preview.fingerprint});clearRaw429();progressed=true;console.log(`REHEARSAL RESULT · ${name} · ${result.status} · ${result.coverage.observedMechanics}/${result.coverage.packMechanics} mechanics · ${result.coverage.coveragePct}% coverage`);}
+          catch(error){if(isRawWcl429(error)){throttle(error,name,'rehearsal');final.push(compact(row,await inspect(row)));console.log('CHECKPOINT · rehearsal throttled by WCL; persisted readiness/corpus state is safe.');break;}throw error;}
+        }
       }
     }
     state=await inspect(row);final.push(compact(row,state));
@@ -78,19 +84,19 @@ async function runPass(passNumber=1){
   }
   for(const row of rows){if(final.some(x=>x.boss===row.boss.name))continue;final.push(compact(row,await inspect(row)));}
   const summary=summarize(final);
-  console.log(JSON.stringify({mode:watch?'watch':'execute',pass:passNumber,raid:{name:catalog.currentRaid.name,zoneId:catalog.currentRaid.zoneId},difficulty:{id:difficulty,name:rows[0]?.availability?.difficulty?.name||requestedDifficulty},steps:totalSteps,summary,scopes:final,evidenceContract:{sameDifficultyOnly:true,homeExcludedFailClosed:true,dataReadyDoesNotImplyLiveReady:true,rehearsalDoesNotTrain:true,rehearsalDoesNotPromote:true,unchangedCoverageReviewIsNotRepeated:true,legacyCoverageReviewRehearsedOnceAfterContractChange:true,rawWcl429IsTransientCheckpoint:true,automaticPromotion:false}},null,2));
+  console.log(JSON.stringify({mode:watch?'watch':'execute',pass:passNumber,raid:{name:catalog.currentRaid.name,zoneId:catalog.currentRaid.zoneId},difficulty:{id:difficulty,name:rows[0]?.availability?.difficulty?.name||requestedDifficulty},steps:totalSteps,summary,scopes:final,evidenceContract:{sameDifficultyOnly:true,homeExcludedFailClosed:true,dataReadyDoesNotImplyLiveReady:true,rehearsalDoesNotTrain:true,rehearsalDoesNotPromote:true,emptyOperationalPackNeverRehearsed:true,unchangedCoverageReviewIsNotRepeated:true,legacyCoverageReviewRehearsedOnceAfterContractChange:true,rawWcl429IsTransientCheckpoint:true,automaticPromotion:false}},null,2));
   return{final,summary,totalSteps,rateLimited,earliestResumeAt,progressed};
 }
 
 let pass=0;
 while(true){
   const result=await runPass(++pass),s=result.summary;
-  const automaticTerminal=s.liveReady+s.coverageReview+s.waiting+s.paused===s.total;
-  if(!watch){console.log(s.liveReady===s.total?'\nOK: every public scope in this raid+difficulty is LIVE READY.':'\nCHECKPOINT: rerun with --execute for another bounded pass, or use --watch to resume automatically. Current-contract COVERAGE REVIEW is persisted and will not be repeated unless explicitly forced.');break;}
-  if(automaticTerminal){console.log(`\nWATCH COMPLETE · ${s.liveReady} LIVE READY · ${s.coverageReview} COVERAGE REVIEW · ${s.paused} PAUSED · ${s.waiting} WAITING. No automatically safe work remains.`);break;}
+  const automaticTerminal=s.liveReady+s.coverageReview+s.modelReview+s.waiting+s.paused===s.total;
+  if(!watch){console.log(s.liveReady===s.total?'\nOK: every public scope in this raid+difficulty is LIVE READY.':'\nCHECKPOINT: rerun with --execute for another bounded pass, or use --watch to resume automatically. Current-contract COVERAGE REVIEW / MODEL REVIEW scopes are not retried blindly.');break;}
+  if(automaticTerminal){console.log(`\nWATCH COMPLETE · ${s.liveReady} LIVE READY · ${s.coverageReview} COVERAGE REVIEW · ${s.modelReview} MODEL REVIEW · ${s.paused} PAUSED · ${s.waiting} WAITING. No automatically safe work remains.`);break;}
   if(result.rateLimited){
     const resumeAt=Number(result.earliestResumeAt||0),waitMs=Math.max(5000,resumeAt-Date.now()+1500);console.log(`\nWATCH SLEEP · WCL checkpoint/throttle · resume ${resumeAt?new Date(resumeAt).toISOString():'after safety delay'} · ${(waitMs/60000).toFixed(1)} min. Leave this process running; Ctrl+C stops safely.`);await sleep(waitMs);continue;
   }
   if(result.totalSteps>=maxTotal||s.notStarted>0||s.building>0||s.rehearsalRequired>0){console.log('\nWATCH CONTINUE · starting another bounded pass from persisted checkpoints.');await sleep(1000);continue;}
-  if(!result.progressed){console.log('\nWATCH STOP · no progress was possible and no timed checkpoint can be resumed automatically. Inspect PAUSED/COVERAGE REVIEW scopes.');break;}
+  if(!result.progressed){console.log('\nWATCH STOP · no progress was possible and no timed checkpoint can be resumed automatically. Inspect PAUSED/COVERAGE REVIEW/MODEL REVIEW scopes.');break;}
 }
