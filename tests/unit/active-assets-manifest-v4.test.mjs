@@ -34,9 +34,10 @@ test('active compatibility asset manifest makes the current production stack exp
   assert.equal(mechanicsSource?.role,'single-source-mechanics-presentation');
   assert.equal(mechanicsSource?.retirement,'keep-stable-source-owned-transport');
   const historyBridge=ACTIVE_LOCAL_SCRIPTS.find(asset=>asset.id==='command-center-history-bridge');
-  assert.equal(historyBridge?.src,'/command-center-history-bridge-v4.js?v=4.0.0-migration1');
+  assert.equal(historyBridge?.src,'/command-center-runtime.js?v=4.0.0-migration6-transport1');
   assert.equal(historyBridge?.owner,'command-center');
   assert.equal(historyBridge?.authority,'migration-bridge');
+  assert.equal(historyBridge?.retirement,'promote-stable-transport-to-source-owner');
   assert.equal(ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='progress-legacy-retirement'),false,'temporary retirement guard must not survive physical source deletion');
   assert.equal(ACTIVE_LOCAL_SCRIPTS.some(asset=>asset.id==='corpus-ui-stability'),false,'Corpus migration guard must be physically retired after the green post-retirement checkpoint');
 });
