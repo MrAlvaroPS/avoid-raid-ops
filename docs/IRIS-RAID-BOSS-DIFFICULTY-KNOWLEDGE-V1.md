@@ -31,7 +31,7 @@ Sources:
 - Blizzard JournalExpansion: official raid classification.
 - Blizzard JournalInstance: official boss list.
 - Blizzard JournalEncounter: published hierarchy, mechanic names, descriptions and spell membership.
-- build-pinned WoW DB2/Wago: difficulty applicability and structural spell wiring.
+- build-pinned WoW DB2/Wago: client difficulty identity, Journal difficulty applicability and structural spell wiring.
 
 No provider metadata in this plane proves observed occurrence, timing, causal event relationships or player failure.
 
@@ -69,30 +69,50 @@ Never compare a WCL difficulty ID directly with a WoW client DB2 DifficultyID.
 
 For example, the implementation must not assume that WCL Mythic `difficulty=5` means DB2 `Difficulty.ID=5`.
 
-Difficulty applicability is resolved as:
+A critical distinction:
+
+- `Difficulty` identifies the client difficulty itself.
+- `JournalEncounterXDifficulty` is an Encounter Journal applicability restriction.
+- `JournalSectionXDifficulty` is an Encounter Journal section applicability restriction.
+
+`JournalEncounterXDifficulty` must **not** be treated as the exhaustive catalogue of difficulty IDs valid for a boss. Absence of a row normally means there is no explicit encounter-level restriction; it does not mean the requested difficulty is unknown.
+
+Difficulty identity and applicability are therefore resolved in two separate stages:
 
 ```text
 requested WCL difficulty
-  id + name
+  id + name + WCL raid sizes
+      ↓
+Difficulty
+  DB2 ID + localized name + MinPlayers/MaxPlayers
+      ↓
+resolve unique compatible client DifficultyID
+  (never by WCL numeric equality)
       ↓
 JournalEncounterXDifficulty
-  encounter-scoped DB2 DifficultyIDs
-      +
-Difficulty
-  DB2 ID → localized name
-      ↓
-match by canonical difficulty name
-      ↓
-resolved DB2 DifficultyID
+  explicit encounter-level applicability restriction, if any
       ↓
 JournalSectionXDifficulty
+  explicit section/ancestor applicability restrictions, if any
       ↓
 difficulty-filtered Journal sections / abilities
 ```
 
-If the DB2 difficulty snapshot is absent, ambiguous or cannot map the requested difficulty, applicability is `difficulty-applicability-unresolved`. Iris may display the base Blizzard Journal content as unresolved context but may not assert that those abilities are verified for the requested difficulty.
+Exact difficulty names are preferred. When the client has multiple rows with the same display name (for example raid and dungeon variants), WCL raid-size metadata and boss-local Journal restriction IDs are used only to disambiguate the client Difficulty row. A tie remains unresolved; Iris does not guess.
 
-## Mechanics UI
+A section with no `JournalSectionXDifficulty` restriction is shared Journal content. A restricted section is included only when the resolved client DifficultyID satisfies the restriction chain inherited through its Journal ancestors.
+
+If the DB2 snapshot is absent, the Difficulty row is ambiguous, or the requested WCL difficulty cannot be mapped, applicability is `difficulty-applicability-unresolved`. Iris may display the base Blizzard Journal content as **unresolved context**, but it may not label that content `difficulty verified` or count it as verified Normal/Heroic/Mythic membership.
+
+A view may display `difficulty verified` only when:
+
+```text
+DB2 DifficultyID resolved
+AND
+all retained Journal memberships have resolved applicability
+```
+
+## Mechanics UI lifecycle
 
 Mechanics owns one common scope bar:
 
@@ -109,6 +129,8 @@ RAID EXECUTION | IRIS BOSS KNOWLEDGE
 `Iris Boss Knowledge` can render with no report.
 
 `Raid Execution` requires an AvoiD report whose `encounter + difficulty` exactly matches the selected scope. If the open report differs, execution content is hidden and the UI offers to reload the same report with the selected encounter+difficulty when WCL has an operational encounter ID.
+
+The Golden runtime extension is **Mechanics-page scoped**. On SPA navigation away from Mechanics it must remove every injected Mechanics node, restore any execution nodes it hid, and remove its ownership attributes. No Mechanics/Iris panel may survive into Players, Progress, Damage & Healing or any other page.
 
 No silent Mythic default is allowed.
 
@@ -132,12 +154,26 @@ When the Mythic embargo ends, Mythic learning starts from its own WCL population
 ## Persistence and fingerprints
 
 - base Blizzard encounter graph: build/namespace versioned.
-- DB2 Journal difficulty snapshot: build-pinned immutable revisions.
+- DB2 Journal difficulty snapshot: build-pinned immutable revisions; provider-version mismatch invalidates the cached `latest` for reuse and forces a fresh snapshot.
 - official difficulty view: separate latest/revisions per `journalEncounterId + WCL difficulty`.
 - GLOBAL WCL corpus/Episode/Matched Null/Groups/Stability/Holdout: `encounterId + difficulty + partition`.
 - AvoiD report analytics: `encounterId + difficulty`.
 
 A change in one difficulty must not overwrite or promote another difficulty's empirical state.
+
+## Validation diagnostics
+
+The raid-catalog smoke must expose, per boss+difficulty:
+
+- WCL difficulty ID/name/sizes;
+- resolved DB2 DifficultyID/name;
+- mapping status;
+- whether the view is actually verified;
+- restricted boss section count;
+- explicit/shared/excluded/unresolved membership counts;
+- final spell/section counts and ability-set signature.
+
+The smoke must fail if a difficulty is marked verified while its DB2 DifficultyID is absent or retained memberships remain unresolved.
 
 ## Permanent safety rules
 
@@ -147,7 +183,9 @@ A change in one difficulty must not overwrite or promote another difficulty's em
 4. No cross-difficulty aggregation of report pulls.
 5. No Normal/Heroic evidence counted as Mythic evidence.
 6. No DB2 DifficultyID assumed equal to WCL difficulty ID.
-7. Unresolved difficulty applicability stays explicitly unresolved.
-8. Blizzard/DB2 metadata cannot satisfy observed combat or Promotion.
-9. HOME/AvoiD data remains application/evaluation data, not GLOBAL BOSS train/holdout data.
-10. Automatic Promotion remains disabled.
+7. `JournalEncounterXDifficulty` / `JournalSectionXDifficulty` are applicability restrictions, not identity catalogues.
+8. Unresolved difficulty applicability stays explicitly unresolved and is never labeled verified.
+9. Blizzard/DB2 metadata cannot satisfy observed combat or Promotion.
+10. HOME/AvoiD data remains application/evaluation data, not GLOBAL BOSS train/holdout data.
+11. Mechanics DOM must be fully dismantled on navigation away from Mechanics.
+12. Automatic Promotion remains disabled.
