@@ -29,7 +29,7 @@ function policy(input={}){
     targetReservedSources:Math.max(3,Math.min(12,Number(input.targetReservedSources)||UNTOUCHED_HOLDOUT_DEFAULTS.targetReservedSources)),
     minimumEvaluableSources:Math.max(3,Math.min(10,Number(input.minimumEvaluableSources)||UNTOUCHED_HOLDOUT_DEFAULTS.minimumEvaluableSources)),
     minimumSupportiveSourceShare:clamp(input.minimumSupportiveSourceShare,UNTOUCHED_HOLDOUT_DEFAULTS.minimumSupportiveSourceShare,0.5,1),
-    maximumContradictorySourceShare:clamp(input.maximumContradictorySourceShare,UNTOUCHED_HOLDOUT_DEFAULTS.maximumContradictORYSourceShare,0,0.5),
+    maximumContradictorySourceShare:clamp(input.maximumContradictorySourceShare,UNTOUCHED_HOLDOUT_DEFAULTS.maximumContradictorySourceShare,0,0.5),
     minimumSourcePrevalenceDelta:clamp(input.minimumSourcePrevalenceDelta,UNTOUCHED_HOLDOUT_DEFAULTS.minimumSourcePrevalenceDelta,0,1),
     minimumMedianPrevalenceDelta:clamp(input.minimumMedianPrevalenceDelta,UNTOUCHED_HOLDOUT_DEFAULTS.minimumMedianPrevalenceDelta,0,1),
   };
