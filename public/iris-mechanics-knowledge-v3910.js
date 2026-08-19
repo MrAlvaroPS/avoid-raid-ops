@@ -2,7 +2,7 @@
 'use strict';
 const RELEASE='3.9.10.4',CATALOG='/api/knowledge/raid-catalog',KNOWLEDGE='/api/wcl/mechanic-knowledge';
 const S={tab:'execution',catalog:null,journal:null,difficulty:null,cache:new Map(),loading:false,activating:false};
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const n=v=>Number.isFinite(Number(v))?Number(v):null,fmt=v=>n(v)==null?'—':new Intl.NumberFormat('en-US').format(Number(v));
 const page=()=>String(document.querySelector('.page-head h1')?.textContent||'').trim().toLowerCase()==='mechanics';
 const root=()=>document.querySelector('.canvas');const hero=()=>root()?.querySelector(':scope > .page-banner')||null;
