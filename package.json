@@ -1,7 +1,7 @@
 {
   "name": "avoid-raid-ops-vercel",
   "private": true,
-  "version": "0.3.9-10-vercel.0",
+  "version": "0.3.9-11-vercel.0",
   "type": "module",
   "workspaces": ["apps/web"],
   "scripts": {
@@ -12,6 +12,7 @@
     "validate:raid-corpus-bootstrap": "node --env-file=.env.local scripts/iris-raid-corpus-bootstrap.mjs",
     "bootstrap:raid-corpus": "node --env-file=.env.local scripts/iris-raid-corpus-bootstrap.mjs --start",
     "work:raid-corpus": "node --env-file=.env.local scripts/iris-raid-corpus-worker.mjs",
+    "validate:home-history": "node --env-file=.env.local scripts/iris-home-history-smoke.mjs",
     "validate:official-encounter": "node --env-file=.env.local scripts/iris-official-encounter-smoke.mjs",
     "validate:spell-structure": "node --env-file=.env.local scripts/iris-spell-structure-smoke.mjs",
     "validate:evidence-groups": "node --env-file=.env.local scripts/iris-evidence-groups-smoke.mjs",
