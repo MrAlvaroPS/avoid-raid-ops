@@ -6,7 +6,7 @@ on:
       - "**"
 
 permissions:
-  contents: read
+  contents: write
   statuses: write
 
 concurrency:
@@ -20,6 +20,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Apply approved Defensive Audit retirement
+        run: |
+          if [ -f scripts/refactor/retire-defensive-audit-v4.mjs ]; then
+            node scripts/refactor/retire-defensive-audit-v4.mjs
+            git diff --check
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git diff --cached --exit-code && { echo "Migration produced no diff"; exit 1; }
+            git commit -m "refactor(v4): promote Defensive Audit source owner"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "Approved Defensive Audit retirement already applied"
+          fi
       - name: Node 22
         uses: actions/setup-node@v4
         with:
