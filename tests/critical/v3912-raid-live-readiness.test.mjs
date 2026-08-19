@@ -68,7 +68,7 @@ test('CRITICAL PRODUCTION LIVE GATE: only the current rehearsal fingerprint can 
   assert.ok(gateAt>=0&&engineAt>gateAt,'Live readiness must be checked before production Operational Execution');
 });
 
-test('CRITICAL SAFE LIVE DEGRADATION: mechanic gating keeps objective telemetry visible without emitting failures or calls',async()=>{
+test('CRITICAL SAFE LIVE DEGRADATION: mechanic gating keeps objective telemetry visible without repaint races or calls',async()=>{
   const [service,ui,index]=await Promise.all([read('server/services/operational-execution-service.mjs'),read('public/avoid-live-safe-fallback-v3912.js'),read('index.html')]);
   assert.match(service,/getTelemetry/);
   assert.match(service,/safeTelemetryAllowedWhileMechanicsGated:true/);
@@ -77,8 +77,12 @@ test('CRITICAL SAFE LIVE DEGRADATION: mechanic gating keeps objective telemetry 
   assert.match(ui,/MECHANIC INTELLIGENCE/);
   assert.match(ui,/NO UNVERIFIED MECHANIC CALL/);
   assert.match(ui,/Objective pull telemetry above remains valid/);
+  assert.match(ui,/queueMicrotask/);
+  assert.match(ui,/unconditionalRepaint:false/);
+  assert.match(ui,/data-safe-live-shell/);
+  assert.doesNotMatch(ui,/setInterval\(\(\)=>\{if\(page\(\)==='live'\)render\(\);\},1000\)/);
   assert.doesNotMatch(ui,/classified failure.*actor/i);
-  assert.match(index,/avoid-live-safe-fallback-v3912\.js\?v=3\.9\.12\.4/);
+  assert.match(index,/avoid-live-safe-fallback-v3912\.js\?v=3\.9\.12\.5/);
   assert.doesNotMatch(ui,BOSS_SPECIFIC);
 });
 
