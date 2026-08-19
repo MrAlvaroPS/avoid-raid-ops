@@ -5,8 +5,8 @@ const read=file=>readFile(new URL(`../../${file}`,import.meta.url),'utf8');
 const bossFixture=/Belo'ren|Child of Al'ar|\b3182\b|\b2739\b|\b1243866\b|\b1241163\b|\b1243560\b/i;
 
 test('CRITICAL v3.9.10 RAID CORPUS: fresh-tier bootstrap is generic, difficulty-scoped and foundation-only',async()=>{
-  const [planner,route,config,keys,execution,service]=await Promise.all([read('server/corpus/raid-corpus-bootstrap-v1.mjs'),read('routes/api/knowledge/raid-corpus-bootstrap.js'),read('server/corpus/config.mjs'),read('server/corpus/keys.mjs'),read('server/corpus/execution.mjs'),read('server/services/corpus-service.mjs')]);
-  for(const text of [planner,route,config,keys,execution,service])assert.doesNotMatch(text,bossFixture);
+  const [planner,route,config,keys,execution,service,reference,referenceRoute,pkgText]=await Promise.all([read('server/corpus/raid-corpus-bootstrap-v1.mjs'),read('routes/api/knowledge/raid-corpus-bootstrap.js'),read('server/corpus/config.mjs'),read('server/corpus/keys.mjs'),read('server/corpus/execution.mjs'),read('server/services/corpus-service.mjs'),read('server/services/global-raid-reference-service.mjs'),read('routes/api/knowledge/global-reference.js'),read('package.json')]);
+  for(const text of [planner,route,config,keys,execution,service,reference,referenceRoute])assert.doesNotMatch(text,bossFixture);
   assert.match(planner,/DEFAULT_DIFFICULTIES=.*normal.*heroic.*mythic/i);
   assert.match(planner,/public-evidence-available/);
   assert.match(planner,/foundationIsAcceptedKnowledge:false/);
@@ -21,6 +21,12 @@ test('CRITICAL v3.9.10 RAID CORPUS: fresh-tier bootstrap is generic, difficulty-
   assert.doesNotMatch(keys,/difficulty\s*=\s*5/);
   assert.doesNotMatch(execution,/difficulty\|\|5|difficulty\s*\?\?\s*5/);
   assert.doesNotMatch(service,/searchParams\.get\('difficulty'\)\|\|5/);
+  assert.match(reference,/foundation-ready/);assert.match(reference,/foundationCanSupportOperationalComparison:true/);assert.match(reference,/foundationIsAcceptedKnowledge:false/);
+  assert.match(referenceRoute,/difficulty is required; GLOBAL reference is difficulty-scoped/);assert.match(referenceRoute,/wclCallsExecuted:0/);
+  const pkg=JSON.parse(pkgText);
+  assert.equal(pkg.scripts['validate:raid-corpus-bootstrap'],'node --env-file=.env.local scripts/iris-raid-corpus-bootstrap.mjs');
+  assert.equal(pkg.scripts['bootstrap:raid-corpus'],'node --env-file=.env.local scripts/iris-raid-corpus-bootstrap.mjs --start');
+  assert.equal(pkg.scripts['work:raid-corpus'],'node --env-file=.env.local scripts/iris-raid-corpus-worker.mjs');
 });
 
 test('CRITICAL v3.9.10 MECHANICS HEADER: report-independent Mechanics owns and restores header context',async()=>{
