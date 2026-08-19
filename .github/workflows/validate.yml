@@ -65,7 +65,9 @@ jobs:
       - name: Source reconstruction
         run: npm run verify:reconstruction
       - name: Browser Data Truth
-        run: npm run verify:data-truth
+        run: |
+          grep -n -C 10 -E "Pull Lab source parity|shadowAgainstLegacy|AVOID_PULL_LAB_SOURCE_RUNTIME" scripts/verify_data_truth_ui.py || true
+          npm run verify:data-truth
       - name: Release ownership
         run: npm run verify:release
       - name: Critical contracts
