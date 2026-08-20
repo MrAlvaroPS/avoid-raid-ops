@@ -28,6 +28,22 @@ test('HOME history promotes only actual raid participants into raidActivity with
   assert.equal(guest.raidActivity.attendancePct,50);
 });
 
+test('friendlySpecs and friendlyItemLevels from synced WCL logs resolve the latest raid spec without another WCL call',()=>{
+  const base={guildId:7,guild:{id:7,name:'AvoiD'},members:[{name:'Raider',className:'Warrior',directory:{temporary:true},raidActivity:null,observed:null,spec:null,role:null,itemLevel:null}]};
+  const reports=[{reportCode:'AAA',startTime:100000,masterData:{actors:[{id:1,name:'Raider',type:'Player',subType:'Warrior'}]},fights:[
+    {id:10,encounterID:3470,difficulty:3,startTime:1000,friendlyPlayers:[1],friendlySpecs:[73],friendlyItemLevels:[282]},
+    {id:11,encounterID:3470,difficulty:3,startTime:2000,friendlyPlayers:[1],friendlySpecs:[71],friendlyItemLevels:[286]},
+  ]}];
+  const specDirectory=[{id:71,name:'Arms',slug:'arms',classId:1,className:'Warrior'},{id:73,name:'Protection',slug:'protection',classId:1,className:'Warrior'}];
+  const merged=mergeHistoryRosterV1(base,reports,{syncedAt:123456,specDirectory}),raider=merged.members.find(row=>row.name==='Raider');
+  assert.equal(raider.spec,'Arms');
+  assert.equal(raider.specId,71);
+  assert.equal(raider.role,'DPS');
+  assert.equal(raider.itemLevel,286);
+  assert.equal(raider.raidActivity.spec,'Arms');
+  assert.equal(raider.raidActivity.latestProfileAt,102000);
+});
+
 test('current-raid rebuild clears stale raidActivity for characters absent from current reports',()=>{
   const previous={guildId:7,guild:{id:7},members:[
     {name:'OldRaider',className:'Mage',directory:{temporary:true},raidActivity:{confirmedFromHomeLogs:true,pulls:99},observed:{source:'wcl-combatant-info-observed'}},
