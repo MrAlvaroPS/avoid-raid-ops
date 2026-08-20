@@ -2,10 +2,19 @@ import { syncSimcNightlyV1, simcFreshnessV1 } from '../server/loot/simc-manager-
 import { simcWorkerStatusV1 } from '../server/loot/simc-runner-v1.mjs';
 
 const args=new Set(process.argv.slice(2));
-const force=args.has('--force'),ensure=args.has('--ensure'),statusOnly=args.has('--status');
+const force=args.has('--force'),ensure=args.has('--ensure'),statusOnly=args.has('--status'),preflight=args.has('--preflight');
 const manual=String(process.env.SIMC_PATH||'').trim();
 
 console.log('\nSimulationCraft nightly manager');
+
+if(preflight){
+  const [freshness,worker]=await Promise.all([simcFreshnessV1(),simcWorkerStatusV1()]);
+  console.log(JSON.stringify({mode:'safe-preflight',networkExecuted:false,nativeNightlyAutoExecution:false,freshness,worker},null,2));
+  if(!worker.available)console.warn('\nSIMC OFFLINE: native Windows nightlies are not auto-downloaded/executed during npm run dev. Loot remains available; SIM actions stay disabled/offline until a trusted worker is configured.');
+  else console.log('\nOK: an already-configured SimulationCraft worker is available.');
+  process.exit(0);
+}
+
 if(manual){
   const status=await simcWorkerStatusV1();
   console.log(JSON.stringify({mode:'manual-override',SIMC_PATH:manual,worker:status},null,2));
@@ -15,6 +24,14 @@ if(manual){
 }
 
 if(statusOnly){const [freshness,worker]=await Promise.all([simcFreshnessV1(),simcWorkerStatusV1()]);console.log(JSON.stringify({freshness,worker},null,2));process.exit(worker.available?0:2);}
+
+if(process.platform==='win32'&&!args.has('--allow-native-nightly')){
+  console.error('\nBLOCKED BY SECURITY POLICY: automatic execution of downloaded Windows SimulationCraft nightly binaries is disabled.');
+  console.error('Microsoft Defender has flagged a nightly simc.exe in this environment. Do not restore/allow that executable solely to satisfy Raid Ops.');
+  console.error('Use the source-built/container worker path instead. --allow-native-nightly exists only for explicit operator-controlled diagnostics and is not used by npm run dev.');
+  process.exitCode=3;
+  process.exit();
+}
 
 const result=await syncSimcNightlyV1({force});
 console.log(JSON.stringify(result,null,2));
