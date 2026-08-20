@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mergeHistoryRosterV1,mergeDirectoryRosterV1 } from '../../server/home/roster-store-v1.mjs';
+import { normalizeAvoidHistoryReportV1,AVOID_HISTORY_STORE_VERSION } from '../../server/home/history-store-v1.mjs';
 
 test('HOME history promotes only actual raid participants into raidActivity without deleting directory identities',()=>{
   const base={guildId:7,guild:{id:7,name:'AvoiD'},members:[
@@ -42,6 +43,27 @@ test('friendlySpecs and friendlyItemLevels from synced WCL logs resolve the late
   assert.equal(raider.itemLevel,286);
   assert.equal(raider.raidActivity.spec,'Arms');
   assert.equal(raider.raidActivity.latestProfileAt,102000);
+});
+
+test('WCL string friendlySpecs survive HOME normalization and resolve spec plus role directly',()=>{
+  const raw={code:'ABC',title:'Raid',startTime:100000,endTime:120000,revision:2,guild:{id:7,name:'AvoiD'},zone:{id:53,name:'The Venomous Abyss'},masterData:{actors:[{id:1,name:'Moonkin',type:'Player',subType:'Druid'}]},fights:[{id:1,encounterID:3470,name:"Nek'zali the Soulcoiler",difficulty:3,startTime:1000,endTime:2000,friendlyPlayers:[1],friendlySpecs:['Balance Druid'],friendlyItemLevels:[295]}]};
+  const report=normalizeAvoidHistoryReportV1(raw,{guildId:7,zoneId:53,syncedAt:123456});
+  assert.equal(report.version,AVOID_HISTORY_STORE_VERSION);
+  assert.deepEqual(report.fights[0].friendlySpecs,['Balance Druid']);
+  const base={guildId:7,guild:{id:7,name:'AvoiD'},members:[{name:'Moonkin',className:'Druid',directory:{temporary:true},raidActivity:null,observed:null,spec:null,role:null,itemLevel:null}]};
+  const merged=mergeHistoryRosterV1(base,[report],{syncedAt:123456}),raider=merged.members.find(row=>row.name==='Moonkin');
+  assert.equal(raider.spec,'Balance Druid');
+  assert.equal(raider.role,'DPS');
+  assert.equal(raider.itemLevel,295);
+  assert.equal(raider.raidActivity.spec,'Balance Druid');
+});
+
+test('WCL string tank and healer specs resolve role without a spec-id directory',()=>{
+  const base={guildId:7,guild:{id:7,name:'AvoiD'},members:[]};
+  const reports=[{reportCode:'AAA',startTime:100000,masterData:{actors:[{id:1,name:'Tank',type:'Player',subType:'Warrior'},{id:2,name:'Heal',type:'Player',subType:'Shaman'}]},fights:[{id:10,encounterID:3470,difficulty:3,startTime:1000,friendlyPlayers:[1,2],friendlySpecs:['Protection Warrior','Restoration Shaman'],friendlyItemLevels:[290,291]}]}];
+  const merged=mergeHistoryRosterV1(base,reports,{syncedAt:123456});
+  assert.equal(merged.members.find(row=>row.name==='Tank').role,'TANK');
+  assert.equal(merged.members.find(row=>row.name==='Heal').role,'HEALER');
 });
 
 test('current-raid rebuild clears stale raidActivity for characters absent from current reports',()=>{
