@@ -5,10 +5,10 @@
 .canvas[data-avoid-operational-mechanics="1"]:has(.iris-mechanics-tabs [data-tab="knowledge"].active)>.avoid-operational-root[data-kind="mechanics"]{display:none!important}
 .canvas[data-avoid-operational-mechanics="1"]>.page-banner{display:none!important}
 .canvas[data-avoid-operational-mechanics="1"]>[data-iris-mechanics-execution="1"]:not(.avoid-operational-root){display:none!important}
-/* If HOME pull facts exist but no mechanic has been classified yet, do not present empty
-   mechanics tables/accuracy chrome as if it were intelligence. Keep objective progression
-   and the model maturity header only. */
+/* With objective HOME pulls but no classified mechanics, only show facts that say something. */
 .canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-exec-stats>span:nth-child(2),
 .canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-exec-stats>span:nth-child(3),
-.canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-panel{display:none!important}
-.canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-exec-hero p:after{content:" Iris has objective AvoiD pull history for this scope, but no mechanic trend is certified yet; empty mechanic tables are intentionally suppressed.";color:#8ca5ae}
+.canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-exec-stats>span:nth-child(4),
+.canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-panel:not(.aop-global-context){display:none!important}
+.canvas[data-iris-mechanics-pulls="1"][data-iris-mechanics-classified="0"]>.avoid-operational-root[data-kind="mechanics"] .aop-exec-hero p:after{content:" Iris has objective AvoiD pull history for this scope, but no classified mechanic trend yet. GLOBAL same-difficulty context is shown instead of empty mechanic chrome.";color:#8ca5ae}
+.aop-global-trends{display:grid;gap:8px;margin-top:12px}.aop-global-trends>div{display:grid;grid-template-columns:minmax(210px,.8fr) 1.4fr;gap:14px;align-items:center;border:1px solid #26363b;border-radius:6px;padding:10px 12px;background:#0b1114}.aop-global-trends span{display:flex;flex-direction:column;gap:3px}.aop-global-trends span b{font-size:12px;color:#e8f4f1}.aop-global-trends span small{font-size:9px;color:#718b94;text-transform:uppercase;letter-spacing:.08em}.aop-global-trends p{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;margin:0}.aop-global-trends i{font-style:normal;font-size:10px;border:1px solid #294047;border-radius:4px;padding:4px 7px;color:#a9c2c8}.aop-global-trends i.bad{color:#ff8275;border-color:#63352f}.aop-global-trends i.good{color:#72e7b3;border-color:#2e5847}
