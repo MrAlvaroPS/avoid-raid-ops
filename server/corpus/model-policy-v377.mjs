@@ -38,8 +38,8 @@ export function applyQueryGuidedDeepRecommendationV377(model){
   if(!wideSamplingBlocked(model)&&existingWideForDeep>0&&(deepReportDeficit>0||deepPullDeficit>0)){
     const requestedReports=Math.min(existingWideForDeep,Math.max(1,deepReportDeficit||12));
     // Once the v3.7.6 recommendation is being replaced, size the query-guided job from
-    // canonical deficits, not its older broad-enrichment suggestion. In the Belo'ren
-    // zero-Deep case this is 50 reports / 300 pulls, not the stale +400 Deep suggestion.
+    // canonical deficits, not its older broad-enrichment suggestion. A zero-Deep corpus
+    // therefore requests only its actual report/pull deficit rather than a stale broad target.
     const requestedPulls=Math.max(requestedReports,deepPullDeficit);
     const recommendation={
       ...previous,

@@ -119,15 +119,29 @@ For every encounter, Iris follows the same evidence ladder when the relevant sta
    - Only `source-stratified-stability-supported` patterns become eligible for a later untouched holdout plan.
    - This stage performs zero WCL/provider calls and cannot promote a mechanic.
 
-12. **Untouched Holdout** `[next]`
+12. **Untouched Holdout** `[implemented: automatic source discovery + precommit + combat acquisition + evaluation]`
    - Test only Stability-supported claims against source-isolated evidence that was not used to discover, tune, group or stabilize the mechanic.
-   - Holdout selection must be frozen/fingerprinted before evaluation.
-   - Holdout failure blocks Promotion; holdout data never feeds backward silently into discovery/training.
+   - Historical corpus `validation` is not silently relabeled as untouched evidence.
+   - Build a versioned GLOBAL BOSS learning-source lineage from canonical corpus evidence plus previously discovered/used source identities. Unknown lineage is not treated as clean.
+   - Automatic source discovery starts with a zero-network fingerprinted preview. If no Stability-supported pattern exists, its WCL budget collapses to zero.
+   - When discovery is eligible and explicitly confirmed, use only WCL `fightRankings` seed report codes plus lightweight report identity metadata to resolve guild/uploader identities. Discard ranking metrics and never inspect candidate combat outcomes before reservation.
+   - Reorder seed report codes deterministically from the already-frozen Stability fingerprint rather than ranking order.
+   - Exclude HOME guild, HOME uploaders, any preexisting corpus source and any source already present in the learning/source lineage.
+   - Persist the compatible unseen-source pool, then freeze/fingerprint candidate patterns + reserved source set + one metadata seed report per source + thresholds before any Holdout combat evidence.
+   - Reservation and evaluation execute zero network calls.
+   - Combat acquisition starts with a second zero-network fingerprinted preview and may run only when the reservation is `reservation-ready`.
+   - For each frozen source, recheck that its frozen seed report still resolves to that exact guild/uploader before any event query. Then query only exact encounter+difficulty fights from that seed report.
+   - Select candidate fight IDs by deterministic hash of reservation/source/fight ID, never by kill/wipe, progress, rank or candidate outcome.
+   - Query only the frozen signal anchors, narrow Episode-radius contexts and paired same-fight null windows; reuse the canonical Matched Null planner/exclusion guard rather than inventing a weaker Holdout baseline.
+   - Source/report/candidate expansion is forbidden during combat acquisition. A seed with no anchors or viable paired null becomes inconclusive rather than triggering search-until-success.
+   - Persist actor-free source summaries (`matchedPairs`, `anchorHits`, `nullHits`) for the frozen pattern keys only. Raw actor IDs/names, canonical Deep counts and direct score changes remain absent.
+   - Evaluation consumes only the compatible persisted automatic acquisition; callers cannot inject a hand-authored Holdout evidence block.
+   - Holdout failure blocks Promotion; holdout data never feeds backward silently into discovery/training or threshold tuning.
 
 13. **Promotion** `[later]`
    - Converting a verified claim into an accepted/scoreable mechanic requires the separately versioned Promotion Contract.
    - Promotion must define denominator, eligibility, null policy, player attribution rules, contradiction policy, holdout requirements and score impact.
-   - `official-member`, `structural-link`, `provider-supported`, `mechanically-supported`, `matched-specificity-supported`, `independent-groups-evidence-available` and `source-stratified-stability-supported` are not synonyms for `accepted`.
+   - `official-member`, `structural-link`, `provider-supported`, `mechanically-supported`, `matched-specificity-supported`, `independent-groups-evidence-available`, `source-stratified-stability-supported` and `untouched-holdout-supported` are not synonyms for `accepted`.
 
 14. **AvoiD application/evaluation**
    - HOME/AvoiD reports are not GLOBAL BOSS training or holdout evidence.
@@ -152,8 +166,12 @@ Not every boss must execute every stage:
 - If official/structural metadata resolves only meaning/implementation but not observed behavior, continue with WCL evidence rather than treating metadata as occurrence.
 - If Matched Null has zero supported patterns, Independent Evidence Groups must report no eligible candidates instead of resurrecting earlier diagnostic neighbors.
 - If independent group coverage is insufficient, stop before Stability or acquire only genuinely new independent public sources if learning/publication requires it.
-- If Statistical Stability is insufficient, do not spend a holdout on that candidate unless a new versioned hypothesis/evidence basis justifies reopening it.
-- If no pattern is Stability-supported, Holdout planning returns no eligible candidates rather than testing diagnostic leftovers.
+- If Statistical Stability is insufficient, do not spend a Holdout source-discovery or combat-evidence budget on that candidate unless a new versioned hypothesis/evidence basis justifies reopening it.
+- If no pattern is Stability-supported, Holdout planning, automatic source discovery and combat-acquisition preview all return no executable candidate and a zero WCL budget.
+- If Stability supports a candidate but the complete learning-source lineage cannot be proven, stop before source discovery rather than assuming an apparently new source is untouched.
+- If automatic source discovery cannot produce enough genuinely unseen sources, return `holdout-unavailable-insufficient-unseen-sources`; do not relax the isolation definition.
+- If a frozen seed report has no eligible fight, no anchor or no viable same-fight null, mark that source inconclusive; do not expand to another report in search of support.
+- If the Holdout rate reserve or hard call cap is reached, persist progress and stop; do not relax the reservation or evidence definition.
 - If a candidate failed the applicable hard gate and no new hypothesis exists, stop spending WCL on it.
 - If no deterministic local structure exists, escalate only the explicit unresolved evidence question.
 - If a future encounter produces a new structural pattern not covered by the generic hypothesis vocabulary, add a **generic evidence feature**, not a boss-name branch.
@@ -209,6 +227,11 @@ many reports from one guild == many independent evidence groups
 one high-volume guild == stronger source-level stability
 provider reinterpretation == reacquire identical Matched Null WCL controls
 stability-supported == holdout-passed
+historical validation source == untouched holdout
+unknown source lineage == unseen source
+ranking position == holdout source selection priority
+holdout seed has no anchor == expand until a supportive report appears
+caller-supplied holdoutEvidence == automatic untouched replication
 ```
 
 The following are allowed outside the generic learner when clearly separated:
@@ -217,6 +240,8 @@ The following are allowed outside the generic learner when clearly separated:
 - UI labels resolved from learned/provider data,
 - explicitly versioned boss-specific evaluation/application rules that do not teach the GLOBAL BOSS model,
 - test data that proves generic code reproduces a known observation without using that observation as an input rule.
+
+Curated encounter rule packs are application/evaluation fallbacks only. The GLOBAL BOSS learner may not import them; report analysis must prefer a published generated model whenever one exists.
 
 ## Required portability test
 
@@ -259,5 +284,27 @@ For Statistical Stability, the portability test must additionally prove:
 - HOME/AvoiD data is absent;
 - zero WCL/provider calls;
 - Stability support creates Holdout eligibility only, never Holdout success or Promotion.
+
+For Untouched Holdout, the portability test must additionally prove:
+
+- only `source-stratified-stability-supported` + `holdoutEligible` patterns can be frozen;
+- arbitrary GLOBAL BOSS scopes and arbitrary pattern IDs work without current-boss constants;
+- historical train/validation and any source already present in corpus/learning lineage cannot masquerade as untouched;
+- incomplete/unknown lineage blocks discovery rather than assuming cleanliness;
+- HOME guild and configured HOME uploader identities are excluded even when the report belongs to an external guild;
+- source discovery preview is zero-network and collapses to zero WCL budget when no Stability candidate exists;
+- confirmed source discovery uses metadata only, discards ranking metrics/order, and executes zero event/table calls;
+- source reservation freezes candidate, source, seed-report metadata and thresholds before combat evidence;
+- acquisition preview is zero-network and cannot broaden the frozen reservation;
+- confirmed acquisition queries only each frozen seed report's exact target-encounter fights and never expands sources/reports/candidates;
+- fight selection is deterministic and independent of rank, kill/wipe, progress and candidate outcome;
+- frozen seed source identity is rechecked before the first combat query;
+- anchor/context/control acquisition is narrow and reuses the canonical same-fight Matched Null planner/exclusion guard;
+- inconclusive seed reports remain inconclusive instead of triggering search-until-success;
+- stored Holdout evidence excludes raw actor IDs/names and contributes zero canonical Deep reports/pulls and zero direct score delta;
+- evaluation consumes only the persisted compatible acquisition and rejects new candidates, unreserved sources and post-hoc threshold retuning;
+- Holdout support never automatically promotes.
+
+In addition to per-stage synthetic tests, a critical runtime guard scans the GLOBAL BOSS learning boundary for the current validation-boss constants and fails if they leak into generic production code. It also forbids GLOBAL BOSS modules from importing curated encounter fallback packs.
 
 The generic learning modules must remain free of literal current-validation-boss names/IDs. This guardrail exists to prevent a successful one-boss experiment from quietly becoming hard-coded product behavior.

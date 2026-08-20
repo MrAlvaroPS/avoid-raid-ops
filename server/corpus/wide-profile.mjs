@@ -1,6 +1,6 @@
 import { wclGraphql } from '../wcl/client/graphql-client.mjs';
 import { CORPUS_REPORT_HEADER_QUERY, CORPUS_WIDE_TABLES_QUERY } from '../wcl/queries/corpus.mjs';
-import { isHomeSourceProfile, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
+import { classifyGlobalBossSourceProfile, sanitizeGlobalBossProfile } from '../knowledge/scopes.mjs';
 
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null;};
 function unwrap(v){let x=v;for(let i=0;i<4;i++){if(x&&typeof x==='object'&&!Array.isArray(x)&&x.data&&typeof x.data==='object'){x=x.data;continue;}break;}return x||{};}
@@ -71,11 +71,12 @@ export function normalizeWideProfile(header,tableData,{encounterId,difficulty,pa
 export async function fetchWideProfile({code,encounterId,difficulty=5,partition=0}){
   const header=await fetchReportHeader({code,encounterId,difficulty,partition});
   if(!header||!header.fights?.length)return null;
-  // AvoiD guild reports and explicitly configured AvoiD uploader reports are an
-  // application/evaluation cohort, never GLOBAL BOSS train/holdout. Stop after the
-  // cheap header so the expensive Wide tables query is not spent on home evidence.
-  if(isHomeSourceProfile(header))return null;
+  // GLOBAL BOSS is fail-closed: before spending the expensive Wide tables query,
+  // WCL must prove that the report belongs to a concrete non-HOME guild. A missing
+  // guild identity is not interpreted as proof of independence.
+  const sourceIsolation=classifyGlobalBossSourceProfile(header);
+  if(sourceIsolation.eligible!==true)return null;
   const killFightIDs=header.fights.filter(f=>f.kill).map(f=>f.id),wipeFightIDs=header.fights.filter(f=>!f.kill).map(f=>f.id);
   const tableData=await wclGraphql(CORPUS_WIDE_TABLES_QUERY,{code:String(code),killFightIDs,wipeFightIDs,hasKills:killFightIDs.length>0,hasWipes:wipeFightIDs.length>0});
-  return normalizeWideProfile(header,tableData,{encounterId,difficulty,partition});
+  return normalizeWideProfile({...header,sourceIsolation},tableData,{encounterId,difficulty,partition});
 }

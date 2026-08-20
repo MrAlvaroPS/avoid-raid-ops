@@ -1,0 +1,27 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readdir,readFile } from 'node:fs/promises';
+import path from 'node:path';
+
+const GLOBAL_BOSS_ROOTS=['server/corpus','server/knowledge','server/wcl','server/services','server/iris','server/analysis','routes/api/wcl','routes/api/knowledge','workflows'];
+const APPLICATION_FALLBACK_FILES=new Set([path.normalize('server/knowledge/game-knowledge-v1.mjs')]);
+const FORBIDDEN=[
+  {label:'validation/current tier boss name',pattern:/Belo'ren|Child of Al'ar|The Venomous Abyss|Nek.?zali|Twin Fangs|Entombed Sentinels|Vashnik|Lost Explorers|Sszorak|Coiled Altar|Ula.?tek/i},
+  {label:'validation WCL encounter id',pattern:/\b3182\b/},{label:'validation Blizzard journal id',pattern:/\b2739\b/},{label:'validation signal id',pattern:/\b1243866\b/},{label:'validation official state id',pattern:/\b1241163\b/},{label:'validation internal helper id',pattern:/\b1243560\b/},
+];
+async function runtimeFiles(dir){const out=[];for(const entry of await readdir(dir,{withFileTypes:true})){const full=path.join(dir,entry.name);if(entry.isDirectory())out.push(...await runtimeFiles(full));else if(/\.(?:mjs|js)$/.test(entry.name))out.push(full);}return out;}
+async function globalBossFiles(){return (await Promise.all(GLOBAL_BOSS_ROOTS.map(runtimeFiles))).flat();}
+async function learnerFiles(){return (await globalBossFiles()).filter(file=>!APPLICATION_FALLBACK_FILES.has(path.normalize(file)));}
+
+test('CRITICAL v3.9.10 PORTABILITY: GLOBAL BOSS runtime contains no validation/current-tier constants',async()=>{const violations=[];for(const file of await learnerFiles()){const text=await readFile(file,'utf8');for(const rule of FORBIDDEN)if(rule.pattern.test(text))violations.push(`${file}: ${rule.label}`);}assert.deepEqual(violations,[],`Boss-specific constants leaked into GLOBAL BOSS runtime:\n${violations.join('\n')}`);});
+
+test('CRITICAL v3.9.10 PORTABILITY: GLOBAL BOSS learner cannot import curated encounter fallback packs',async()=>{
+  const violations=[];for(const file of await learnerFiles()){const text=await readFile(file,'utf8');if(/rule-packs[\\/]encounters/i.test(text))violations.push(file);}assert.deepEqual(violations,[],`Curated encounter packs leaked into GLOBAL BOSS learning:\n${violations.join('\n')}`);
+  const intelligence=await readFile('server/engines/intelligence-engine.mjs','utf8'),bundledKnowledge=await readFile('server/knowledge/game-knowledge-v1.mjs','utf8'),packReadme=await readFile('server/rule-packs/encounters/README.md','utf8');
+  assert.match(intelligence,/const pack=generatedModel\?\.pack\|\|getEncounterRulePack\(encounter\.encounterID\)/);assert.match(intelligence,/manual-fallback/);assert.match(bundledKnowledge,/role:'semantic-seed'/);assert.match(bundledKnowledge,/rawCombat:'WCL remains source of truth'/);assert.match(packReadme,/application\/evaluation fallbacks only/i);assert.match(packReadme,/do not train, validate, stabilize, hold out, or promote GLOBAL BOSS knowledge/i);
+});
+
+test('CRITICAL v3.9.10 PORTABILITY: generic learning contract forbids boss-specific prerequisites and requires automatic portability tests',async()=>{
+  const [agents,pipeline,holdout,discovery,pool,acquisition]=await Promise.all([readFile('AGENTS.md','utf8'),readFile('docs/IRIS-BOSS-AGNOSTIC-LEARNING-PIPELINE-V1.md','utf8'),readFile('docs/IRIS-UNTOUCHED-HOLDOUT-V1.md','utf8'),readFile('server/corpus/untouched-holdout-source-discovery-v1.mjs','utf8'),readFile('server/corpus/untouched-holdout-source-pool-v1.mjs','utf8'),readFile('server/corpus/untouched-holdout-acquisition-v1.mjs','utf8')]);
+  assert.match(agents,/Production learning logic is state\/evidence-driven and boss-agnostic/i);assert.match(agents,/Do not hard-code encounter IDs, ability IDs, spell names or current-boss meaning/i);assert.match(pipeline,/This contract defines how Iris refines encounter knowledge for \*\*any\*\* boss/i);assert.match(pipeline,/No learning stage may require a hard-coded boss name, encounter ID, ability ID, spell name, phase name, or encounter-specific rule/i);assert.match(pipeline,/Every new generic learning stage must have at least one synthetic test using arbitrary encounter\/ability IDs and names/i);assert.match(pipeline,/Untouched Holdout\*\* `\[implemented: automatic source discovery \+ precommit \+ combat acquisition \+ evaluation\]`/i);assert.match(holdout,/generic stage for \*\*any\*\* GLOBAL BOSS scope/i);assert.match(holdout,/operator does not hand-author a source list/i);assert.match(holdout,/caller-authored `holdoutEvidence`/i);assert.match(discovery,/rankingOrderUsedForSelection:false/);assert.match(discovery,/wclCombatEventCalls:0/);assert.match(pool,/unknownLineageCannotBecomeUntouched:true/);assert.match(acquisition,/onlyFrozenSeedReportsQueried:true/);assert.match(acquisition,/sourceExpansionForbidden:true/);assert.match(acquisition,/fightSelectionUsesOutcomeMetrics:false/);
+});
