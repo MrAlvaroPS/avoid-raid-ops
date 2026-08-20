@@ -1,7 +1,7 @@
 {
   "name": "avoid-raid-ops-vercel",
   "private": true,
-  "version": "0.3.9-13-vercel.2",
+  "version": "0.3.9-13-vercel.3",
   "type": "module",
   "workspaces": ["apps/web"],
   "scripts": {
@@ -9,8 +9,8 @@
     "dev": "vite",
     "sync:simc": "node --env-file=.env.local scripts/simc-docker-sync.mjs --force",
     "status:simc": "node --env-file=.env.local scripts/simc-docker-sync.mjs --status",
-    "sync:simc-source": "node --env-file=.env.local scripts/simc-source-sync.mjs --force",
-    "status:simc-source": "node --env-file=.env.local scripts/simc-source-sync.mjs --status",
+    "sync:simc-source-native": "node --env-file=.env.local scripts/simc-source-sync.mjs --force",
+    "status:simc-source-native": "node --env-file=.env.local scripts/simc-source-sync.mjs --status",
     "sync:simc-native": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --force --allow-native-nightly",
     "status:simc-native": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --status",
     "sync:home-roster": "node --env-file=.env.local scripts/iris-home-roster-smoke.mjs --refresh",
