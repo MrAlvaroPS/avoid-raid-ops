@@ -6,7 +6,11 @@ import { simcSlotsForItemV1 } from './eligibility-v1.mjs';
 import { dockerSimcCurrentV1, simcDockerFreshnessV1 } from './simc-docker-manager-v1.mjs';
 import { shouldRetryWindowsShellLaunchV1 } from './simc-manager-v1.mjs';
 
-export const LOOT_SIMC_RUNNER_VERSION='loot-simc-runner-v1.11';
+export const LOOT_SIMC_RUNNER_VERSION='loot-simc-runner-v1.12';
+export const LOOT_SIMC_SCENARIOS=Object.freeze({
+  raid_st:Object.freeze({id:'raid_st',label:'ST',fightStyle:'Patchwerk',desiredTargets:1,metric:'raid-single-target-dps-gain'}),
+  raid_mt5:Object.freeze({id:'raid_mt5',label:'MT 5T',fightStyle:'Patchwerk',desiredTargets:5,metric:'raid-five-target-dps-gain'}),
+});
 
 const clean=value=>String(value||'').trim();
 const safeToken=value=>clean(value).toLowerCase().normalize('NFKD').replace(/[^a-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'');
@@ -43,6 +47,7 @@ export async function simcWorkerStatusV1(){
   return{version:LOOT_SIMC_RUNNER_VERSION,...resolved,managedFreshness:resolved.source==='MANAGED_DOCKER'?{lastCheckedAt:freshness.lastCheckedAt,lastBuildError:freshness.lastBuildError,previousCommit:freshness.previous?.commit||null,docker:freshness.docker}:null};
 }
 
+function scenarioConfig(scenario){const config=LOOT_SIMC_SCENARIOS[String(scenario||'raid_st')];if(!config)throw new Error(`Unsupported Loot raid scenario ${scenario}. Allowed: ${Object.keys(LOOT_SIMC_SCENARIOS).join(', ')}`);return config;}
 function wowheadUrl(id,itemLevel){if(!(Number(id)>0))return null;return `https://www.wowhead.com/item=${Number(id)}${finite(itemLevel)?`?ilvl=${Number(itemLevel)}`:''}`;}
 function gearOption(row){
   const parts=[`id=${Number(row.id)}`];
@@ -89,16 +94,15 @@ function rolePolicy(identity,{player,item}={}){
 }
 
 function profileText({profile,item,itemLevel,slots,iterations=1000,scenario='raid_st',jsonPath='result.json'}){
-  if(scenario!=='raid_st')throw new Error('Loot v0.1 only supports raid_st; Mythic+/dungeon profiles are forbidden');
-  const itemOpt=`,id=${Number(item.id)}${finite(itemLevel)?`,ilevel=${Number(itemLevel)}`:''}`;
-  const lines=['fight_style=Patchwerk','max_time=300','vary_combat_length=0.20',`iterations=${Math.max(250,Math.min(10000,Number(iterations)||1000))}`,'threads=4','profileset_work_threads=1','profileset_metric=dps','report_details=0',`json2=${jsonPath}`,...profile.lines];
+  const config=scenarioConfig(scenario),itemOpt=`,id=${Number(item.id)}${finite(itemLevel)?`,ilevel=${Number(itemLevel)}`:''}`;
+  const lines=[`fight_style=${config.fightStyle}`,`desired_targets=${config.desiredTargets}`,'max_time=300','vary_combat_length=0.20',`iterations=${Math.max(250,Math.min(10000,Number(iterations)||1000))}`,'threads=4','profileset_work_threads=1','profileset_metric=dps','report_details=0',`json2=${jsonPath}`,...profile.lines];
   slots.forEach((slot,index)=>lines.push(`profileset.loot_${index+1}=${slot}=${itemOpt}`));
   return lines.join('\n')+'\n';
 }
 
 function jsonDiagnostics(raw){
   const player=raw?.sim?.players?.[0]||{},collected=player?.collected_data||{},profilesets=raw?.profilesets||raw?.sim?.profilesets||null,results=Array.isArray(profilesets?.results)?profilesets.results:[];
-  return{rootKeys:Object.keys(raw||{}).slice(0,30),simKeys:Object.keys(raw?.sim||{}).slice(0,30),playerKeys:Object.keys(player).slice(0,30),collectedKeys:Object.keys(collected).slice(0,30),profilesetKeys:Object.keys(profilesets||{}).slice(0,30),profilesetCount:results.length,firstProfileset:results[0]?{name:results[0].name||results[0].profileset||null,keys:Object.keys(results[0]).slice(0,20),mean:metricMean(results[0]),metrics:Array.isArray(results[0].metrics)?results[0].metrics.slice(0,5).map(metric=>({metric:metric.metric,mean:metric.mean,mean_stddev:metric.mean_stddev,stddev:metric.stddev})):null}:null};
+  return{rootKeys:Object.keys(raw||{}).slice(0,30),simKeys:Object.keys(raw?.sim||{}).slice(0,30),playerKeys:Object.keys(player).slice(0,30),collectedKeys:Object.keys(collected).slice(0,30),profilesetKeys:Object.keys(profilesets||{}).slice(0,30),profilesetCount:results.length,firstProfileset:results[0]?{name:results[0].name||results[0].profileset||null,keys:Object.keys(results[0]).slice(0,20),mean:metricMean(results[0]),metrics:Array.isArray(results[0].metrics)?results[0].metrics.slice(0,5).map(metric=>({metric:metric.metric,mean:metric.mean,mean_stddev:metric.mean_std_dev,stddev:metric.stddev})):null}:null};
 }
 
 function parseResult(raw,{player,item,slots}){
@@ -133,32 +137,32 @@ async function materializeArmoryProfile({worker,player,dir,timeoutMs}){
 }
 
 export async function simulateLootForPlayerV1({player,item,itemLevel=null,iterations=1000,scenario='raid_st',timeoutMs=180000}={}){
-  if(!player?.name)throw new Error('player is required');if(!item?.id)throw new Error('item is required');
+  if(!player?.name)throw new Error('player is required');if(!item?.id)throw new Error('item is required');const config=scenarioConfig(scenario);
   const declaredRole=String(player.role||'UNKNOWN').toUpperCase();
-  if(declaredRole==='HEAL'||declaredRole==='HEALER')return{playerName:player.name,itemId:item.id,itemLevel:finite(itemLevel),status:'role-model-pending',gainPct:null,reason:'Healing raid value is not modeled safely by Loot v0.1'};
-  if(declaredRole==='TANK')return{playerName:player.name,itemId:item.id,itemLevel:finite(itemLevel),status:'role-model-pending',gainPct:null,reason:'Tank survival raid value is not modeled safely by Loot v0.1'};
-  const slots=simcSlotsForItemV1(item);if(!slots.length)return{playerName:player.name,itemId:item.id,itemLevel:finite(itemLevel),status:'unsupported-slot',gainPct:null,reason:'No SimulationCraft slot mapping'};
-  const worker=await resolveSimcExecutableV1();if(!worker.available)return{version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',playerName:player.name,itemId:item.id,itemLevel:finite(itemLevel),status:'simc-worker-offline',gainPct:null,reason:worker.reason,worker};
+  if(declaredRole==='HEAL'||declaredRole==='HEALER')return{playerName:player.name,itemId:item.id,itemLevel:finite(itemLevel),scenario:config.id,desiredTargets:config.desiredTargets,status:'role-model-pending',gainPct:null,reason:'Healing raid value is not modeled safely by Loot v0.1'};
+  if(declaredRole==='TANK')return{playerName:player.name,itemId:item.id,itemLevel:finite(itemLevel),scenario:config.id,desiredTargets:config.desiredTargets,status:'role-model-pending',gainPct:null,reason:'Tank survival raid value is not modeled safely by Loot v0.1'};
+  const slots=simcSlotsForItemV1(item);if(!slots.length)return{playerName:player.name,itemId:item.id,itemLevel:finite(itemLevel),scenario:config.id,desiredTargets:config.desiredTargets,status:'unsupported-slot',gainPct:null,reason:'No SimulationCraft slot mapping'};
+  const worker=await resolveSimcExecutableV1();if(!worker.available)return{version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',playerName:player.name,itemId:item.id,itemLevel:finite(itemLevel),scenario:config.id,desiredTargets:config.desiredTargets,status:'simc-worker-offline',gainPct:null,reason:worker.reason,worker};
   const dir=await mkdtemp(join(tmpdir(),'avoid-loot-simc-')),input=join(dir,'loot.simc'),output=join(dir,'result.json');let profile=null,credentials=null,execution=null,identity={specialization:clean(player.spec)||null,role:clean(player.role).toLowerCase()||null},currentGear=currentGearFromPlayer(player);
   try{
     profile=wclProfile(player);
-    if(!profile){credentials=await writeArmoryCredentials(dir);const materialized=await materializeArmoryProfile({worker,player,dir,timeoutMs});profile=materialized.profile;identity=materialized.identity;currentGear=materialized.currentGear;const pending=rolePolicy(identity,{player,item});if(pending)return{version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',engineProvenance:provenance(worker),processLaunchMode:materialized.execution.launchMode,scenario:'raid_st',iterations:Math.max(250,Math.min(10000,Number(iterations)||1000)),itemLevel:finite(itemLevel),simulatedItemLevel:finite(itemLevel),profileSource:profile.source,profileCompleteness:profile.profileCompleteness,currentGear,currentSlot:comparisonGear(currentGear,slots),armoryCredentials:credentials?{written:credentials.written,source:credentials.source||null,persisted:false}:null,...pending};}
+    if(!profile){credentials=await writeArmoryCredentials(dir);const materialized=await materializeArmoryProfile({worker,player,dir,timeoutMs});profile=materialized.profile;identity=materialized.identity;currentGear=materialized.currentGear;const pending=rolePolicy(identity,{player,item});if(pending)return{version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',engineProvenance:provenance(worker),processLaunchMode:materialized.execution.launchMode,scenario:config.id,scenarioLabel:config.label,desiredTargets:config.desiredTargets,iterations:Math.max(250,Math.min(10000,Number(iterations)||1000)),itemLevel:finite(itemLevel),simulatedItemLevel:finite(itemLevel),profileSource:profile.source,profileCompleteness:profile.profileCompleteness,currentGear,currentSlot:comparisonGear(currentGear,slots),armoryCredentials:credentials?{written:credentials.written,source:credentials.source||null,persisted:false}:null,...pending};}
     else currentGear=profile.currentGear||currentGear;
-    const text=profileText({profile,item,itemLevel,slots,iterations,scenario,jsonPath:'result.json'});await writeFile(input,text,'utf8');execution=await runWorker(worker,{dir,input,timeoutMs});
-    const raw=JSON.parse(await readFile(output,'utf8')),observedIdentity=rawIdentity(raw,player),pending=rolePolicy(observedIdentity,{player,item}),meta={version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',engineProvenance:provenance(worker),processLaunchMode:execution.launchMode,scenario:'raid_st',iterations:Math.max(250,Math.min(10000,Number(iterations)||1000)),itemLevel:finite(itemLevel),simulatedItemLevel:finite(itemLevel),profileSource:profile.source,profileCompleteness:profile.profileCompleteness,currentGear,currentSlot:comparisonGear(currentGear,slots),armoryCredentials:credentials?{written:credentials.written,source:credentials.source||null,persisted:false}:null};
+    const text=profileText({profile,item,itemLevel,slots,iterations,scenario:config.id,jsonPath:'result.json'});await writeFile(input,text,'utf8');execution=await runWorker(worker,{dir,input,timeoutMs});
+    const raw=JSON.parse(await readFile(output,'utf8')),observedIdentity=rawIdentity(raw,player),pending=rolePolicy(observedIdentity,{player,item}),meta={version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',engineProvenance:provenance(worker),processLaunchMode:execution.launchMode,scenario:config.id,scenarioLabel:config.label,desiredTargets:config.desiredTargets,metric:config.metric,iterations:Math.max(250,Math.min(10000,Number(iterations)||1000)),itemLevel:finite(itemLevel),simulatedItemLevel:finite(itemLevel),profileSource:profile.source,profileCompleteness:profile.profileCompleteness,currentGear,currentSlot:comparisonGear(currentGear,slots),armoryCredentials:credentials?{written:credentials.written,source:credentials.source||null,persisted:false}:null};
     if(pending)return{...meta,...pending};
     return{...meta,...parseResult(raw,{player,item,slots})};
   }catch(error){
-    const common={version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',engineProvenance:provenance(worker),processLaunchMode:execution?.launchMode||error?.launchMode||null,playerName:player.name,itemId:item.id,itemLevel:finite(itemLevel),simulatedItemLevel:finite(itemLevel),gainPct:null,profileSource:profile?.source||null,profileCompleteness:profile?.profileCompleteness||null,importedSpecialization:identity.specialization||null,importedRole:identity.role||null,currentGear,currentSlot:comparisonGear(currentGear,slots)};
+    const common={version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',engineProvenance:provenance(worker),processLaunchMode:execution?.launchMode||error?.launchMode||null,playerName:player.name,itemId:item.id,itemLevel:finite(itemLevel),simulatedItemLevel:finite(itemLevel),scenario:config.id,scenarioLabel:config.label,desiredTargets:config.desiredTargets,metric:config.metric,gainPct:null,profileSource:profile?.source||null,profileCompleteness:profile?.profileCompleteness||null,importedSpecialization:identity.specialization||null,importedRole:identity.role||null,currentGear,currentSlot:comparisonGear(currentGear,slots)};
     if(error?.code==='SIMC_PROFILESET_EMPTY')return{...common,status:'simc-profileset-unavailable',diagnostics:error.diagnostics||null,reason:`SimulationCraft produced a baseline for ${player.name} but no item profileset result. Treat this item/spec combination as not yet simulatable rather than as 0% gain.`};
     return{...common,status:'sim-failed',errorCode:error?.code||null,exitCode:error?.exitCode??null,diagnostics:error?.diagnostics||null,reason:error instanceof Error?error.message:String(error)};
   }finally{await rm(dir,{recursive:true,force:true}).catch(()=>{});}
 }
 
 export async function simulateLootRaidV1({players=[],item,itemLevel=null,iterations=1000,scenario='raid_st',concurrency=2}={}){
-  const queue=[...(players||[])],results=[],workers=Math.max(1,Math.min(4,Number(concurrency)||2));
-  await Promise.all(Array.from({length:workers},async()=>{while(queue.length){const player=queue.shift();if(!player)continue;results.push(await simulateLootForPlayerV1({player,item,itemLevel,iterations,scenario}));}}));
+  const config=scenarioConfig(scenario),queue=[...(players||[])],results=[],workers=Math.max(1,Math.min(4,Number(concurrency)||2));
+  await Promise.all(Array.from({length:workers},async()=>{while(queue.length){const player=queue.shift();if(!player)continue;results.push(await simulateLootForPlayerV1({player,item,itemLevel,iterations,scenario:config.id}));}}));
   results.sort((a,b)=>((b.gainPct==null?-Infinity:Number(b.gainPct))-(a.gainPct==null?-Infinity:Number(a.gainPct)))||String(a.playerName).localeCompare(String(b.playerName)));
   const engineProvenance=results.find(r=>r.engineProvenance)?.engineProvenance||null;
-  return{version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',engineProvenance,scenario,metric:'raid-single-target-dps-gain',itemLevel:finite(itemLevel),simulatedItemLevel:finite(itemLevel),results};
+  return{version:LOOT_SIMC_RUNNER_VERSION,engine:'simulationcraft-official-cli',engineProvenance,scenario:config.id,scenarioLabel:config.label,desiredTargets:config.desiredTargets,metric:config.metric,itemLevel:finite(itemLevel),simulatedItemLevel:finite(itemLevel),results};
 }
