@@ -1,10 +1,10 @@
 (()=>{
 'use strict';
-const RELEASE='3.9.13.12';
-if(window.__AVOID_LOOT_V391312_OVERLAY__)return;
-window.__AVOID_LOOT_V391312_OVERLAY__=true;
+const RELEASE='3.9.13.13';
+if(window.__AVOID_LOOT_V391313_OVERLAY__)return;
+window.__AVOID_LOOT_V391313_OVERLAY__=true;
 
-const STYLE_ID='avoid-loot-v391312-overlay-style';
+const STYLE_ID='avoid-loot-v391313-overlay-style';
 const TOOLTIP_SRC='https://wow.zamimg.com/js/tooltips.js';
 const q=(s,r=document)=>r?.querySelector(s)||null;
 const qa=(s,r=document)=>r?[...r.querySelectorAll(s)]:[];
@@ -13,28 +13,30 @@ const finite=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
 function ensureStyle(){
   if(document.getElementById(STYLE_ID))return;
   const style=document.createElement('style');style.id=STYLE_ID;style.textContent=`
-  .avoid-loot-root .loot-wowhead-icon-link{display:inline-flex!important;align-items:center;justify-content:center;vertical-align:middle;min-width:34px;min-height:34px;width:34px;height:34px;border:1px solid #33434a;border-radius:5px;background:#081014;text-decoration:none!important;overflow:visible;position:relative;font-size:0!important;line-height:0!important;color:transparent!important}
-  .avoid-loot-root .loot-wowhead-icon-link:hover{border-color:#69e8b1;box-shadow:0 0 0 1px rgba(105,232,177,.16)}
-  .avoid-loot-root .loot-wowhead-icon-link .iconsmall,.avoid-loot-root .loot-wowhead-icon-link .iconmedium,.avoid-loot-root .loot-wowhead-icon-link img{margin:0!important;vertical-align:middle!important;font-size:initial!important;line-height:initial!important;color:initial!important}
+  .avoid-loot-root .loot-wowhead-icon-wrap{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;width:34px;height:34px;position:relative;overflow:visible}
+  .avoid-loot-root .loot-wowhead-icon-link{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;min-width:34px;min-height:34px;width:34px;height:34px;border:1px solid #33434a;border-radius:5px;background:#081014;text-decoration:none!important;overflow:visible;position:relative;pointer-events:none}
+  .avoid-loot-root .loot-wowhead-icon-wrap:hover .loot-wowhead-icon-link{border-color:#69e8b1;box-shadow:0 0 0 1px rgba(105,232,177,.16)}
+  .avoid-loot-root .loot-wowhead-icon-link .iconsmall,.avoid-loot-root .loot-wowhead-icon-link .iconmedium,.avoid-loot-root .loot-wowhead-icon-link img{margin:0!important;vertical-align:middle!important}
+  .avoid-loot-root .loot-wowhead-icon-link:has(.iconsmall)>.loot-wowhead-fallback,.avoid-loot-root .loot-wowhead-icon-link:has(.iconmedium)>.loot-wowhead-fallback,.avoid-loot-root .loot-wowhead-icon-link:has(img)>.loot-wowhead-fallback{display:none}
+  .avoid-loot-root .loot-wowhead-fallback{display:flex;align-items:center;justify-content:center;width:30px;height:30px;font:800 9px/1 system-ui;color:#7f9aa6;background:linear-gradient(135deg,#101b20,#071014)}
+  .avoid-loot-root .loot-wowhead-tooltip-hitbox{position:absolute!important;inset:0!important;z-index:8!important;display:block!important;width:34px!important;height:34px!important;min-width:34px!important;min-height:34px!important;margin:0!important;padding:0!important;opacity:0!important;overflow:hidden!important;white-space:nowrap!important;cursor:pointer!important}
   .avoid-loot-root .loot-selected h3.loot-selected-icon-row{display:flex;align-items:center;gap:10px;margin-top:7px;margin-bottom:6px;min-height:36px}
   .avoid-loot-root .loot-selected-sim-ilvl{display:inline-flex;align-items:center;height:23px;padding:0 8px;border:1px solid #315746;border-radius:999px;color:#78f0b9;background:#0d1b16;font:800 10px/1 system-ui;letter-spacing:.04em;white-space:nowrap}
   .avoid-loot-root .loot-current{min-width:150px}
-  .avoid-loot-root .loot-current .loot-wowhead-icon-link{margin-bottom:4px}
+  .avoid-loot-root .loot-current .loot-wowhead-icon-wrap{margin-bottom:4px}
   .avoid-loot-root .loot-current small{display:block;max-width:190px;line-height:1.35}
   `;document.head.append(style);
 }
 
-function refreshWowhead(attempt=0){
-  try{if(window.$WowheadPower?.refreshLinks){window.$WowheadPower.refreshLinks();return true;}}catch{}
-  if(attempt<20)setTimeout(()=>refreshWowhead(attempt+1),100);
-  return false;
-}
-function requestWowheadRefresh(){refreshWowhead(0);setTimeout(()=>refreshWowhead(0),100);setTimeout(()=>refreshWowhead(0),350);}
 function ensureWowhead(){
-  window.whTooltips={...(window.whTooltips||{}),colorLinks:true,iconizeLinks:true,renameLinks:false,iconSize:'small'};
-  const existing=q('script[src*="wow.zamimg.com/js/tooltips.js"]');if(existing){requestWowheadRefresh();return;}
-  const script=document.createElement('script');script.src=TOOLTIP_SRC;script.async=true;script.dataset.avoidLootWowhead='1';script.addEventListener('load',requestWowheadRefresh,{once:true});document.head.append(script);
+  if(q('script[src*="wow.zamimg.com/js/tooltips.js"]'))return;
+  const script=document.createElement('script');script.src=TOOLTIP_SRC;script.async=true;script.dataset.avoidLootWowhead='1';script.addEventListener('load',refreshWowhead,{once:true});document.head.append(script);
 }
+function refreshWowhead(){
+  try{window.$WowheadPower?.refreshLinks?.();}catch{}
+  try{window.WH?.Tooltips?.refreshLinks?.();}catch{}
+}
+function requestWowheadRefresh(){queueMicrotask(refreshWowhead);setTimeout(refreshWowhead,75);setTimeout(refreshWowhead,250);}
 
 function parseItem(href=''){
   const text=String(href||''),id=Number(text.match(/item(?:=|\/)(\d+)/i)?.[1]);
@@ -42,53 +44,51 @@ function parseItem(href=''){
   return{itemId:Number.isInteger(id)&&id>0?id:null,itemLevel:ilvl};
 }
 function manualIlvl(root){const value=q('[data-loot-ilvl]',root)?.value;return finite(value)&&Number(value)>0?Number(value):null;}
-
-function compactExistingAnchor(anchor,{label,itemLevel=null}={}){
-  if(!anchor)return null;
-  // Keep the exact original DOM node: Wowhead may already have attached tooltip state to it.
-  anchor.classList.add('loot-wowhead-icon-link');
-  anchor.target='_blank';anchor.rel='noreferrer';anchor.removeAttribute('title');
-  if(label)anchor.setAttribute('aria-label',label);
-  anchor.setAttribute('data-wh-icon-size','small');anchor.setAttribute('data-wh-rename-link','false');
-  // href already identifies the item. data-wowhead is only for optional tooltip modifiers.
-  if(finite(itemLevel))anchor.setAttribute('data-wowhead',`ilvl=${Number(itemLevel)}`);
-  else if(anchor.getAttribute('data-wowhead')?.startsWith('item='))anchor.removeAttribute('data-wowhead');
-  anchor.dataset.lootIconized='1';
-  return anchor;
+function wowheadHref(itemId,itemLevel=null){return`https://www.wowhead.com/item=${Number(itemId)}${finite(itemLevel)?`?ilvl=${Number(itemLevel)}`:''}`;}
+function configureVisualAnchor(a,{itemId,itemLevel=null,label='World of Warcraft item'}={}){
+  a.href=wowheadHref(itemId,itemLevel);a.title=label;a.setAttribute('aria-label',label);a.setAttribute('data-wowhead',`item=${Number(itemId)}${finite(itemLevel)?`&ilvl=${Number(itemLevel)}`:''}`);return a;
+}
+function iconAnchor({itemId,itemLevel=null,label='World of Warcraft item'}={}){
+  if(!(Number(itemId)>0))return null;
+  const a=document.createElement('a');a.className='loot-wowhead-icon-link';a.target='_blank';a.rel='noreferrer';a.dataset.lootVisual='1';a.setAttribute('data-wh-iconize-link','true');a.setAttribute('data-wh-icon-size','small');a.setAttribute('data-wh-rename-link','false');configureVisualAnchor(a,{itemId,itemLevel,label});
+  const fallback=document.createElement('span');fallback.className='loot-wowhead-fallback';fallback.textContent='ITEM';a.append(fallback);return a;
+}
+function iconWithOriginalTooltip({source,itemId,itemLevel=null,label='World of Warcraft item'}={}){
+  if(!source||!(Number(itemId)>0))return null;
+  const wrap=document.createElement('span');wrap.className='loot-wowhead-icon-wrap';wrap.dataset.lootIconized='1';
+  const visual=iconAnchor({itemId,itemLevel,label});if(!visual)return null;
+  // The original plain-text Wowhead anchor remains the hover/click surface. We do not rewrite
+  // its href, text, data attributes, or inner DOM, so the same tooltip contract that worked
+  // before iconization is preserved exactly. It is merely made transparent over the icon.
+  source.classList.add('loot-wowhead-tooltip-hitbox');source.dataset.lootTooltipHitbox='1';source.removeAttribute('title');
+  wrap.append(visual,source);return wrap;
 }
 
 function ensureSimBadge(root,heading){
   const ilvl=manualIlvl(root);let badge=q('.loot-selected-sim-ilvl',heading);
   if(ilvl){if(!badge){badge=document.createElement('span');badge.className='loot-selected-sim-ilvl';heading.append(badge);}badge.textContent=`SIM ILVL ${ilvl}`;badge.setAttribute('aria-label',`Simulation item level ${ilvl}`);}else badge?.remove();
 }
-
 function decorateSelected(root){
   const selected=q('.loot-selected',root),heading=q('h3',selected);if(!selected||!heading)return;
-  const all=qa('a[href*="wowhead.com/item"]',selected);
-  const source=all.find(a=>!heading.contains(a))||all[0];if(!source)return;
+  if(heading.dataset.lootIconized==='1'){ensureSimBadge(root,heading);return;}
+  const source=qa('a[href*="wowhead.com/item"]',selected).find(a=>!heading.contains(a)&&a.dataset.lootVisual!=='1');if(!source)return;
   const parsed=parseItem(source.href);if(!parsed.itemId)return;
-  const label=heading.dataset.lootItemLabel||heading.textContent?.trim()||source.textContent?.trim()||`Item ${parsed.itemId}`;heading.dataset.lootItemLabel=label;
-
-  // If an older overlay fabricated an icon anchor, remove it. Move the ORIGINAL Wowhead anchor instead.
-  for(const old of qa('.loot-wowhead-icon-link',heading))if(old!==source)old.remove();
-  compactExistingAnchor(source,{label,itemLevel:manualIlvl(root)});
-  if(source.parentElement!==heading){
-    heading.textContent='';heading.classList.add('loot-selected-icon-row');heading.append(source);
-  }
-  heading.dataset.lootIconized='1';ensureSimBadge(root,heading);
+  const label=heading.textContent?.trim()||source.textContent?.trim()||`Item ${parsed.itemId}`;
+  const wrap=iconWithOriginalTooltip({source,itemId:parsed.itemId,itemLevel:manualIlvl(root),label});if(!wrap)return;
+  heading.textContent='';heading.classList.add('loot-selected-icon-row');heading.dataset.lootIconized='1';heading.append(wrap);ensureSimBadge(root,heading);
 }
-
 function decorateCurrent(root){
   for(const cell of qa('.loot-current',root)){
-    for(const link of qa('a[href*="wowhead.com/item"]',cell)){
-      if(link.dataset.lootIconized==='1')continue;
+    const links=qa('a[href*="wowhead.com/item"]',cell).filter(link=>link.dataset.lootVisual!=='1'&&link.dataset.lootTooltipHitbox!=='1');
+    for(const link of links){
       const parsed=parseItem(link.href);if(!parsed.itemId)continue;
       const label=link.textContent?.trim()||`Current item ${parsed.itemId}`;
-      compactExistingAnchor(link,{label,itemLevel:null});
+      const parent=link.parentNode,marker=document.createComment('loot-wowhead-icon');parent.insertBefore(marker,link);
+      const wrap=iconWithOriginalTooltip({source:link,itemId:parsed.itemId,itemLevel:parsed.itemLevel,label});if(!wrap){marker.remove();continue;}
+      marker.replaceWith(wrap);
     }
   }
 }
-
 function updateRelease(root){for(const node of qa('.loot-kicker',root)){if(/IRIS\s*\/\s*RAID LOOT OPERATIONS/i.test(node.textContent||''))node.textContent=`IRIS / RAID LOOT OPERATIONS · v${RELEASE}`;}}
 function decorate(){const root=q('.avoid-loot-root');if(!root||root.hidden)return;ensureStyle();ensureWowhead();updateRelease(root);decorateSelected(root);decorateCurrent(root);requestWowheadRefresh();}
 
