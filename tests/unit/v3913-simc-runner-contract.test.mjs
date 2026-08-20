@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+test('legacy native SimC state schema remains independent from manager code version',async()=>{
+  const src=await readFile('server/loot/simc-manager-v1.mjs','utf8');
+  assert.match(src,/SIMC_MANAGER_VERSION='simc-nightly-manager-v1\.[0-9]+'/);
+  assert.match(src,/SIMC_STATE_VERSION='simc-nightly-state-v1'/);
+  assert.match(src,/state\.version=SIMC_STATE_VERSION/);
+});
+
+test('Docker SimC uses an independent persistent state schema',async()=>{
+  const src=await readFile('server/loot/simc-docker-manager-v1.mjs','utf8');
+  assert.match(src,/SIMC_DOCKER_MANAGER_VERSION='simc-docker-manager-v1\.[0-9]+'/);
+  assert.match(src,/SIMC_DOCKER_STATE_VERSION='simc-docker-state-v1'/);
+  assert.match(src,/state\.version=SIMC_DOCKER_STATE_VERSION/);
+});
+
+test('Battle.net fallback credentials are temporary and derived from existing Blizzard env',async()=>{
+  const src=await readFile('server/loot/simc-runner-v1.mjs','utf8');
+  assert.match(src,/BLIZZARD_CLIENT_ID/);
+  assert.match(src,/BLIZZARD_CLIENT_SECRET/);
+  assert.match(src,/apikey\.txt/);
+  assert.match(src,/persisted:false/);
+  assert.match(src,/rm\(dir,\{recursive:true,force:true\}/);
+});
+
+test('every SimC loot result carries the exact simulated ilvl and comparison-slot gear',async()=>{
+  const src=await readFile('server/loot/simc-runner-v1.mjs','utf8');
+  assert.match(src,/simulatedItemLevel:finite\(itemLevel\)/);
+  assert.match(src,/currentSlot:comparisonGear\(currentGear,slots\)/);
+  assert.match(src,/parseSavedProfileGear/);
+  assert.match(src,/currentGearFromPlayer/);
+  assert.match(src,/battle-net-armory-materialized/);
+});

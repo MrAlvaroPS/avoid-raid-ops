@@ -15,7 +15,7 @@ test('CRITICAL v3.9.12 MECHANICS FREEZE: operational DOM mutations cannot recurs
   assert.match(guard,/closest\?\.\('\.avoid-operational-root'\)/);
   assert.match(guard,/window\.MutationObserver=NativeMutationObserver/);
   const guardAt=index.indexOf('/avoid-operational-observer-guard-v3912.js?v=3.9.12.1');
-  const uiAt=index.indexOf('/avoid-operational-ui-v3912.js?v=3.9.12.1');
+  const uiAt=index.indexOf('/avoid-operational-ui-v3912.js?v=3.9.12.0');
   assert.ok(guardAt>=0&&uiAt>guardAt,'observer guard must execute immediately before the operational UI runtime');
 
   let lastObserver=null,callbackCount=0;
