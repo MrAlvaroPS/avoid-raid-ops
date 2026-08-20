@@ -1,10 +1,10 @@
 (()=>{
 'use strict';
-const RELEASE='3.9.13.13';
-if(window.__AVOID_LOOT_V391313_OVERLAY__)return;
-window.__AVOID_LOOT_V391313_OVERLAY__=true;
+const RELEASE='3.9.13.14';
+if(window.__AVOID_LOOT_V391314_OVERLAY__)return;
+window.__AVOID_LOOT_V391314_OVERLAY__=true;
 
-const STYLE_ID='avoid-loot-v391313-overlay-style';
+const STYLE_ID='avoid-loot-v391314-overlay-style';
 const TOOLTIP_SRC='https://wow.zamimg.com/js/tooltips.js';
 const q=(s,r=document)=>r?.querySelector(s)||null;
 const qa=(s,r=document)=>r?[...r.querySelectorAll(s)]:[];
@@ -19,7 +19,8 @@ function ensureStyle(){
   .avoid-loot-root .loot-wowhead-icon-link .iconsmall,.avoid-loot-root .loot-wowhead-icon-link .iconmedium,.avoid-loot-root .loot-wowhead-icon-link img{margin:0!important;vertical-align:middle!important}
   .avoid-loot-root .loot-wowhead-icon-link:has(.iconsmall)>.loot-wowhead-fallback,.avoid-loot-root .loot-wowhead-icon-link:has(.iconmedium)>.loot-wowhead-fallback,.avoid-loot-root .loot-wowhead-icon-link:has(img)>.loot-wowhead-fallback{display:none}
   .avoid-loot-root .loot-wowhead-fallback{display:flex;align-items:center;justify-content:center;width:30px;height:30px;font:800 9px/1 system-ui;color:#7f9aa6;background:linear-gradient(135deg,#101b20,#071014)}
-  .avoid-loot-root .loot-wowhead-tooltip-hitbox{position:absolute!important;inset:0!important;z-index:8!important;display:block!important;width:34px!important;height:34px!important;min-width:34px!important;min-height:34px!important;margin:0!important;padding:0!important;opacity:0!important;overflow:hidden!important;white-space:nowrap!important;cursor:pointer!important}
+  .avoid-loot-root .loot-wowhead-tooltip-hitbox{position:absolute!important;inset:0!important;z-index:8!important;display:block!important;width:34px!important;height:34px!important;min-width:34px!important;min-height:34px!important;margin:0!important;padding:0!important;overflow:hidden!important;white-space:nowrap!important;cursor:pointer!important;background:transparent!important;border:0!important;color:transparent!important;text-decoration:none!important;font-size:0!important;line-height:0!important}
+  .avoid-loot-root .loot-wowhead-tooltip-hitbox>*{visibility:hidden!important;pointer-events:none!important}
   .avoid-loot-root .loot-selected h3.loot-selected-icon-row{display:flex;align-items:center;gap:10px;margin-top:7px;margin-bottom:6px;min-height:36px}
   .avoid-loot-root .loot-selected-sim-ilvl{display:inline-flex;align-items:center;height:23px;padding:0 8px;border:1px solid #315746;border-radius:999px;color:#78f0b9;background:#0d1b16;font:800 10px/1 system-ui;letter-spacing:.04em;white-space:nowrap}
   .avoid-loot-root .loot-current{min-width:150px}
@@ -57,9 +58,8 @@ function iconWithOriginalTooltip({source,itemId,itemLevel=null,label='World of W
   if(!source||!(Number(itemId)>0))return null;
   const wrap=document.createElement('span');wrap.className='loot-wowhead-icon-wrap';wrap.dataset.lootIconized='1';
   const visual=iconAnchor({itemId,itemLevel,label});if(!visual)return null;
-  // The original plain-text Wowhead anchor remains the hover/click surface. We do not rewrite
-  // its href, text, data attributes, or inner DOM, so the same tooltip contract that worked
-  // before iconization is preserved exactly. It is merely made transparent over the icon.
+  // Keep the original text-era Wowhead anchor as a real 34x34 hover target. Its geometry remains
+  // visible to the tooltip engine; only the anchor's text/children are visually suppressed.
   source.classList.add('loot-wowhead-tooltip-hitbox');source.dataset.lootTooltipHitbox='1';source.removeAttribute('title');
   wrap.append(visual,source);return wrap;
 }
