@@ -1,0 +1,28 @@
+import { corpusGet,corpusList } from './storage.mjs';
+import { corpusAliasKey,corpusId,deepProfileKey } from './keys.mjs';
+import { bossKnowledgeScope } from '../knowledge/scopes.mjs';
+import { buildBalancedBossSample,CANONICAL_SOURCE_CAPS } from './sampling-v2.mjs';
+
+export const GLOBAL_OBSERVATIONAL_BENCHMARK_VERSION='global-observational-benchmark-v3';
+export const GLOBAL_DESCRIPTIVE_MIN_REPORTS=5;
+export const GLOBAL_DESCRIPTIVE_MIN_SOURCES=2;
+const finite=v=>v!==null&&v!==undefined&&Number.isFinite(Number(v));
+const complete=p=>['enemyCasts','friendDamage','interrupts','debuffs','buffs','enemyBuffs','enemyDebuffs','deaths'].every(k=>p?.completeness?.[k]===true);
+async function resolve(input={}){const encounterId=Number(input.encounterId),difficulty=Number(input.difficulty),partition=Number(input.partition||0);if(!Number.isInteger(encounterId)||encounterId<=0||!Number.isInteger(difficulty)||difficulty<=0)return null;if(partition>0)return{encounterId,difficulty,partition};const alias=await corpusGet(corpusAliasKey({encounterId,difficulty})).catch(()=>null);return Number(alias?.partition)>0?{encounterId,difficulty,partition:Number(alias.partition)}:null;}
+const quantile=(values,p)=>{const a=(values||[]).filter(finite).map(Number).sort((x,y)=>x-y);if(!a.length)return null;if(a.length===1)return a[0];const pos=(a.length-1)*p,lo=Math.floor(pos),hi=Math.ceil(pos),w=pos-lo;return a[lo]*(1-w)+a[hi]*w;};
+function distribution(values){const a=(values||[]).filter(finite).map(Number);if(!a.length)return null;const percentileEligible=a.length>=GLOBAL_DESCRIPTIVE_MIN_REPORTS;return{n:a.length,min:Math.min(...a),p25:percentileEligible?quantile(a,.25):null,p50:percentileEligible?quantile(a,.5):null,p75:percentileEligible?quantile(a,.75):null,p90:percentileEligible?quantile(a,.9):null,p95:percentileEligible?quantile(a,.95):null,max:Math.max(...a),mean:a.reduce((s,x)=>s+x,0)/a.length,percentileEligible};}
+const fights=(p,cohort)=>(p?.fights||[]).filter(f=>Boolean(f?.kill)===(cohort==='kill'));
+const minutes=(p,cohort)=>fights(p,cohort).reduce((s,f)=>{const d=Number(f.endTime)-Number(f.startTime);return s+(Number.isFinite(d)&&d>0?d/60000:0);},0);
+function count(p,id,cohort,metric){const side=p?.abilityStats?.[String(id)]?.[cohort]||{};if(metric==='casts')return Number(side.begins)>0?Number(side.begins):Number(side.casts||0);return Number(side?.[metric]||0);}
+function metricDistribution(profiles,id,cohort,metric){const rows=[];let total=0,pulls=0,mins=0;for(const p of profiles){const fs=fights(p,cohort);if(!fs.length)continue;const c=count(p,id,cohort,metric),m=minutes(p,cohort);pulls+=fs.length;mins+=m;total+=c;rows.push({perPull:c/fs.length,perMinute:m>0?c/m:null});}if(!rows.length)return null;return{reports:rows.length,pulls,meanPerPull:pulls?total/pulls:null,meanPerMinute:mins?total/mins:null,reportNormalized:{perPull:distribution(rows.map(x=>x.perPull)),perMinute:distribution(rows.map(x=>x.perMinute))}};}
+function nameOf(profiles,id){for(const p of profiles){const n=p?.abilityStats?.[String(id)]?.name||p?.abilities?.[String(id)]?.name;if(n&&!String(n).startsWith('Ability '))return n;}return`Ability ${id}`;}
+function abilityRows(profiles){const ids=new Set();for(const p of profiles)for(const id of Object.keys(p?.abilityStats||{})){const n=Number(id);if(Number.isInteger(n)&&n>0)ids.add(n);}return[...ids].sort((a,b)=>a-b).map(id=>({abilityId:id,name:nameOf(profiles,id),metrics:Object.fromEntries(['damageHits','damageOccurrences','casts','deathLinks'].map(metric=>[metric,{kill:metricDistribution(profiles,id,'kill',metric),wipe:metricDistribution(profiles,id,'wipe',metric)}]))}));}
+export async function loadDescriptiveGlobalBenchmarkV1(input={}){
+  const args=await resolve(input);if(!args)return null;const scope=bossKnowledgeScope(args),prefix=`deep/${corpusId(args)}/`,keys=await corpusList(prefix);if(!keys.length)return null;
+  const cached=(await Promise.all(keys.map(key=>corpusGet(key).catch(()=>null)))).filter(p=>p&&complete(p));
+  const sample=buildBalancedBossSample(cached,{scope,targetPulls:Number.POSITIVE_INFINITY,targetReports:Number.POSITIVE_INFINITY,mode:'deep',sourceCaps:CANONICAL_SOURCE_CAPS.deep});
+  if(Number(sample?.excluded?.wrongScope||0)>0||Number(sample?.excluded?.homeSource||0)>0||Number(sample?.excluded?.missingSource||0)>0){/* excluded rows are expected and stay out; selected rows below are fail-closed */}
+  const profiles=sample.selected||[],reports=Number(sample.stats?.reports||0),sources=Number(sample.stats?.sources||0);if(reports<GLOBAL_DESCRIPTIVE_MIN_REPORTS||sources<GLOBAL_DESCRIPTIVE_MIN_SOURCES)return null;
+  const killPulls=profiles.reduce((s,p)=>s+fights(p,'kill').length,0),wipePulls=profiles.reduce((s,p)=>s+fights(p,'wipe').length,0);
+  return{version:GLOBAL_OBSERVATIONAL_BENCHMARK_VERSION,status:'descriptive-only',scope:{encounterId:args.encounterId,difficulty:args.difficulty,partition:args.partition},source:'canonical-balanced-deep-cache',evidence:{reports,pulls:Number(sample.stats?.pulls||0),sources,killPulls,wipePulls,selectedCodes:sample.selectedCodes},abilities:abilityRows(profiles),contract:{sameDifficultyOnly:true,homeExcluded:true,sourceBalanced:true,descriptiveOnly:true,doesNotSatisfyDataReady:true,doesNotSatisfyLiveReady:true,doesNotPromote:true,killPrimaryUnit:'per-pull',wipePrimaryUnit:'per-minute',percentilesRequireReports:GLOBAL_DESCRIPTIVE_MIN_REPORTS}};
+}
