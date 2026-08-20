@@ -1,0 +1,42 @@
+import { spawnSync } from 'node:child_process';
+import { access, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
+import { basename, dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { discoverLatestSimcNightlyV1 } from './simc-manager-v1.mjs';
+
+export const SIMC_SOURCE_MANAGER_VERSION='simc-source-manager-v1.0';
+export const SIMC_SOURCE_STATE_VERSION='simc-source-state-v1';
+const PROJECT_ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
+const managedRoot=()=>resolve(process.env.SIMC_MANAGED_DIR||join(PROJECT_ROOT,'.raidops-simc'));
+const statePath=()=>join(managedRoot(),'source-state.json');
+const sourceDir=()=>join(managedRoot(),'source','simc');
+const buildsDir=()=>join(managedRoot(),'source-builds');
+const clean=v=>String(v||'').trim();
+const exists=async p=>{try{await access(p);return true}catch{return false}};
+const now=()=>Date.now();
+function emptyState(){return{version:SIMC_SOURCE_STATE_VERSION,lastCheckedAt:null,current:null,previous:null,lastBuildError:null};}
+async function loadState(){try{const row=JSON.parse(await readFile(statePath(),'utf8'));return row?.version===SIMC_SOURCE_STATE_VERSION?row:emptyState();}catch{return emptyState();}}
+async function saveState(state){state.version=SIMC_SOURCE_STATE_VERSION;await mkdir(managedRoot(),{recursive:true});await writeFile(statePath(),JSON.stringify(state,null,2),'utf8');return state;}
+function lookup(command){const locator=process.platform==='win32'?'where.exe':'which';try{const r=spawnSync(locator,[command],{encoding:'utf8',windowsHide:true,timeout:5000});if(r.status!==0)return null;return String(r.stdout||'').split(/\r?\n/).map(clean).find(Boolean)||null;}catch{return null;}}
+function run(command,args,{cwd,timeout=20*60*1000,maxBuffer=16*1024*1024}={}){const r=spawnSync(command,args,{cwd,encoding:'utf8',windowsHide:true,timeout,maxBuffer});if(r.error){const e=r.error;e.stdout=String(r.stdout||'');e.stderr=String(r.stderr||'');throw e;}if(r.status!==0){const e=new Error(`${basename(command)} exited ${r.status}: ${String(r.stderr||r.stdout||'').slice(-5000)}`);e.exitCode=r.status;e.stdout=String(r.stdout||'');e.stderr=String(r.stderr||'');throw e;}return{stdout:String(r.stdout||''),stderr:String(r.stderr||''),status:r.status};}
+async function findFile(dir,target){if(!await exists(dir))return null;for(const entry of await readdir(dir,{withFileTypes:true})){const full=join(dir,entry.name);if(entry.isFile()&&entry.name.toLowerCase()===target.toLowerCase())return full;if(entry.isDirectory()){const nested=await findFile(full,target);if(nested)return nested;}}return null;}
+export function simcSourceToolchainStatusV1(){const git=lookup('git'),cmake=lookup('cmake');let cmakeVersion=null,generators=null;if(cmake){try{cmakeVersion=clean(run(cmake,['--version'],{timeout:10000}).stdout.split(/\r?\n/)[0]);const help=run(cmake,['--help'],{timeout:10000}).stdout;generators=process.platform==='win32'?[...help.matchAll(/^\s*\*?\s*(Visual Studio[^\n]+)/gm)].map(m=>clean(m[1])).slice(0,6):[];}catch{}}
+  return{platform:process.platform,git:{available:Boolean(git),path:git},cmake:{available:Boolean(cmake),path:cmake,version:cmakeVersion,visualStudioGenerators:generators},ready:Boolean(git&&cmake),requirements:process.platform==='win32'?'Git + CMake + Visual Studio 2022/Build Tools with Desktop development with C++ workload. Qt is not required because BUILD_GUI=OFF.':'Git + CMake + a C++ compiler toolchain.'};
+}
+async function ensureSourceCheckout(commit){const git=lookup('git');if(!git)throw new Error('git was not found on PATH');const dir=sourceDir();if(!await exists(join(dir,'.git'))){await mkdir(dirname(dir),{recursive:true});run(git,['clone','--filter=blob:none','--no-checkout','https://github.com/simulationcraft/simc.git',dir],{cwd:dirname(dir),timeout:15*60*1000});}
+  run(git,['-C',dir,'remote','set-url','origin','https://github.com/simulationcraft/simc.git'],{timeout:30000});
+  try{run(git,['-C',dir,'fetch','--force','--depth=200','origin','midnight'],{timeout:15*60*1000});run(git,['-C',dir,'checkout','--force',commit],{timeout:60000});}catch(first){run(git,['-C',dir,'fetch','--force','--deepen=1200','origin','midnight'],{timeout:20*60*1000});run(git,['-C',dir,'checkout','--force',commit],{timeout:60000});}
+  const fullCommit=clean(run(git,['-C',dir,'rev-parse','HEAD'],{timeout:30000}).stdout);if(!fullCommit.toLowerCase().startsWith(String(commit).toLowerCase()))throw new Error(`Source checkout mismatch: nightly ${commit}, checkout ${fullCommit}`);return{dir,fullCommit};
+}
+async function buildSource({commit,nightlyFilename}){const tools=simcSourceToolchainStatusV1();if(!tools.ready){const e=new Error(`SimulationCraft source toolchain is incomplete. ${tools.requirements}`);e.code='SIMC_SOURCE_TOOLCHAIN_MISSING';e.toolchain=tools;throw e;}const checkout=await ensureSourceCheckout(commit),buildDir=join(buildsDir(),commit);await mkdir(buildDir,{recursive:true});const cmake=tools.cmake.path;
+  run(cmake,['-S',checkout.dir,'-B',buildDir,'-DBUILD_GUI=OFF','-DCMAKE_BUILD_TYPE=Release'],{cwd:checkout.dir,timeout:10*60*1000});
+  run(cmake,['--build',buildDir,'--config','Release','--target','simc','--parallel'],{cwd:checkout.dir,timeout:45*60*1000,maxBuffer:32*1024*1024});
+  const executable=await findFile(buildDir,process.platform==='win32'?'simc.exe':'simc');if(!executable)throw new Error('Source build completed but the simc CLI executable was not found');
+  let buildInfo='';try{const v=run(executable,['display_build=2'],{cwd:dirname(executable),timeout:30000});buildInfo=clean(`${v.stdout}\n${v.stderr}`).slice(0,4000);}catch(error){error.code=error.code||'SIMC_SOURCE_BINARY_VERIFY_FAILED';throw error;}if(!/SimulationCraft/i.test(buildInfo))throw new Error('Locally built simc executable did not report SimulationCraft build information');
+  return{managerVersion:SIMC_SOURCE_MANAGER_VERSION,source:'simulationcraft-official-source',sourceRepository:'https://github.com/simulationcraft/simc',branch:'midnight',nightlyFilename,nightlyCommit:commit,commit:checkout.fullCommit,builtAt:now(),simcPathRelative:relative(managedRoot(),executable),buildInfo,toolchain:tools};
+}
+export async function sourceSimcCurrentV1(){const state=await loadState(),row=state.current;if(!row?.simcPathRelative)return null;const path=join(managedRoot(),row.simcPathRelative);return await exists(path)?{...row,path}:null;}
+export async function simcSourceFreshnessV1(){const state=await loadState(),current=await sourceSimcCurrentV1();return{version:SIMC_SOURCE_MANAGER_VERSION,stateVersion:SIMC_SOURCE_STATE_VERSION,managedRoot:managedRoot(),current,previous:state.previous,lastCheckedAt:state.lastCheckedAt,lastBuildError:state.lastBuildError,toolchain:simcSourceToolchainStatusV1()};}
+export async function syncSimcSourceBuildV1({force=false,fetcher=fetch}={}){const state=await loadState();let discovery=null;try{const tools=simcSourceToolchainStatusV1();if(!tools.ready)return{version:SIMC_SOURCE_MANAGER_VERSION,status:'toolchain-missing',updated:false,current:await sourceSimcCurrentV1(),toolchain:tools,networkExecuted:false};discovery=await discoverLatestSimcNightlyV1({fetcher});state.lastCheckedAt=now();const current=await sourceSimcCurrentV1();if(!force&&current?.nightlyCommit===discovery.latest.commit){state.lastBuildError=null;await saveState(state);return{version:SIMC_SOURCE_MANAGER_VERSION,status:'already-current',updated:false,current,latest:discovery.latest,toolchain:tools,networkExecuted:true};}
+    const built=await buildSource({commit:discovery.latest.commit,nightlyFilename:discovery.latest.filename});state.previous=state.current;state.current=built;state.lastBuildError=null;await saveState(state);return{version:SIMC_SOURCE_MANAGER_VERSION,status:'updated',updated:true,current:{...built,path:join(managedRoot(),built.simcPathRelative)},previous:state.previous,latest:discovery.latest,toolchain:tools,networkExecuted:true};
+  }catch(error){state.lastCheckedAt=now();state.lastBuildError={at:now(),code:error?.code||null,message:error instanceof Error?error.message:String(error),toolchain:error?.toolchain||null};await saveState(state);return{version:SIMC_SOURCE_MANAGER_VERSION,status:(await sourceSimcCurrentV1())?'build-failed-using-current':'build-failed-no-current',updated:false,current:await sourceSimcCurrentV1(),latest:discovery?.latest||null,error:state.lastBuildError,networkExecuted:Boolean(discovery)};}}
