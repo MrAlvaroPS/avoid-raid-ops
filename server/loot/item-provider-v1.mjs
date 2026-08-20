@@ -1,10 +1,11 @@
 import { getBlizzardAccessTokenV1, blizzardLocalizationV1 } from '../knowledge/providers/blizzard-game-data-v1.mjs';
 import { loadLootItemSnapshotV1, persistLootItemSnapshotV1 } from './item-cache-v1.mjs';
 
-export const LOOT_ITEM_PROVIDER_VERSION='loot-item-provider-v1.2';
+export const LOOT_ITEM_PROVIDER_VERSION='loot-item-provider-v1.3';
 const cleanRegion=value=>String(value||process.env.BLIZZARD_REGION||'eu').trim().toLowerCase()||'eu';
 const cleanLocale=value=>String(value||process.env.BLIZZARD_LOCALE||'en_US').trim()||'en_US';
 const positive=value=>{const n=Number(value);return Number.isInteger(n)&&n>0?n:null;};
+const numberOrNull=value=>value===null||value===undefined||value===''?null:Number.isFinite(Number(value))?Number(value):null;
 const localized=(value,locale)=>blizzardLocalizationV1.localized(value,locale);
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const retryableError=error=>Boolean(error?.classification?.retryable)||[429,500,502,503,504].includes(Number(error?.status))||(!error?.status&&/network|timeout|fetch failed/i.test(String(error?.message||'')));
@@ -17,9 +18,17 @@ async function requestJson(url,{accessToken,fetcher=fetch}={}){
   return payload;
 }
 
+function normalizeStats(row,{locale='en_US'}={}){
+  const source=Array.isArray(row?.preview_item?.stats)?row.preview_item.stats:Array.isArray(row?.stats)?row.stats:[];
+  return source.map(stat=>{
+    const type=String(stat?.type?.type||stat?.type||'').trim().toUpperCase()||null,name=localized(stat?.type?.name,locale)||null,value=numberOrNull(stat?.value);
+    return type?{type,name,value}:null;
+  }).filter(Boolean);
+}
+function primaryStats(stats=[]){return[...new Set((stats||[]).map(row=>String(row?.type||'').toUpperCase()).filter(type=>['STRENGTH','AGILITY','INTELLECT'].includes(type)))];}
 function normalizeItem(row,{locale='en_US'}={}){
   if(!row)return null;const id=positive(row.id);if(!id)return null;
-  const inventoryType=row.inventory_type||row.inventoryType||null,itemClass=row.item_class||row.itemClass||null,itemSubclass=row.item_subclass||row.itemSubclass||null,name=localized(row.name,locale)||`Item ${id}`;
+  const inventoryType=row.inventory_type||row.inventoryType||null,itemClass=row.item_class||row.itemClass||null,itemSubclass=row.item_subclass||row.itemSubclass||null,name=localized(row.name,locale)||`Item ${id}`,stats=normalizeStats(row,{locale});
   return{
     id,name,names:{[locale]:name},
     quality:{type:row.quality?.type||null,name:localized(row.quality?.name,locale)},
@@ -28,6 +37,7 @@ function normalizeItem(row,{locale='en_US'}={}){
     itemClass:{id:positive(itemClass?.id),name:localized(itemClass?.name,locale)},
     itemSubclass:{id:positive(itemSubclass?.id),name:localized(itemSubclass?.name,locale)},
     inventoryType:{type:String(inventoryType?.type||'').trim()||null,name:localized(inventoryType?.name,locale)},
+    stats,primaryStats:primaryStats(stats),
     mediaId:positive(row.media?.id),purchasePrice:Number.isFinite(Number(row.purchase_price))?Number(row.purchase_price):null,sellPrice:Number.isFinite(Number(row.sell_price))?Number(row.sell_price):null,maxCount:Number.isFinite(Number(row.max_count))?Number(row.max_count):null,
     wowheadUrl:`https://www.wowhead.com/item=${id}`,
   };
@@ -37,7 +47,13 @@ function mergeItemNames(base,incoming){if(!base)return incoming;if(!incoming)ret
 export async function fetchLootItemV1(itemId,{region,locale,fetcher=fetch,refresh=false}={}){
   const id=positive(itemId);if(!id)throw new Error('itemId must be a positive integer');
   const r=cleanRegion(region),l=cleanLocale(locale),cached=await loadLootItemSnapshotV1({itemId:id,region:r,locale:l});
-  if(cached&&!refresh)return{version:LOOT_ITEM_PROVIDER_VERSION,provider:'blizzard-game-data',item:cached.item,raw:cached.raw||null,cache:{hit:true,verifiedAt:cached.verifiedAt,staleFallback:false},usage:{oauthCalls:0,blizzardCalls:0}};
+  if(cached&&!refresh){
+    // Old snapshots retained the canonical raw Blizzard payload. Re-normalize locally when
+    // newer Loot versions learn additional fields such as preview_item.stats; no network call required.
+    const migrated=cached.raw?normalizeItem(cached.raw,{locale:l}):null,item=migrated?mergeItemNames(cached.item,migrated):cached.item;
+    if(migrated&&(!Array.isArray(cached.item?.stats)||cached.item.stats.length!==migrated.stats.length))await persistLootItemSnapshotV1({item,raw:cached.raw,region:r,locale:l,verifiedAt:cached.verifiedAt}).catch(()=>{});
+    return{version:LOOT_ITEM_PROVIDER_VERSION,provider:'blizzard-game-data',item,raw:cached.raw||null,cache:{hit:true,verifiedAt:cached.verifiedAt,staleFallback:false,migratedFromRaw:Boolean(migrated)},usage:{oauthCalls:0,blizzardCalls:0}};
+  }
   try{
     const token=await withRetry(()=>getBlizzardAccessTokenV1({fetcher}));
     const url=new URL(`https://${r}.api.blizzard.com/data/wow/item/${id}`);url.searchParams.set('namespace',`static-${r}`);url.searchParams.set('locale',l);
