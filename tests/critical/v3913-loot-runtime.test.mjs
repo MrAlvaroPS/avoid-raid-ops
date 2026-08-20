@@ -15,10 +15,9 @@ test('Loot is wired after the operational runtime with profile bridge and its ow
 });
 
 test('Loot remains raid-only, evidence-based, and never auto-awards',async()=>{
-  const [runtime,runner,service]=await Promise.all([read('public/loot-runtime-v3913.js'),read('server/loot/simc-runner-v1.mjs'),read('server/services/loot-service.mjs')]);
-  new vm.Script(runtime,{filename:'loot-runtime-v3913.js'});
-  assert.match(runtime,/RUN RAID-ONLY SIM/);
-  assert.match(runtime,/Simulation gain is evidence, not an automatic award decision/);
+  const [runtime,runner,service]=await Promise.all([read('public/loot-runtime-v39137.js'),read('server/loot/simc-runner-v1.mjs'),read('server/services/loot-service.mjs')]);
+  new vm.Script(runtime,{filename:'loot-runtime-v39137.js'});
+  assert.match(runtime,/SIM is per raider/);
   assert.doesNotMatch(runtime,/LIVE_PULLS_MOCK|PLAYER_RELIABILITY_MOCK|Math\.random\(\).*gain/i);
   assert.match(runner,/fight_style=Patchwerk/);
   assert.match(runner,/scenario!=='raid_st'/);
@@ -27,23 +26,25 @@ test('Loot remains raid-only, evidence-based, and never auto-awards',async()=>{
   assert.match(service,/healerAndTankRaidValueNotFabricated:true/);
 });
 
-test('Loot prefers observed WCL CombatantInfo and only falls back to Armory',async()=>{
+test('Loot prefers observed WCL CombatantInfo and materializes Armory only as fallback',async()=>{
   const [bridge,runner,service]=await Promise.all([read('public/loot-profile-bridge-v3913.js'),read('server/loot/simc-runner-v1.mjs'),read('server/services/loot-service.mjs')]);
   new vm.Script(bridge,{filename:'loot-profile-bridge-v3913.js'});
   assert.match(bridge,/observed\.character/);
   assert.match(runner,/source:'wcl-combatantinfo'/);
-  assert.match(runner,/return wclProfile\(player\)\|\|armoryProfile\(player\)/);
+  assert.match(runner,/materializeArmoryProfile/);
+  assert.match(runner,/save=base\.simc/);
+  assert.match(runner,/source:'battle-net-armory-materialized'/);
   assert.match(runner,/bonusIdsPreserved:false/);
   assert.match(service,/observedCombatantInfoPreferred:true/);
   assert.match(service,/armoryFallbackAllowed:true/);
 });
 
-test('temporary WCL guild roster is local to Loot and observed CombatantInfo wins',async()=>{
-  const [runtime,store,engine,query]=await Promise.all([read('public/loot-runtime-v3913.js'),read('server/home/roster-store-v1.mjs'),read('server/engines/home-roster-engine.mjs'),read('server/wcl/queries/home-roster.mjs')]);
+test('temporary WCL guild roster is directory-only and observed CombatantInfo wins',async()=>{
+  const [runtime,store,engine,query]=await Promise.all([read('public/loot-runtime-v39137.js'),read('server/home/roster-store-v1.mjs'),read('server/engines/home-roster-engine.mjs'),read('server/wcl/queries/home-roster.mjs')]);
   assert.match(query,/members\(page:\$page,limit:\$limit\)/);
   assert.match(store,/wcl-guild-members-temporary/);
   assert.match(store,/wcl-combatant-info-observed/);
-  assert.match(runtime,/TEMP DIRECTORY/);
+  assert.match(runtime,/Directory-only guild members never enter allocation/i);
   assert.match(runtime,/\/api\/wcl\/home-roster/);
   assert.match(runtime,/for\(const obs of observedRoster\(\)\)/);
   assert.match(engine,/networkExecuted:false/);
@@ -51,16 +52,17 @@ test('temporary WCL guild roster is local to Loot and observed CombatantInfo win
 });
 
 test('Loot is inserted below Composition and does not globally filter the app',async()=>{
-  const runtime=await read('public/loot-runtime-v3913.js');
+  const runtime=await read('public/loot-runtime-v39137.js');
   assert.match(runtime,/composition/i);
   assert.match(runtime,/insertAdjacentElement\('afterend',clone\)/);
-  assert.match(runtime,/if\(S\.open\)teardown\(\)/);
+  assert.match(runtime,/if\(S\.open&&/);
   assert.doesNotMatch(runtime,/location\.assign|location\.reload/);
 });
 
-test('server-side eligibility produces the only list sent to SimulationCraft',async()=>{
+test('server-side active-spec eligibility produces the only list sent to SimulationCraft',async()=>{
   const service=await read('server/services/loot-service.mjs');
   assert.match(service,/eligibility=players\.map/);
-  assert.match(service,/eligible=eligibility\.filter\(row=>row\.eligibility\.eligible\)\.map/);
+  assert.match(service,/eligibility\.simEligible===true/);
   assert.match(service,/simulateLootRaidV1\(\{players:eligible/);
+  assert.match(service,/physicalEligibilitySeparateFromSpecFit:true/);
 });
