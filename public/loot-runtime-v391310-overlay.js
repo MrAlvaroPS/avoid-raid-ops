@@ -1,10 +1,10 @@
 (()=>{
 'use strict';
-const RELEASE='3.9.13.10';
-if(window.__AVOID_LOOT_V391310_OVERLAY__)return;
-window.__AVOID_LOOT_V391310_OVERLAY__=true;
+const RELEASE='3.9.13.11';
+if(window.__AVOID_LOOT_V391311_OVERLAY__)return;
+window.__AVOID_LOOT_V391311_OVERLAY__=true;
 
-const STYLE_ID='avoid-loot-v391310-overlay-style';
+const STYLE_ID='avoid-loot-v391311-overlay-style';
 const TOOLTIP_SRC='https://wow.zamimg.com/js/tooltips.js';
 const q=(s,r=document)=>r?.querySelector(s)||null;
 const qa=(s,r=document)=>r?[...r.querySelectorAll(s)]:[];
@@ -26,15 +26,24 @@ function ensureStyle(){
   `;document.head.append(style);
 }
 
-function ensureWowhead(){
-  window.whTooltips={...(window.whTooltips||{}),colorLinks:true,iconizeLinks:true,renameLinks:false};
-  if(q('script[src*="wow.zamimg.com/js/tooltips.js"]'))return;
-  const script=document.createElement('script');script.src=TOOLTIP_SRC;script.async=true;script.dataset.avoidLootWowhead='1';script.addEventListener('load',refreshWowhead,{once:true});document.head.append(script);
+function refreshWowhead(attempt=0){
+  const power=window.$WowheadPower;
+  if(power&&typeof power.refreshLinks==='function'){
+    try{power.refreshLinks();return true;}catch{}
+  }
+  if(attempt<20)setTimeout(()=>refreshWowhead(attempt+1),100);
+  return false;
 }
-
-function refreshWowhead(){
-  try{window.$WowheadPower?.refreshLinks?.();}catch{}
-  try{window.WH?.Tooltips?.refreshLinks?.();}catch{}
+function requestWowheadRefresh(){
+  refreshWowhead(0);
+  setTimeout(()=>refreshWowhead(0),75);
+  setTimeout(()=>refreshWowhead(0),300);
+}
+function ensureWowhead(){
+  window.whTooltips={...(window.whTooltips||{}),colorLinks:true,iconizeLinks:true,renameLinks:false,iconSize:'small'};
+  const existing=q('script[src*="wow.zamimg.com/js/tooltips.js"]');
+  if(existing){requestWowheadRefresh();return;}
+  const script=document.createElement('script');script.src=TOOLTIP_SRC;script.async=true;script.dataset.avoidLootWowhead='1';script.addEventListener('load',requestWowheadRefresh,{once:true});document.head.append(script);
 }
 
 function parseItem(href=''){
@@ -42,19 +51,34 @@ function parseItem(href=''){
   let ilvl=null;try{const url=new URL(text,location.href),raw=url.searchParams.get('ilvl');if(finite(raw))ilvl=Number(raw);}catch{}
   return{itemId:Number.isInteger(id)&&id>0?id:null,itemLevel:ilvl};
 }
-
+function optionPairsFromHref(href=''){
+  const text=String(href||''),at=text.indexOf('?');if(at<0)return[];
+  return text.slice(at+1).split('#')[0].split('&').map(v=>v.trim()).filter(Boolean);
+}
+function wowheadOptions(sourceHref='',itemLevel=null){
+  const options=optionPairsFromHref(sourceHref).filter(pair=>!/^ilvl=/i.test(pair));
+  if(finite(itemLevel))options.push(`ilvl=${Number(itemLevel)}`);
+  return options.join('&');
+}
 function manualIlvl(root){const value=q('[data-loot-ilvl]',root)?.value;return finite(value)&&Number(value)>0?Number(value):null;}
-function wowheadHref(itemId,itemLevel=null){return`https://www.wowhead.com/item=${Number(itemId)}${finite(itemLevel)?`?ilvl=${Number(itemLevel)}`:''}`;}
-function configureAnchor(a,{itemId,itemLevel=null,label='World of Warcraft item'}={}){a.href=wowheadHref(itemId,itemLevel);a.title=label;a.setAttribute('aria-label',label);a.setAttribute('data-wowhead',`item=${Number(itemId)}${finite(itemLevel)?`&ilvl=${Number(itemLevel)}`:''}`);return a;}
-function iconAnchor({itemId,itemLevel=null,label='World of Warcraft item'}={}){
+function wowheadHref(itemId){return`https://www.wowhead.com/item=${Number(itemId)}`;}
+function configureAnchor(a,{itemId,itemLevel=null,label='World of Warcraft item',sourceHref=null}={}){
+  const href=sourceHref||wowheadHref(itemId);a.href=href;
+  // Never let the browser's native title replace/mask the full Wowhead tooltip.
+  a.removeAttribute('title');a.setAttribute('aria-label',label);
+  const options=wowheadOptions(href,itemLevel);if(options)a.setAttribute('data-wowhead',options);else a.removeAttribute('data-wowhead');
+  a.setAttribute('data-wh-icon-size','small');a.setAttribute('data-wh-rename-link','false');
+  return a;
+}
+function iconAnchor({itemId,itemLevel=null,label='World of Warcraft item',sourceHref=null}={}){
   if(!(Number(itemId)>0))return null;
-  const a=document.createElement('a');a.className='loot-wowhead-icon-link';a.target='_blank';a.rel='noreferrer';a.setAttribute('data-wh-iconize-link','true');a.setAttribute('data-wh-icon-size','small');a.setAttribute('data-wh-rename-link','false');configureAnchor(a,{itemId,itemLevel,label});
+  const a=document.createElement('a');a.className='loot-wowhead-icon-link';a.target='_blank';a.rel='noreferrer';configureAnchor(a,{itemId,itemLevel,label,sourceHref});
   const fallback=document.createElement('span');fallback.className='loot-wowhead-fallback';fallback.textContent='ITEM';a.append(fallback);return a;
 }
 
 function syncSelectedIlvl(root,heading,itemId,label){
   const ilvl=manualIlvl(root),anchor=q('.loot-wowhead-icon-link',heading);if(anchor)configureAnchor(anchor,{itemId,itemLevel:ilvl,label});
-  let badge=q('.loot-selected-sim-ilvl',heading);if(ilvl){if(!badge){badge=document.createElement('span');badge.className='loot-selected-sim-ilvl';heading.append(badge);}badge.textContent=`SIM ILVL ${ilvl}`;badge.title='Exact item level sent to SimulationCraft for both ST and MT5';}else badge?.remove();
+  let badge=q('.loot-selected-sim-ilvl',heading);if(ilvl){if(!badge){badge=document.createElement('span');badge.className='loot-selected-sim-ilvl';heading.append(badge);}badge.textContent=`SIM ILVL ${ilvl}`;badge.setAttribute('aria-label',`Simulation item level ${ilvl}`);}else badge?.remove();
 }
 
 function decorateSelected(root){
@@ -68,14 +92,20 @@ function decorateSelected(root){
   syncSelectedIlvl(root,heading,itemId,label);
 }
 
+function visibleItemLevel(cell){const match=String(cell?.textContent||'').match(/\bilvl\s*(\d+)/i);return match?Number(match[1]):null;}
 function decorateCurrent(root){
   for(const cell of qa('.loot-current',root)){
-    const links=qa('a[href*="wowhead.com/item"]',cell);for(const link of links){if(link.dataset.lootIconized==='1')continue;const parsed=parseItem(link.href),itemId=parsed.itemId;if(!itemId)continue;const label=link.textContent?.trim()||`Current item ${itemId}`,anchor=iconAnchor({itemId,itemLevel:parsed.itemLevel,label});if(!anchor)continue;link.replaceWith(anchor);anchor.dataset.lootIconized='1';}
+    const links=qa('a[href*="wowhead.com/item"]',cell);for(const link of links){if(link.dataset.lootIconized==='1')continue;
+      const sourceHref=link.href,parsed=parseItem(sourceHref),itemId=parsed.itemId;if(!itemId)continue;
+      const itemLevel=parsed.itemLevel??visibleItemLevel(cell),label=link.textContent?.trim()||`Current item ${itemId}`,anchor=iconAnchor({itemId,itemLevel,label,sourceHref});if(!anchor)continue;
+      // Preserve the exact WCL Wowhead URL so bonus IDs/gems/enchants survive into the tooltip.
+      link.replaceWith(anchor);anchor.dataset.lootIconized='1';
+    }
   }
 }
 
 function updateRelease(root){for(const node of qa('.loot-kicker',root)){if(/IRIS\s*\/\s*RAID LOOT OPERATIONS/i.test(node.textContent||''))node.textContent=`IRIS / RAID LOOT OPERATIONS · v${RELEASE}`;}}
-function decorate(){const root=q('.avoid-loot-root');if(!root||root.hidden)return;ensureStyle();ensureWowhead();updateRelease(root);decorateSelected(root);decorateCurrent(root);queueMicrotask(refreshWowhead);}
+function decorate(){const root=q('.avoid-loot-root');if(!root||root.hidden)return;ensureStyle();ensureWowhead();updateRelease(root);decorateSelected(root);decorateCurrent(root);requestWowheadRefresh();}
 
 let scheduled=false;const schedule=()=>{if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;decorate();});};
 const observer=new MutationObserver(schedule);observer.observe(document.documentElement,{subtree:true,childList:true});
