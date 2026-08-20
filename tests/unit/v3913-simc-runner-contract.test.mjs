@@ -24,3 +24,12 @@ test('Battle.net fallback credentials are temporary and derived from existing Bl
   assert.match(src,/persisted:false/);
   assert.match(src,/rm\(dir,\{recursive:true,force:true\}/);
 });
+
+test('every SimC loot result carries the exact simulated ilvl and comparison-slot gear',async()=>{
+  const src=await readFile('server/loot/simc-runner-v1.mjs','utf8');
+  assert.match(src,/simulatedItemLevel:finite\(itemLevel\)/);
+  assert.match(src,/currentSlot:comparisonGear\(currentGear,slots\)/);
+  assert.match(src,/parseSavedProfileGear/);
+  assert.match(src,/currentGearFromPlayer/);
+  assert.match(src,/battle-net-armory-materialized/);
+});
