@@ -7,9 +7,10 @@
   "scripts": {
     "predev": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --preflight",
     "dev": "vite",
-    "sync:simc": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --force",
+    "sync:simc": "node --env-file=.env.local scripts/simc-source-sync.mjs --force",
+    "status:simc": "node --env-file=.env.local scripts/simc-source-sync.mjs --status",
     "sync:simc-native": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --force --allow-native-nightly",
-    "status:simc": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --status",
+    "status:simc-native": "node --env-file=.env.local scripts/simc-nightly-sync.mjs --status",
     "sync:home-roster": "node --env-file=.env.local scripts/iris-home-roster-smoke.mjs --refresh",
     "validate:home-roster": "node --env-file=.env.local scripts/iris-home-roster-smoke.mjs",
     "validate:loot-roster": "node --env-file=.env.local scripts/loot-roster-smoke.mjs",
