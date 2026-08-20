@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { corpusGet,corpusSet } from '../corpus/storage.mjs';
 
-export const HOME_ROSTER_STORE_VERSION='home-roster-store-v1.2';
+export const HOME_ROSTER_STORE_VERSION='home-roster-store-v1.3';
 export const HOME_ROSTER_SOURCE_DIRECTORY='wcl-guild-members-temporary';
 export const HOME_ROSTER_SOURCE_HISTORY='wcl-home-history-participant';
 export const HOME_ROSTER_SOURCE_OBSERVED='wcl-combatant-info-observed';
@@ -13,7 +13,7 @@ const fingerprint=value=>createHash('sha1').update(JSON.stringify(stable(value))
 const identityKey=row=>finite(row?.canonicalId)?`canonical:${finite(row.canonicalId)}`:`name:${norm(row?.name)}@${norm(row?.server?.slug||row?.server?.name)}`;
 const TANK_SPECS=new Set(['blood','protection','guardian','brewmaster','vengeance']);
 const HEAL_SPECS=new Set(['discipline','holy','mistweaver','preservation','restoration']);
-const roleFromSpec=spec=>{const token=norm(spec);if(TANK_SPECS.has(token))return'TANK';if(HEAL_SPECS.has(token))return'HEALER';return token?'DPS':null;};
+const roleFromSpec=spec=>{const token=norm(spec).replace(/\s+(death knight|demon hunter|druid|evoker|hunter|mage|monk|paladin|priest|rogue|shaman|warlock|warrior)$/,'');if(TANK_SPECS.has(token))return'TANK';if(HEAL_SPECS.has(token))return'HEALER';return token?'DPS':null;};
 
 export function normalizeGuildRosterMemberV1(row={},classMap=new Map(),{fetchedAt=Date.now()}={}){
   const server=row?.server||{},region=server?.region||{},classId=finite(row?.classID??row?.classId),classRow=classMap.get(classId)||null;
@@ -54,8 +54,8 @@ export function mergeHistoryRosterV1(roster={},reports=[],{syncedAt=Date.now(),s
         if(!Number.isFinite(actorId))return;const actor=actors.get(actorId);if(!actor?.name)return;if(actor.type&&String(actor.type).toLowerCase()!=='player')return;
         const key=norm(actor.name),row=activities.get(key)||{name:String(actor.name),className:actor.subType||null,pullKeys:new Set(),reportCodes:new Set(),firstSeenAt:null,lastSeenAt:null,profileSeenAt:null,specId:null,spec:null,role:null,itemLevel:null};
         row.className=row.className||actor.subType||null;row.pullKeys.add(pullKey);row.reportCodes.add(String(report.reportCode));row.firstSeenAt=row.firstSeenAt==null?at:Math.min(row.firstSeenAt,at);row.lastSeenAt=row.lastSeenAt==null?at:Math.max(row.lastSeenAt,at);
-        const specId=finite(friendlySpecs[index]),spec=specId?specs.get(specId):null,itemLevel=finite(friendlyIlvls[index]);
-        if(row.profileSeenAt==null||at>=row.profileSeenAt){row.profileSeenAt=at;row.specId=specId??row.specId;row.spec=spec?.name||row.spec;row.role=roleFromSpec(spec?.name)||row.role;row.itemLevel=itemLevel??row.itemLevel;}
+        const rawSpec=friendlySpecs[index],specName=typeof rawSpec==='string'&&rawSpec.trim()?rawSpec.trim():null,specId=specName?null:finite(rawSpec),directorySpec=specId?specs.get(specId):null,resolvedSpec=specName||directorySpec?.name||null,itemLevel=finite(friendlyIlvls[index]);
+        if(row.profileSeenAt==null||at>=row.profileSeenAt){row.profileSeenAt=at;row.specId=specId??row.specId;row.spec=resolvedSpec||row.spec;row.role=roleFromSpec(resolvedSpec)||row.role;row.itemLevel=itemLevel??row.itemLevel;}
         activities.set(key,row);
       });
     }
