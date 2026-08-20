@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { corpusGet,corpusSet,corpusList } from '../corpus/storage.mjs';
 
-export const AVOID_HISTORY_STORE_VERSION='avoid-history-store-v1.1';
+export const AVOID_HISTORY_STORE_VERSION='avoid-history-store-v1.2';
 const root=(guildId,zoneId)=>`home/history/v1/guild/${Number(guildId)}/zone/${Number(zoneId)}`;
 export const avoidHistoryIndexKeyV1=({guildId,zoneId})=>`${root(guildId,zoneId)}/index.json`;
 export const avoidHistoryReportKeyV1=({guildId,zoneId,reportCode})=>`${root(guildId,zoneId)}/reports/${String(reportCode)}.json`;
@@ -9,6 +9,7 @@ export const avoidHistoryReportKeyV1=({guildId,zoneId,reportCode})=>`${root(guil
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
 const fingerprint=value=>createHash('sha1').update(JSON.stringify(stable(value))).digest('hex');
 const num=value=>{const n=Number(value);return Number.isFinite(n)?n:null;};
+const specValue=value=>{if(typeof value==='string'){const text=value.trim();return text||null;}return num(value);};
 
 export function normalizeAvoidHistoryReportV1(report,{guildId,zoneId,syncedAt=Date.now()}={}){
   if(!report?.code)throw new Error('HOME history report code is required');
@@ -18,7 +19,7 @@ export function normalizeAvoidHistoryReportV1(report,{guildId,zoneId,syncedAt=Da
     id:Number(row.id),encounterID:Number(row.encounterID),name:row.name||`Encounter ${row.encounterID}`,difficulty:Number(row.difficulty),
     startTime:Number(row.startTime)||0,endTime:Number(row.endTime)||0,kill:Boolean(row.kill),fightPercentage:num(row.fightPercentage),bossPercentage:num(row.bossPercentage),inProgress:Boolean(row.inProgress),
     friendlyPlayers:(row.friendlyPlayers||[]).map(Number).filter(Number.isFinite),
-    friendlySpecs:(row.friendlySpecs||[]).map(value=>num(value)),
+    friendlySpecs:(row.friendlySpecs||[]).map(specValue),
     friendlyItemLevels:(row.friendlyItemLevels||[]).map(value=>num(value)),
     lastPhaseAsAbsoluteIndex:num(row.lastPhaseAsAbsoluteIndex),wipeCalledTime:num(row.wipeCalledTime),
     phaseTransitions:(row.phaseTransitions||[]).map(p=>({id:num(p.id),startTime:num(p.startTime)})).filter(p=>p.id!=null&&p.startTime!=null),
