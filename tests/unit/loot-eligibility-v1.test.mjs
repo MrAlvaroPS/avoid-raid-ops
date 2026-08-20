@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateLootEligibilityV1, simcSlotsForItemV1, canonicalWeaponSubclassV1 } from '../../server/loot/eligibility-v1.mjs';
 
-const item=({itemClass='Armor',subclass='Plate',inventory='CHEST'}={})=>({id:1,itemClass:{name:itemClass},itemSubclass:{name:subclass},inventoryType:{type:inventory}});
-const player=(className)=>({name:'Raider',className});
+const item=({itemClass='Armor',subclass='Plate',inventory='CHEST',primaryStats=[]}={})=>({id:1,itemClass:{name:itemClass},itemSubclass:{name:subclass},inventoryType:{type:inventory},primaryStats});
+const player=(className,spec=null)=>({name:'Raider',className,spec});
 
 test('plate is intended for plate classes, not cloth classes',()=>{
   assert.equal(evaluateLootEligibilityV1(item(),player('Warrior')).eligible,true);
@@ -54,4 +54,32 @@ test('two-handed swords are not accidentally matched as one-handed swords',()=>{
   assert.equal(evaluateLootEligibilityV1(oneHand,player('Mage')).eligible,true);
   assert.equal(evaluateLootEligibilityV1(twoHand,player('Mage')).eligible,false);
   assert.equal(evaluateLootEligibilityV1(twoHand,player('Warrior')).eligible,true);
+});
+
+test('physical equipability does not make a Beast Mastery Hunter a polearm loot candidate',()=>{
+  const polearm=item({itemClass:'Weapon',subclass:'Polearm',inventory:'TWOHWEAPON',primaryStats:['AGILITY']});
+  const result=evaluateLootEligibilityV1(polearm,player('Hunter','Beast Mastery'));
+  assert.equal(result.physicalEligible,true);
+  assert.equal(result.specCompatible,false);
+  assert.equal(result.allocationEligible,false);
+  assert.equal(result.simEligible,false);
+  assert.equal(result.candidateStatus,'spec-incompatible');
+});
+
+test('matching active spec and primary stat becomes a SimulationCraft candidate',()=>{
+  const polearm=item({itemClass:'Weapon',subclass:'Polearm',inventory:'TWOHWEAPON',primaryStats:['STRENGTH']});
+  const result=evaluateLootEligibilityV1(polearm,player('Warrior','Arms'));
+  assert.equal(result.physicalEligible,true);
+  assert.equal(result.specCompatible,true);
+  assert.equal(result.allocationEligible,true);
+  assert.equal(result.simEligible,true);
+});
+
+test('primary-stat contradiction blocks raid allocation but remains distinct from physical proficiency',()=>{
+  const polearm=item({itemClass:'Weapon',subclass:'Polearm',inventory:'TWOHWEAPON',primaryStats:['AGILITY']});
+  const result=evaluateLootEligibilityV1(polearm,player('Druid','Balance'));
+  assert.equal(result.physicalEligible,true);
+  assert.equal(result.specCompatible,false);
+  assert.equal(result.status,'eligible');
+  assert.match(result.specReason,/INTELLECT/);
 });
