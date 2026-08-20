@@ -5,9 +5,10 @@ import { homeGuildId } from '../knowledge/scopes.mjs';
 import { AVOID_HISTORY_STORE_VERSION,normalizeAvoidHistoryReportV1,avoidHistoryReportSummaryV1,loadAvoidHistoryIndexV1,listAvoidHistoryReportsV1,persistAvoidHistoryIndexV1,persistAvoidHistoryReportV1 } from '../home/history-store-v1.mjs';
 import { HOME_ROSTER_STORE_VERSION,loadHomeRosterV1,persistHomeRosterV1,mergeHistoryRosterV1 } from '../home/roster-store-v1.mjs';
 
-export const AVOID_HISTORY_REFRESH_VERSION='avoid-history-refresh-v1.2';
+export const AVOID_HISTORY_REFRESH_VERSION='avoid-history-refresh-v1.3';
 const DAY=86400000;
 const positive=value=>{const n=Number(value);return Number.isInteger(n)&&n>0?n:null;};
+const finite=value=>value===null||value===undefined||value===''?null:Number.isFinite(Number(value))?Number(value):null;
 
 async function mapLimit(items,limit,fn){const out=new Array(items.length);let next=0;async function worker(){while(true){const i=next++;if(i>=items.length)return;try{out[i]=await fn(items[i],i)}catch(error){out[i]={__error:error instanceof Error?error.message:String(error),item:items[i]};}}}await Promise.all(Array.from({length:Math.min(Math.max(1,limit),items.length||1)},worker));return out;}
 function specDirectoryFromGameData(gameData){const out=[];for(const cls of gameData?.classes||[])for(const spec of cls?.specs||[])if(Number(spec?.id)>0)out.push({id:Number(spec.id),name:spec.name||null,slug:spec.slug||null,classId:Number(cls.id)||null,className:cls.name||null});return out;}
@@ -20,15 +21,35 @@ async function listGuildRaidReports({guildId,zoneId,days=180,maxPages=5}){
 const reportHasInProgress=summary=>(summary?.scopes||[]).some(scope=>Number(scope.inProgressPulls||0)>0);
 function reportNeedsRefresh(listed,previousSummary,now=Date.now()){if(!previousSummary)return true;if(previousSummary.historySchemaVersion!==AVOID_HISTORY_STORE_VERSION)return true;if(Number(listed.revision||0)!==Number(previousSummary.revision||0))return true;if(Number(listed.endTime||0)!==Number(previousSummary.endTime||0))return true;if(reportHasInProgress(previousSummary))return true;if(Number(listed.endTime||0)>now-12*60*60*1000)return true;return false;}
 
+function normalizeFriendlySpec(value){
+  if(value===null||value===undefined)return null;
+  if(typeof value==='string')return value.trim()||null;
+  if(typeof value==='number')return Number.isFinite(value)?value:null;
+  if(typeof value==='object'){
+    const name=value.name??value.specName??value.specialization?.name??value.spec?.name??null;
+    if(String(name||'').trim())return String(name).trim();
+    return finite(value.id??value.specID??value.specId??value.specializationID??value.specializationId??value.spec?.id);
+  }
+  return null;
+}
+function normalizeFriendlyItemLevel(value){
+  if(value===null||value===undefined)return null;
+  if(typeof value==='object')return finite(value.itemLevel??value.averageItemLevel??value.equippedItemLevel??value.value);
+  return finite(value);
+}
+function normalizeRosterHistoryReports(reports=[]){
+  return (reports||[]).map(report=>({...report,fights:(report?.fights||[]).map(fight=>({...fight,friendlySpecs:(fight?.friendlySpecs||[]).map(normalizeFriendlySpec),friendlyItemLevels:(fight?.friendlyItemLevels||[]).map(normalizeFriendlyItemLevel)}))}));
+}
+
 export async function refreshPersistedAvoidHistoryV1({guildId=homeGuildId(),days=180,maxPages=5,maxChangedReports=40,concurrency=3}={}){
   const catalog=await loadLatestRaidCatalogV1().catch(()=>null),zoneId=positive(catalog?.currentRaid?.zoneId);if(!zoneId)throw new Error('Persisted current raid catalog is required before refreshing AvoiD history');
   const previous=await loadAvoidHistoryIndexV1({guildId,zoneId}).catch(()=>null),listed=await listGuildRaidReports({guildId,zoneId,days,maxPages}),previousByCode=new Map((previous?.reports||[]).map(row=>[String(row.reportCode),row]));
   const changed=listed.reports.filter(row=>reportNeedsRefresh(row,previousByCode.get(String(row.code)))),limit=Math.max(1,Math.min(100,Number(maxChangedReports)||40)),selected=changed.slice(-limit);
   const loaded=await mapLimit(selected,Math.max(1,Math.min(6,Number(concurrency)||3)),async row=>{const data=await wclGraphql(CURRENT_HISTORY_REPORT_QUERY,{code:String(row.code)}),report=data?.reportData?.report;if(!report)return{skipped:true,code:row.code,reason:'report-not-found'};const normalized=normalizeAvoidHistoryReportV1(report,{guildId,zoneId,syncedAt:Date.now()});await persistAvoidHistoryReportV1(normalized,{guildId,zoneId});return{ok:true,summary:avoidHistoryReportSummaryV1(normalized)};});
   const errors=loaded.filter(row=>row?.__error||row?.skipped),updated=loaded.filter(row=>row?.ok).map(row=>row.summary),allReports=await listAvoidHistoryReportsV1({guildId,zoneId}),summaries=allReports.map(avoidHistoryReportSummaryV1).sort((a,b)=>Number(a.startTime)-Number(b.startTime)),remaining=Math.max(0,changed.length-selected.length),syncedAt=Date.now(),status=remaining>0||errors.length?'partial':'ready',highWaterMark=Math.max(0,...summaries.map(row=>Number(row.endTime)||0));
-  const existingRoster=await loadHomeRosterV1({guildId}).catch(()=>null),rosterBase=existingRoster||{version:HOME_ROSTER_STORE_VERSION,guildId:Number(guildId),guild:{id:Number(guildId),name:null},temporary:true,source:'home-history-bootstrap',fetchedAt:null,members:[]},raidRoster=mergeHistoryRosterV1(rosterBase,allReports,{syncedAt,specDirectory:listed.specDirectory});await persistHomeRosterV1(raidRoster,{guildId});
+  const existingRoster=await loadHomeRosterV1({guildId}).catch(()=>null),rosterBase=existingRoster||{version:HOME_ROSTER_STORE_VERSION,guildId:Number(guildId),guild:{id:Number(guildId),name:null},temporary:true,source:'home-history-bootstrap',fetchedAt:null,members:[]},rosterReports=normalizeRosterHistoryReports(allReports),raidRoster=mergeHistoryRosterV1(rosterBase,rosterReports,{syncedAt,specDirectory:listed.specDirectory});await persistHomeRosterV1(raidRoster,{guildId});
   const rosterSummary={source:'wcl-home-history-participant',activeRaiders:Number(raidRoster?.raidRoster?.activeMembers||0),totalRaidPulls:Number(raidRoster?.raidRoster?.totalRaidPulls||0),specResolved:Number((raidRoster?.members||[]).filter(row=>row?.raidActivity?.confirmedFromHomeLogs&&row?.spec).length),networkCallsAdded:0};
   const index={version:AVOID_HISTORY_STORE_VERSION,refreshVersion:AVOID_HISTORY_REFRESH_VERSION,status,guildId:Number(guildId),zone:{id:zoneId,name:catalog.currentRaid?.name||null},catalogFingerprint:catalog.fingerprint||null,syncedAt,highWaterMark,reports:summaries,roster:rosterSummary,specDirectory:listed.specDirectory,refresh:{explicit:true,listedReports:listed.reports.length,changedReports:changed.length,updatedReports:updated.length,remainingChangedReports:remaining,errors:errors.slice(0,10),window:listed.window,pagination:listed.pagination,networkCalls:listed.networkCalls+selected.length}};
   await persistAvoidHistoryIndexV1(index,{guildId,zoneId});
-  return{ok:true,...index,networkExecuted:true,wclCallsExecuted:listed.networkCalls+selected.length,wclCombatEventCalls:0,automaticPolling:false,evidenceContract:{homeOnly:true,explicitRefresh:true,incremental:true,activeReportDoesNotMutateHistory:true,difficultyClassifiedPerFight:true,raidRosterDerivedFromAlreadyFetchedHistory:true,raidRosterAddsZeroWclCalls:true,friendlySpecsAndItemLevelsPreserved:true}};
+  return{ok:true,...index,networkExecuted:true,wclCallsExecuted:listed.networkCalls+selected.length,wclCombatEventCalls:0,automaticPolling:false,evidenceContract:{homeOnly:true,explicitRefresh:true,incremental:true,activeReportDoesNotMutateHistory:true,difficultyClassifiedPerFight:true,raidRosterDerivedFromAlreadyFetchedHistory:true,raidRosterAddsZeroWclCalls:true,friendlySpecsAndItemLevelsPreserved:true,friendlyProfileShapesNormalized:true}};
 }
