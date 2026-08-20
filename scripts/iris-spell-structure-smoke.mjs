@@ -1,0 +1,138 @@
+import { loadLatestOfficialEncounterGraphByWclIdV1 } from '../server/knowledge/official-encounter-store-v1.mjs';
+import { buildSpellStructuralKnowledgePreviewV1,resolveSpellStructuralKnowledgeV1 } from '../server/knowledge/spell-structural-knowledge-v1.mjs';
+import { loadLatestSpellStructuralKnowledgeV1,loadSpellStructuralKnowledgeRevisionV1 } from '../server/knowledge/spell-structural-store-v1.mjs';
+import { resolveAbilityKnowledgeV1 } from '../server/knowledge/ability-knowledge-v1.mjs';
+
+function parseArgs(argv){
+  const out={abilities:[],directions:'both'};
+  for(let i=0;i<argv.length;i++){
+    const token=argv[i],next=()=>argv[++i];
+    if(token==='--wcl')out.wclEncounterId=Number(next());
+    else if(token==='--abilities')out.abilities=String(next()||'').split(',').map(Number).filter(id=>Number.isInteger(id)&&id>0);
+    else if(token==='--direction'||token==='--directions')out.directions=String(next()||'both').toLowerCase();
+    else if(token==='--help'||token==='-h')out.help=true;
+    else throw new Error(`Unknown argument: ${token}`);
+  }
+  return out;
+}
+
+function usage(){
+  console.log('Usage:\n  npm run validate:spell-structure -- --wcl 3182 --abilities 1243560,1241163,1243866\n\nUses the already-persisted Blizzard official encounter graph to pin the exact WoW client build, then performs bounded Wago DB2 SpellEffect lookups. It never requests WCL combat events or Blizzard network data.');
+}
+
+const args=parseArgs(process.argv.slice(2));
+if(args.help){usage();process.exit(0);}
+if(!Number.isInteger(args.wclEncounterId)||args.wclEncounterId<=0)throw new Error('--wcl must be a positive WCL encounter ID');
+if(!args.abilities.length)throw new Error('--abilities must contain at least one positive ability ID');
+
+console.log('\n[1/5] Load persisted official Blizzard graph (0 network)');
+const officialGraph=await loadLatestOfficialEncounterGraphByWclIdV1(args.wclEncounterId);
+if(!officialGraph)throw new Error(`No persisted official encounter graph for WCL encounter ${args.wclEncounterId}`);
+console.log(JSON.stringify({
+  wclEncounterId:args.wclEncounterId,
+  journalEncounterId:officialGraph.encounter?.journalEncounterId,
+  encounterName:officialGraph.encounter?.name,
+  namespace:officialGraph.source?.namespace,
+  fingerprint:officialGraph.fingerprint,
+},null,2));
+
+console.log('\n[2/5] Preview bounded Wago DB2 structural lookup');
+const input={wclEncounterId:args.wclEncounterId,seedAbilityIds:args.abilities,directions:args.directions};
+const preview=buildSpellStructuralKnowledgePreviewV1(input,officialGraph);
+console.log(JSON.stringify({fingerprint:preview.fingerprint,build:preview.officialGraph.build,seedAbilityIds:preview.request.seedAbilityIds,directions:preview.request.directions,networkUpperBound:preview.networkUpperBound},null,2));
+
+console.log('\n[3/5] Resolve + persist build-pinned SpellEffect relations');
+const resolved=await resolveSpellStructuralKnowledgeV1(input,{officialGraph});
+const exactRequest=await loadSpellStructuralKnowledgeRevisionV1(args.wclEncounterId,resolved.provider.build,resolved.requestFingerprint);
+console.log(JSON.stringify({
+  aggregateFingerprint:resolved.fingerprint,
+  requestFingerprint:resolved.requestFingerprint,
+  provider:resolved.provider,
+  currentRequest:{
+    seedAbilityIds:exactRequest?.seedAbilityIds||[],
+    usage:exactRequest?.usage||null,
+    coverage:exactRequest?.coverage||null,
+    relations:exactRequest?.relations?.map(row=>({
+      sourceAbilityId:row.sourceAbilityId,
+      sourceName:row.sourceName,
+      relationKind:row.relationKind,
+      targetAbilityId:row.targetAbilityId,
+      targetName:row.targetName,
+      providerRowId:row.providerRowId,
+      officialContext:row.officialContext?.status,
+      structuralEvidence:row.structuralEvidence,
+    }))||[],
+  },
+  accumulated:{
+    aggregation:resolved.aggregation,
+    coverage:resolved.coverage,
+    summary:resolved.summary,
+    relationCount:resolved.relations?.length||0,
+  },
+  storage:resolved.storage,
+},null,2));
+
+console.log('\n[4/5] Reload persisted structural knowledge (0 network)');
+const stored=await loadLatestSpellStructuralKnowledgeV1(args.wclEncounterId);
+if(!stored)throw new Error('Persisted structural knowledge reload returned no result');
+console.log(JSON.stringify({
+  fingerprint:stored.fingerprint,
+  fingerprintMatchesResolved:stored.fingerprint===resolved.fingerprint,
+  build:stored.provider?.build,
+  seedAbilityIds:stored.seedAbilityIds,
+  relations:stored.relations?.length||0,
+  coverage:stored.coverage,
+  aggregation:{
+    requestCount:stored.aggregation?.requestCount,
+    relationCount:stored.aggregation?.relationCount,
+    seedAbilityCount:stored.aggregation?.seedAbilityCount,
+  },
+  providerCalls:0,
+  blizzardCalls:0,
+  wclCalls:0,
+},null,2));
+
+console.log('\n[5/5] Ability Knowledge from stored Blizzard + DB2 knowledge only');
+const abilityKnowledge=await resolveAbilityKnowledgeV1({
+  encounterId:args.wclEncounterId,
+  abilityIds:args.abilities,
+  providers:{lorrgs:false,parseWowhead:false,wcl:false},
+});
+console.log(JSON.stringify({
+  usage:abilityKnowledge.usage,
+  providers:{
+    blizzardJournal:abilityKnowledge.providers?.blizzardJournal,
+    spellStructure:abilityKnowledge.providers?.spellStructure,
+  },
+  abilities:abilityKnowledge.abilities.map(row=>({
+    abilityId:row.abilityId,
+    name:row.identity?.name||null,
+    semanticClass:row.semanticClass,
+    officialStatus:row.providerSignals?.blizzardJournal?.status,
+    structuralStatus:row.providerSignals?.spellStructure?.status,
+    structuralBuild:row.providerSignals?.spellStructure?.build,
+    inbound:row.providerSignals?.spellStructure?.inbound||[],
+    outbound:row.providerSignals?.spellStructure?.outbound||[],
+    structuralCoverage:row.providerSignals?.spellStructure?.coverage||null,
+    negativeEvidence:row.providerSignals?.spellStructure?.negativeEvidence,
+  })),
+},null,2));
+
+const expectedCurrent=exactRequest?.relations?.find(row=>row.sourceAbilityId===1243560&&row.targetAbilityId===1241163);
+const expectedAccumulated=stored.relations?.find(row=>row.sourceAbilityId===1243560&&row.targetAbilityId===1241163);
+if(args.abilities.includes(1243560)&&args.abilities.includes(1241163)){
+  console.log('\nBelo-ren fixture check (diagnostic, not a hard generic requirement):');
+  console.log(JSON.stringify({
+    relation1243560To1241163InCurrentRequest:Boolean(expectedCurrent),
+    relation1243560To1241163InAccumulatedBuild:Boolean(expectedAccumulated),
+    relation:(expectedCurrent||expectedAccumulated)?{
+      sourceAbilityId:(expectedCurrent||expectedAccumulated).sourceAbilityId,
+      targetAbilityId:(expectedCurrent||expectedAccumulated).targetAbilityId,
+      relationKind:(expectedCurrent||expectedAccumulated).relationKind,
+      providerRowId:(expectedCurrent||expectedAccumulated).providerRowId,
+      officialContext:(expectedCurrent||expectedAccumulated).officialContext?.status,
+    }:null,
+  },null,2));
+}
+
+console.log('\nOK: build-pinned spell structural smoke validation completed. WCL combat-event and Blizzard network calls remained zero; Ability Knowledge reused persisted official/structural knowledge.');

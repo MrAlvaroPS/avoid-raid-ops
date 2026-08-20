@@ -47,10 +47,12 @@ export function rankingHasMore(json,currentPage,rows){
   return (rows||[]).length>0;
 }
 
-export async function fetchRankingPage({encounterId,difficulty=5,partition=0,page=1}){
+export async function fetchRankingPage({encounterId,difficulty,partition=0,page=1}){
+  const id=Number(encounterId),diff=Number(difficulty);
+  if(!Number.isInteger(id)||id<=0)throw new Error('encounterId is required for ranking discovery');
+  if(!Number.isInteger(diff)||diff<=0)throw new Error('difficulty is required for ranking discovery; cross-difficulty fallback is forbidden');
   const requestedPartition=Number(partition||0);
-  const data=await wclGraphql(CORPUS_RANKINGS_QUERY,{encounter:Number(encounterId),difficulty:Number(difficulty),partition:requestedPartition>0?requestedPartition:null,page:Number(page)});
-  const encounter=data?.worldData?.encounter||null;const raw=encounter?.fightRankings??null;const rows=extractRankingRows(raw);
-  const partitions=encounter?.zone?.partitions||[];const resolvedPartition=requestedPartition>0?requestedPartition:Number(partitions.find(p=>p?.default)?.id)||null;
-  return {encounter:encounter?{id:encounter.id,name:encounter.name,journalID:encounter.journalID,zone:encounter.zone}:null,resolvedPartition,rows,hasMore:rankingHasMore(raw,page,rows),rateLimit:data?.rateLimitData||null,rawShape:raw&&typeof raw==='object'?Object.keys(raw).slice(0,20):[]};
+  const data=await wclGraphql(CORPUS_RANKINGS_QUERY,{encounter:id,difficulty:diff,partition:requestedPartition>0?requestedPartition:null,page:Number(page)});
+  const encounter=data?.worldData?.encounter||null,raw=encounter?.fightRankings??null,rows=extractRankingRows(raw),partitions=encounter?.zone?.partitions||[],resolvedPartition=requestedPartition>0?requestedPartition:Number(partitions.find(p=>p?.default)?.id)||null;
+  return {encounter:encounter?{id:encounter.id,name:encounter.name,journalID:encounter.journalID,zone:encounter.zone}:null,difficulty:diff,resolvedPartition,rows,hasMore:rankingHasMore(raw,page,rows),rateLimit:data?.rateLimitData||null,rawShape:raw&&typeof raw==='object'?Object.keys(raw).slice(0,20):[]};
 }

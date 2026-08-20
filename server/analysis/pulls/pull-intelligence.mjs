@@ -3,9 +3,10 @@ import { stageCount,normalizeStages } from '../../wcl/normalization/fights.mjs';
 import { summarizeThroughput } from '../throughput/summary.mjs';
 import { classifyPullForAnalysis } from './pull-eligibility.mjs';
 
-const finite=v=>Number.isFinite(Number(v));
+const finite=v=>v!==null&&v!==undefined&&Number.isFinite(Number(v));
 const pctChange=(current,base)=>finite(current)&&finite(base)&&Number(base)!==0?100*(Number(current)/Number(base)-1):null;
 const rosterFingerprint=f=>(f?.friendlyPlayers||[]).map(Number).filter(Number.isFinite).sort((a,b)=>a-b).join('-');
+const compactDeath=row=>row?({fightId:Number(row.fightId),actorId:finite(row.actorId)?Number(row.actorId):null,player:row.player||null,fightRelativeMs:finite(row.fightRelativeMs)?Number(row.fightRelativeMs):null,abilityId:finite(row.abilityId)?Number(row.abilityId):null,killingBlow:row.killingBlow||null,overkill:finite(row.overkill)?Number(row.overkill):null}):null;
 
 function pullFact(f,originalPullNumber,summaryTable,deathAnalysis){
   const throughput=summaryTable?summarizeThroughput(summaryTable,f):null;
@@ -19,8 +20,10 @@ function pullFact(f,originalPullNumber,summaryTable,deathAnalysis){
     durationMs:durationMs(f),stageCount:stageCount(f),stages:normalizeStages(f),
     raidDps:throughput?.raidDps??throughput?.dps??null,
     raidHps:throughput?.raidHps??throughput?.hps??null,
-    firstDeathMs:first?.fightRelativeMs??null,firstDeath:first,
+    firstDeathMs:first?.fightRelativeMs??null,firstDeath:compactDeath(first),
     rawDeaths:raw.length,meaningfulDeaths:meaningful.length,
+    rawDeathTimeline:raw.slice(0,12).map(compactDeath).filter(Boolean),
+    meaningfulDeathTimeline:meaningful.slice(0,12).map(compactDeath).filter(Boolean),
     rosterFingerprint:rosterFingerprint(f),rosterSize:(f.friendlyPlayers||[]).length
   };
 }
@@ -34,13 +37,21 @@ function signal(key,label,current,baseline,{better='higher',unit='',priority=10,
   return {key,label,status,current:Number(current),baseline:Number(baseline),delta,unit,priority,evidence,confidence:'high'};
 }
 
+function firstDeathSignal(current,baseline){
+  const hasCurrent=finite(current),hasBaseline=finite(baseline),base={key:'firstDeath',label:'First death',unit:'ms',priority:85,confidence:'high'};
+  if(!hasCurrent&&!hasBaseline)return{...base,status:'stable',current:null,baseline:null,delta:0,evidence:'No friendly death event in either pull'};
+  if(!hasCurrent&&hasBaseline)return{...base,status:'improved',current:null,baseline:Number(baseline),delta:Number(baseline),evidence:'Current pull had no friendly death; baseline first death occurred earlier'};
+  if(hasCurrent&&!hasBaseline)return{...base,status:'regressed',current:Number(current),baseline:null,delta:-Number(current),evidence:'Baseline had no friendly death; current pull recorded a first death'};
+  return signal('firstDeath','First death',current,baseline,{better:'higher',unit:'ms',priority:85,evidence:'First friendly death event in each pull'});
+}
+
 function comparePulls(current,baseline){
   if(!current||!baseline)return null;
   const sameStage=Number(current.stageCount)===Number(baseline.stageCount);
   const signals=[
     signal('progress','Fight progress',current.fightPercentage,baseline.fightPercentage,{better:'lower',unit:'pp',priority:100,evidence:'WCL fightPercentage; lower is deeper progression'}),
     signal('stage','Stage reached',current.stageCount,baseline.stageCount,{better:'higher',unit:'stage',priority:95,evidence:'WCL absolute stage model'}),
-    signal('firstDeath','First death',current.firstDeathMs,baseline.firstDeathMs,{better:'higher',unit:'ms',priority:85,evidence:'First friendly death event in each pull'}),
+    firstDeathSignal(current.firstDeathMs,baseline.firstDeathMs),
     signal('meaningfulDeaths','Meaningful deaths',current.meaningfulDeaths,baseline.meaningfulDeaths,{better:'lower',unit:'deaths',priority:80,evidence:'WCL death events with wipeCutoff'}),
     signal('raidDps','Raid DPS',current.raidDps,baseline.raidDps,{better:'higher',unit:'dps',priority:40,allowClassify:sameStage,evidence:sameStage?'WCL Summary; same absolute stage reached':'Observed only: pulls reached different stages'}),
     signal('raidHps','Raid HPS',current.raidHps,baseline.raidHps,{better:'higher',unit:'hps',priority:20,allowClassify:false,evidence:'Observed only; HPS is demand-dependent and is not treated as better/worse'})
@@ -96,7 +107,7 @@ export function buildPullIntelligence({fights=[],summaryTables=new Map(),deathAn
     provenance:{
       progress:'WCL fightPercentage',
       throughput:'WCL Summary table per pull',
-      deaths:'WCL Death events',
+      deaths:'WCL Death events; per-pull raw and meaningful timelines are objective observations, not wipe-cause classification',
       eligibility:'Called-wipe/reset pulls are first-class excluded records and never enter analytical baselines',
       classification:'Only progress/stage/first-death/meaningful-death and same-stage DPS receive directional labels'
     },

@@ -10,10 +10,10 @@ import {
   executeSemanticProbePlanV1,
   semanticProbeRunKey,
 } from '../../../server/corpus/semantic-surgical-probe-executor-v1.mjs';
-import { verifySemanticProbeEvidenceV2 } from '../../../server/corpus/semantic-probe-verifier-v2.mjs';
+import { verifySemanticProbeEvidenceV32 } from '../../../server/corpus/semantic-probe-verifier-v3-2.mjs';
 import { buildStoredSemanticSourceEvidenceV2,buildStoredFlankBackgroundEvidenceV2 } from '../../../server/corpus/semantic-probe-stored-evidence-v2.mjs';
 
-const API_VERSION='semantic-probe-api-v3';
+const API_VERSION='semantic-probe-api-v5';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 
 function inputFrom(request,body={}){
@@ -95,6 +95,15 @@ async function preview(input){
   return{...ctx,config,preview:probePreview};
 }
 
+const actorProvenanceKey=(args,signalId,fingerprint)=>`semantic-probes/${corpusId(args)}/actor-provenance/${Number(signalId)}/${String(fingerprint)}.json`;
+async function resolvedActorProvenance(input,args,signalId){
+  if(input.actorProvenance)return{value:input.actorProvenance,source:'caller-supplied'};
+  const fingerprint=String(input.actorProvenanceFingerprint||'').trim();
+  if(!fingerprint)return{value:null,source:'none'};
+  const value=await corpusGet(actorProvenanceKey(args,signalId,fingerprint)).catch(()=>null);
+  return{value,source:value?'persisted-fingerprint':'persisted-fingerprint-missing'};
+}
+
 async function reverifyStored(input){
   const ctx=await context(input);
   const keys=await corpusList(`semantic-probes/${corpusId(ctx.args)}/evidence/`);
@@ -108,18 +117,20 @@ async function reverifyStored(input){
     const stored=buildStoredSemanticSourceEvidenceV2({signalId:signal.id,evidenceRecords});
     const innerRadius=Math.min(...SEMANTIC_PROBE_EXECUTION_DEFAULTS.windowRadiiMs);
     const background=buildStoredFlankBackgroundEvidenceV2({signalId:signal.id,evidenceRecords,innerRadiusMs:innerRadius});
-    const verification=verifySemanticProbeEvidenceV2({
-      signalId:signal.id,sourceEvidence:stored.sourceEvidence,backgroundEvidence:background.backgroundEvidence,abilityKnowledge,
+    const actor=await resolvedActorProvenance(input,ctx.args,signal.id);
+    const verification=verifySemanticProbeEvidenceV32({
+      signalId:signal.id,sourceEvidence:stored.sourceEvidence,backgroundEvidence:background.backgroundEvidence,abilityKnowledge,actorProvenance:actor.value,
       minimumIndependentSources:signal?.verificationContract?.minimumIndependentSources||3,
       minimumAnchorOccurrences:signal?.verificationContract?.minimumAnchorOccurrences||6,
     });
-    results.push({signalId:Number(signal.id),stored:stored.summary,background:background.summary,verification});
+    results.push({signalId:Number(signal.id),stored:stored.summary,background:background.summary,actorProvenanceSource:actor.source,verification});
   }
   return{
-    version:'semantic-stored-reverification-v2',scope:ctx.args,wclCallsExecuted:0,providerNetworkCallsExecuted:0,
+    version:'semantic-stored-reverification-v4',scope:ctx.args,wclCallsExecuted:0,providerNetworkCallsExecuted:0,
     evidenceSource:'persisted-diagnostic-semantic-surgical',providerKnowledgeSource:abilityKnowledge?'caller-supplied':'none',
+    actorProvenanceSource:results.length===1?results[0].actorProvenanceSource:'per-signal',
     results,
-    safety:{canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false},
+    safety:{canonicalDeepContribution:{reports:0,pulls:0},directScoreDelta:0,automaticPromotion:false,actorProvenanceNetworkCalls:0,providerCannotOverrideActorOrigin:true},
   };
 }
 

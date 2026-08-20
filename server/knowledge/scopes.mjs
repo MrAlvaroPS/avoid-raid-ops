@@ -1,4 +1,5 @@
 export const IRIS_KNOWLEDGE_CONTRACT_VERSION = 'iris-knowledge-contract-v1';
+export const GLOBAL_BOSS_SOURCE_ISOLATION_VERSION = 'global-boss-source-isolation-v1';
 export const DEFAULT_HOME_GUILD_ID = 788166;
 
 const finitePositive = value => {
@@ -82,6 +83,58 @@ export function isHomeSourceProfile(profile = {}, additionalOwnerIds = []) {
   return isHomeGuildProfile(profile) || isHomeOwnerId(sourceOwnerId(profile), additionalOwnerIds);
 }
 
+/**
+ * GLOBAL BOSS evidence is fail-closed. A report is eligible only when WCL gives
+ * us a concrete guild identity and that guild is provably not HOME. Owner-only
+ * or anonymous reports may still be useful elsewhere, but they cannot enter the
+ * GLOBAL train/validation corpus because "not known to be HOME" is not proof of
+ * independence from HOME.
+ */
+export function classifyGlobalBossSourceProfile(profile = {}, additionalOwnerIds = []) {
+  const guildId = sourceGuildId(profile);
+  const ownerId = sourceOwnerId(profile);
+  const homeGuild = guildId != null && isHomeGuildId(guildId);
+  const homeOwner = ownerId != null && isHomeOwnerId(ownerId, additionalOwnerIds);
+  if (homeGuild || homeOwner) {
+    return Object.freeze({
+      version: GLOBAL_BOSS_SOURCE_ISOLATION_VERSION,
+      eligible: false,
+      status: 'home-source',
+      guildId,
+      ownerId,
+      homeGuild,
+      homeOwner,
+      independenceProven: false,
+    });
+  }
+  if (guildId != null) {
+    return Object.freeze({
+      version: GLOBAL_BOSS_SOURCE_ISOLATION_VERSION,
+      eligible: true,
+      status: 'verified-external-guild',
+      guildId,
+      ownerId,
+      homeGuild: false,
+      homeOwner: false,
+      independenceProven: true,
+    });
+  }
+  return Object.freeze({
+    version: GLOBAL_BOSS_SOURCE_ISOLATION_VERSION,
+    eligible: false,
+    status: 'external-origin-unverified',
+    guildId: null,
+    ownerId,
+    homeGuild: false,
+    homeOwner: false,
+    independenceProven: false,
+  });
+}
+
+export function isVerifiedExternalGlobalBossSourceProfile(profile = {}, additionalOwnerIds = []) {
+  return classifyGlobalBossSourceProfile(profile, additionalOwnerIds).eligible === true;
+}
+
 export function profileMatchesBossScope(profile = {}, scope = {}) {
   return Number(profile?.encounterId) === Number(scope?.encounterId)
     && Number(profile?.difficulty) === Number(scope?.difficulty)
@@ -92,8 +145,12 @@ export function assertProfileAllowedInGlobalBossKnowledge(profile = {}, scope = 
   if (!profileMatchesBossScope(profile, scope)) {
     throw new Error(`Boss corpus scope mismatch for report ${profile?.code || 'unknown'}: expected encounter ${scope?.encounterId} d${scope?.difficulty} p${scope?.partition}`);
   }
-  if (isHomeSourceProfile(profile, additionalHomeOwnerIds)) {
-    throw new Error(`Home source is excluded from global boss training/holdout`);
+  const source = classifyGlobalBossSourceProfile(profile, additionalHomeOwnerIds);
+  if (source.status === 'home-source') {
+    throw new Error('Home source is excluded from global boss training/holdout');
+  }
+  if (source.eligible !== true) {
+    throw new Error('GLOBAL BOSS source independence is unverified; fail-closed source policy rejected the report');
   }
   return true;
 }
@@ -104,10 +161,16 @@ export function sanitizeGlobalBossProfile(profile = {}) {
     const { friendlyPlayers, ...rest } = fight;
     return rest;
   };
+  // GLOBAL persisted evidence keeps guild-level source independence but never keeps
+  // uploader/owner identity. Besides reducing identity retention, this makes legacy
+  // owner-only profiles source-incomplete at canonical sampling time instead of
+  // accidentally reviving a `user:<id>` training source.
+  const { owner, ...withoutOwner } = profile || {};
   return {
-    ...profile,
+    ...withoutOwner,
     knowledgeScope: 'global-boss',
     knowledgeContractVersion: IRIS_KNOWLEDGE_CONTRACT_VERSION,
+    sourceIsolationVersion: GLOBAL_BOSS_SOURCE_ISOLATION_VERSION,
     fights: Array.isArray(profile.fights) ? profile.fights.map(cleanFight) : profile.fights,
   };
 }
