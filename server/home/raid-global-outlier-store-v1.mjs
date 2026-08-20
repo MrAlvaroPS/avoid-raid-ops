@@ -1,0 +1,32 @@
+import { createHash } from 'node:crypto';
+import { corpusGet,corpusSet,corpusList } from '../corpus/storage.mjs';
+import { homeGuildId } from '../knowledge/scopes.mjs';
+import { listHomePullFactsSnapshotsV1 } from './raid-pull-facts-store-v1.mjs';
+
+export const HOME_GLOBAL_COMPARISON_VERSION='home-global-comparison-v1';
+const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
+const digest=v=>createHash('sha1').update(JSON.stringify(stable(v))).digest('hex');
+const pos=v=>{const n=Number(v);return Number.isInteger(n)&&n>0?n:null;};
+const finite=v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))?Number(v):null;
+const safe=v=>String(v||'').replace(/[^A-Za-z0-9._-]/g,'_');
+const root=({guildId,encounterId,difficulty})=>`home/raid-global-comparisons/g${Number(guildId)}/e${Number(encounterId)}/d${Number(difficulty)}`;
+const latestKey=s=>`${root(s)}/reports/${safe(s.reportCode)}/f${Number(s.fightId)}/latest.json`;
+const revisionKey=(s,f)=>`${root(s)}/reports/${safe(s.reportCode)}/f${Number(s.fightId)}/revisions/${f}.json`;
+const bandRank=b=>({'below-p25':0,'typical':1,'above-p75':2,'above-p90':3,'above-p95':4}[String(b)]??null);
+function signal(kind,row={}){const g=row.global;if(!g)return null;return{kind,abilityId:pos(row.abilityId),name:row.name||null,officialMechanic:row?.officialMechanics?.[0]?.mechanicName||null,band:g.band||null,rank:bandRank(g.band),cohort:g.cohort||null,unit:g.unit||null,current:finite(g.current),mean:finite(g.mean),reports:Number(g.reports||0),pulls:Number(g.pulls||0),p25:finite(g.p25),p50:finite(g.p50),p75:finite(g.p75),p90:finite(g.p90),p95:finite(g.p95)};}
+export function buildHomeGlobalComparisonSnapshotV1(diagnostic,{guildId=homeGuildId()}={}){
+  const encounterId=pos(diagnostic?.scope?.encounterId),difficulty=pos(diagnostic?.scope?.difficulty),fightId=pos(diagnostic?.scope?.fightId),reportCode=String(diagnostic?.scope?.reportCode||'').trim();if(!encounterId||!difficulty||!fightId||!reportCode)throw new Error('exact report+fight+encounter+difficulty diagnostic is required');
+  const signals=[...(diagnostic?.incomingPressure?.topAbilities||[]).map(r=>signal('damage-pressure',r)),...(diagnostic?.castPressure?.enemyCasts||[]).map(r=>signal('cast-pressure',r))].filter(Boolean),outliers=signals.filter(r=>Number(r.rank)>=3);
+  const evidence={reportCode,fightId,encounterId,difficulty,pull:diagnostic.pull||null,signals};const fingerprint=digest(evidence);
+  return{version:HOME_GLOBAL_COMPARISON_VERSION,fingerprint,generatedAt:Number(diagnostic.generatedAt)||Date.now(),guildId:Number(guildId),reportCode,fightId,encounter:{id:encounterId,difficulty,scopeKey:`${encounterId}:d${difficulty}`},pull:diagnostic.pull||null,signals,outliers,globalReference:diagnostic.globalReference||diagnostic?.rlSummary?.globalReference||null,evidenceContract:{homeOnly:true,exactFight:true,sameDifficultyOnly:true,globalComparisonIsDescriptiveNotFailure:true,outlierDoesNotImplyBlame:true,doesNotTrainGlobal:true,doesNotPromote:true}};
+}
+async function proveHome(snapshot){const rows=await listHomePullFactsSnapshotsV1({guildId:snapshot.guildId,encounterId:snapshot.encounter.id,difficulty:snapshot.encounter.difficulty});return rows.some(r=>String(r.reportCode)===String(snapshot.reportCode)&&(r.pulls||[]).some(p=>Number(p.fightId)===Number(snapshot.fightId)));}
+export async function persistHomeGlobalComparisonFromDiagnosticV1(diagnostic,{guildId=homeGuildId(),storageGet=corpusGet,storageSet=corpusSet}={}){
+  const snapshot=buildHomeGlobalComparisonSnapshotV1(diagnostic,{guildId});if(!(await proveHome(snapshot)))return{persisted:false,reason:'exact-fight-not-proven-home'};
+  const scope={guildId:snapshot.guildId,encounterId:snapshot.encounter.id,difficulty:snapshot.encounter.difficulty,reportCode:snapshot.reportCode,fightId:snapshot.fightId},latest=latestKey(scope),existing=await storageGet(latest).catch(()=>null);if(existing?.fingerprint===snapshot.fingerprint)return{persisted:true,reused:true,snapshot:existing};
+  const rev=revisionKey(scope,snapshot.fingerprint),stored={...snapshot,storage:{latestKey:latest,revisionKey:rev,persistedAt:Date.now()}};await storageSet(rev,stored);await storageSet(latest,stored);return{persisted:true,reused:false,snapshot:stored};
+}
+export async function listHomeGlobalComparisonSnapshotsV1({guildId=homeGuildId(),encounterId,difficulty,storageList=corpusList,storageGet=corpusGet}={}){const scope={guildId,encounterId:pos(encounterId),difficulty:pos(difficulty)};if(!scope.encounterId||!scope.difficulty)throw new Error('encounter+difficulty are required');const keys=(await storageList(`${root(scope)}/reports/`)).filter(k=>k.endsWith('/latest.json'));return(await Promise.all(keys.map(k=>storageGet(k).catch(()=>null)))).filter(Boolean);}
+const trend=(a,b)=>a==null||b==null?'baseline':a<b?'improving':a>b?'regressing':'stable';
+export function aggregateHomeGlobalComparisonsV1(snapshots=[]){const byPull=new Map();for(const s of snapshots||[])byPull.set(`${s.reportCode}:${s.fightId}`,s);const pulls=[...byPull.values()].sort((a,b)=>Number(a.generatedAt)-Number(b.generatedAt)),map=new Map();for(const p of pulls)for(const s of p.signals||[]){const key=`${s.kind}:${s.abilityId||s.name}`,row=map.get(key)||{key,kind:s.kind,abilityId:s.abilityId,name:s.name,officialMechanic:s.officialMechanic,history:[]};row.history.push({reportCode:p.reportCode,fightId:p.fightId,pullNumber:p.pull?.pullNumber??null,kill:Boolean(p.pull?.kill),band:s.band,rank:s.rank,current:s.current,unit:s.unit});map.set(key,row);}const signals=[...map.values()].map(r=>{const h=r.history,last=h.at(-1),prev=h.at(-2);return{...r,latestBand:last?.band||null,latestRank:last?.rank??null,previousBand:prev?.band||null,trend:trend(last?.rank,prev?.rank),outlierPulls:h.filter(x=>Number(x.rank)>=3).length,comparedPulls:h.length};}).sort((a,b)=>Number(b.latestRank??-1)-Number(a.latestRank??-1)||b.outlierPulls-a.outlierPulls);return{version:HOME_GLOBAL_COMPARISON_VERSION,status:pulls.length?'ready':'empty',population:{comparedPulls:pulls.length,outlierPulls:pulls.filter(p=>(p.outliers||[]).length).length,reports:new Set(pulls.map(p=>p.reportCode)).size},signals,latest:pulls.at(-1)||null,evidenceContract:{homeOnly:true,globalOutlierTrendIsDescriptive:true,neverClassifiedAsFailure:true,sameDifficultyOnly:true}};}
+export async function loadHomeGlobalComparisonsV1(args={}){return aggregateHomeGlobalComparisonsV1(await listHomeGlobalComparisonSnapshotsV1(args));}
