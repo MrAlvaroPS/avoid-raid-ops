@@ -10,7 +10,7 @@ test('Loot v3.9.13.11 is current-raid scoped, HOME-history roster scoped and sim
     readFile(new URL('../../public/loot-runtime-v391310-overlay.js',import.meta.url),'utf8'),
     readFile(new URL('../../public/raidops-v3913-loot-v2.css',import.meta.url),'utf8'),
   ]);
-  assert.match(index,/loot-runtime-v39132\.js\?v=3\.9\.13\.(?:2|11)/);
+  assert.match(index,/loot-runtime-v39132\.js\?v=3\.9\.13\.11/);
   assert.match(loader,/loot-runtime-v39137\.js\?v=3\.9\.13\.10/);
   assert.match(loader,/loot-runtime-v391310-overlay\.js\?v=3\.9\.13\.11/);
   assert.match(runtime,/confirmedFromHomeLogs/);
