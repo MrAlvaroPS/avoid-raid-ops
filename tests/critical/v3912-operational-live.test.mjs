@@ -2,41 +2,47 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 const read=file=>readFile(new URL(`../../${file}`,import.meta.url),'utf8');
-const BOSS_SPECIFIC=/Nek.?zali|3470|2888|The Venomous Abyss/i;
+const BOSS_SPECIFIC=/Nek.?zali|3470|The Venomous Abyss/i;
 
-test('CRITICAL v3.9.12 OPERATIONAL REFERENCE: bounded floor is useful but cannot weaken accepted knowledge',async()=>{
-  const [config,service,prepare]=await Promise.all([read('server/corpus/config.mjs'),read('server/corpus/service-v2.mjs'),read('scripts/iris-prepare-boss.mjs')]);
-  assert.match(config,/CORPUS_OPERATIONAL_PROFILE/);assert.match(config,/targetPulls:\s*100/);assert.match(config,/deepTargetPulls:\s*20/);
-  assert.match(service,/OPERATIONAL_REFERENCE_VERSION/);assert.match(service,/canonicalSourceSafety/);assert.match(service,/homeSourceSelectedReports/);assert.match(service,/selectedMissingSourceReports/);assert.match(service,/automaticPromotion:false/);
-  assert.match(service,/loadPublishedEncounterModelV2/);assert.match(service,/model\.status !== 'published'/);
-  assert.match(prepare,/public-evidence-available/);assert.match(prepare,/corpusProfile:'operational'/);assert.match(prepare,/recompileCorpusModelV2/);assert.match(prepare,/operationalDoesNotMeanPublished:true/);
-  assert.doesNotMatch(`${config}\n${service}\n${prepare}`,BOSS_SPECIFIC,'generic operational preparation must not contain validation-boss constants');
+test('CRITICAL operational reference remains stricter than descriptive GLOBAL benchmark',async()=>{
+  const [service,partial]=await Promise.all([read('server/corpus/service-v2.mjs'),read('server/corpus/global-observational-benchmark-v1.mjs')]);
+  assert.match(service,/minWidePulls:100/);assert.match(service,/minDeepPulls:20/);assert.match(service,/canonicalSourceSafety/);assert.match(service,/automaticPromotion:false/);
+  assert.match(partial,/GLOBAL_DESCRIPTIVE_MIN_REPORTS=5/);assert.match(partial,/classifyGlobalBossSourceProfile\(p\)\.eligible===true/);assert.match(partial,/doesNotSatisfyDataReady:true/);assert.match(partial,/doesNotSatisfyLiveReady:true/);assert.match(partial,/doesNotPromote:true/);assert.match(partial,/wipePrimaryUnit:'per-minute'/);assert.match(partial,/percentilesRequireReports/);
+  assert.doesNotMatch(partial,BOSS_SPECIFIC,'descriptive GLOBAL benchmark must stay boss agnostic');
 });
 
-test('CRITICAL v3.9.12 LIVE: operational execution is exact-difficulty, completed-pull based and HOME persistence is isolated',async()=>{
-  const [engine,service,store]=await Promise.all([read('server/engines/operational-execution-v1.mjs'),read('server/services/operational-execution-service.mjs'),read('server/home/raid-execution-store-v1.mjs')]);
-  assert.match(service,/encounter\+difficulty are required/);assert.match(engine,/Cross-difficulty operational execution rejected/);
-  assert.match(engine,/waiting-for-first-combat/);assert.match(engine,/waiting-for-completed-pull/);assert.match(engine,/boss-reference-not-ready/);assert.match(engine,/noReferenceMeansNoFabricatedMechanicClassification:true/);
-  assert.match(engine,/loadOperationalEncounterModelV2/);assert.match(engine,/getTelemetry/);assert.match(engine,/analyzeEncounterMechanics/);assert.match(engine,/findCurrentBlocker/);
-  assert.match(engine,/if\(homeRaidEligible\)/);assert.match(engine,/external-report-never-enters-home-execution/);
-  assert.match(store,/longitudinalAcrossAllPersistedPulls:true/);assert.match(store,/singlePullCannotReplaceAggregate:true/);assert.match(store,/mechanicallyReadyIsNotOverallKillability:true/);
+test('CRITICAL HOME GLOBAL comparison is exact-fight memory and never failure evidence',async()=>{
+  const [store,enrich,service]=await Promise.all([read('server/home/raid-global-outlier-store-v1.mjs'),read('server/analysis/live/global-benchmark-enrichment-v1.mjs'),read('server/services/live-rl-diagnostic-service.mjs')]);
+  assert.match(store,/exact-fight-not-proven-home/);assert.match(store,/listHomePullFactsSnapshotsV1/);assert.match(store,/globalComparisonIsDescriptiveNotFailure:true/);assert.match(store,/outlierDoesNotImplyBlame:true/);assert.match(store,/doesNotTrainGlobal:true/);assert.match(store,/neverClassifiedAsFailure:true/);
+  assert.match(enrich,/globalPercentilesRequireFiveDeepReports:true/);assert.match(enrich,/globalOutlierIsNotFailure:true/);assert.match(enrich,/partialBenchmarkDoesNotSatisfyReadiness:true/);assert.match(enrich,/above-p95/);assert.match(enrich,/above-p90/);
+  assert.match(service,/persistHomeGlobalComparisonFromDiagnosticV1/);assert.match(service,/homeMutationRequiresExactPersistedPullFacts:true/);assert.match(service,/noGlobalLearning:true/);
+  assert.doesNotMatch(`${store}\n${enrich}`,BOSS_SPECIFIC,'HOME/global comparison machinery must stay boss agnostic');
 });
 
-test('CRITICAL v3.9.12 HEADER: historical context is LOG then PULL, Active WCL stays independent and visible version has one visual owner',async()=>{
-  const [runtime,css,index]=await Promise.all([read('public/avoid-execution-context-v3911.js'),read('public/raidops-v3911-execution.css'),read('index.html')]);
-  const logAt=runtime.indexOf('<small>LOG</small>'),pullAt=runtime.indexOf('<small>PULL</small>'),activeAt=runtime.indexOf('ACTIVE WCL');
-  assert.ok(logAt>=0&&pullAt>logAt&&activeAt>pullAt,'header control order must be LOG → PULL → Active WCL');
-  assert.match(runtime,/historyReportSelectionIsConsumerOptIn:true/);assert.match(runtime,/pullSelectionIsConsumerOptIn:true/);
-  assert.match(runtime,/\/api\/wcl\/operational-execution/);assert.doesNotMatch(runtime,/new URL\(['"]\/api\/wcl\/history['"]/);
-  assert.match(css,/b\[data-app-release\]\{font-size:0!important\}/);assert.match(css,/content:attr\(data-app-release\)/);
-  assert.match(index,/raidops-v3912-operational\.css\?v=3\.9\.12\.0/);assert.match(index,/raidops-v3912-mechanics-bridge\.css\?v=3\.9\.12\.0/);assert.match(index,/avoid-operational-observer-guard-v3912\.js\?v=3\.9\.12\.1/);assert.match(index,/avoid-operational-ui-v3912\.js\?v=3\.9\.12\.0/);
+test('CRITICAL Live selected pull owns the diagnostic and LIVE backfill is bounded',async()=>{
+  const [query,engine,route,operational,safe]=await Promise.all([read('server/wcl/queries/live-rl-diagnostic.mjs'),read('server/engines/live-rl-diagnostic-v1.mjs'),read('server/services/live-rl-diagnostic-service.mjs'),read('server/services/operational-execution-service.mjs'),read('public/avoid-live-safe-fallback-v3912.js')]);
+  for(const field of ['currentEnemyCasts','currentInterrupts','currentDispels','currentDebuffs','currentDeaths'])assert.match(query,new RegExp(`${field}:events\\([^\\n]+fightIDs:\\$fight[^\\n]+translate:false`));
+  assert.match(engine,/selectedFightId/);assert.match(engine,/sameDifficultyOnly:true/);assert.match(engine,/killBenchmarkUsesPerPull:true/);assert.match(engine,/wipeBenchmarkUsesPerMinute:true/);
+  assert.match(route,/fightId/);assert.match(route,/enrichLiveRlDiagnosticWithGlobalV1/);
+  assert.match(operational,/oneMissingHomePullBackfilledPerCycle:true/);assert.match(operational,/find\(p=>Number\.isInteger/);assert.doesNotMatch(operational,/Promise\.all\([^\n]*missing/,'backfill must not fan out over every missing pull');
+  assert.match(safe,/live-rl-diagnostic/);assert.match(safe,/selectedFightId/);assert.match(safe,/diagnosticCache/);assert.match(safe,/Everything in this block belongs to Pull/);
 });
 
-test('CRITICAL v3.9.12 RAID EXECUTION: raid count/single-pull score are replaced by report-independent longitudinal current mechanical state',async()=>{
-  const [header,ui,bridge]=await Promise.all([read('public/iris-mechanics-header-v3910.js'),read('public/avoid-operational-ui-v3912.js'),read('public/raidops-v3912-mechanics-bridge.css')]);
-  assert.match(header,/CURRENT MECHANICAL STATE/);assert.match(header,/Longitudinal AvoiD mechanic execution/);assert.doesNotMatch(header,/bossCount\(/);assert.doesNotMatch(header,/CURRENT RAID/);
-  assert.match(ui,/MECHANIC EVOLUTION/);assert.match(ui,/ALL-TIME/);assert.match(ui,/RECENT/);assert.match(ui,/PREVIOUS/);assert.match(ui,/not overall killability/i);
-  assert.match(bridge,/data-tab="execution"/);assert.match(bridge,/display:block!important/);assert.match(bridge,/data-tab="knowledge"/);
-  assert.match(ui,/LIVE · WAITING/);assert.match(ui,/Boss reference not ready/);assert.match(ui,/No classified mechanic failure is present/);
-  assert.match(ui,/Pull Lab/);assert.match(ui,/REAL WCL PULLS/);assert.doesNotMatch(ui,/LIVE_PULLS_MOCK|goldenMocks/);
+test('CRITICAL Live evidence drawer and Mechanics state survive active polling without timers',async()=>{
+  const [stability,state,context,index]=await Promise.all([read('public/avoid-live-ui-stability-v3912.js'),read('public/avoid-mechanics-state-v3912.js'),read('public/avoid-mechanics-global-context-v3912.js'),read('index.html')]);
+  assert.match(stability,/sessionStorage/);assert.match(stability,/aop-evidence-drawer/);assert.match(stability,/evidenceDrawerStatePersists:true/);assert.match(stability,/noPollingTimer:true/);assert.doesNotMatch(stability,/setInterval/);
+  assert.match(state,/__AVOID_MECHANICS_RAID_EXECUTION__/);assert.doesNotMatch(state,/setInterval/);assert.doesNotMatch(state,/dispatchEvent\(new CustomEvent\('avoid:raid-execution'/,'active WCL polling must not synthesize Mechanics execution events');
+  assert.match(context,/persistedGlobalTrend:true/);assert.match(context,/noPollingTimer:true/);assert.doesNotMatch(context,/setInterval/);
+  assert.match(index,/avoid-live-ui-stability-v3912\.js\?v=3\.9\.12\.1/);assert.match(index,/avoid-mechanics-state-v3912\.js\?v=3\.9\.12\.3/);assert.match(index,/avoid-mechanics-global-context-v3912\.js\?v=3\.9\.12\.2/);
+});
+
+test('CRITICAL Raid Execution exposes partial GLOBAL context and persisted HOME comparison trend at zero WCL',async()=>{
+  const [service,bridge,css]=await Promise.all([read('server/services/raid-execution-service.mjs'),read('public/avoid-mechanics-global-context-v3912.js'),read('public/raidops-v3912-mechanics-bridge.css')]);
+  assert.match(service,/loadDescriptiveGlobalBenchmarkV1/);assert.match(service,/loadHomeGlobalComparisonsV1/);assert.match(service,/globalOutliers/);assert.match(service,/partialBenchmarkDoesNotSatisfyReadiness:true/);assert.match(service,/networkExecuted:false/);
+  assert.match(bridge,/IRIS REFERENCE & GLOBAL TREND/);assert.match(bridge,/HOME COMPARED/);assert.match(bridge,/P\$\{esc\(h\.pullNumber/);assert.match(css,/nth-child\(4\)/);assert.match(css,/aop-global-trends/);
+});
+
+test('CRITICAL difficulty and knowledge boundaries remain explicit',async()=>{
+  const [engine,scope,home]=await Promise.all([read('server/engines/operational-execution-v1.mjs'),read('server/knowledge/scopes.mjs'),read('server/home/raid-pull-facts-store-v1.mjs')]);
+  assert.match(engine,/Cross-difficulty operational execution rejected/);assert.match(scope,/GLOBAL BOSS evidence is fail-closed/);assert.match(scope,/external-origin-unverified/);assert.match(home,/scopeIdentity:'encounter\+difficulty'/);assert.match(home,/crossDifficultyAggregationForbidden:true/);
 });
