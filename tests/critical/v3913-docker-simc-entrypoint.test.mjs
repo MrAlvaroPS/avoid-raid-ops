@@ -6,6 +6,6 @@ test('Docker Loot sims keep /work cwd while invoking SimC with an absolute entry
   const source=await readFile(new URL('../../server/loot/simc-runner-v1.mjs',import.meta.url),'utf8');
   assert.match(source,/['\"]-w['\"],['\"]\/work['\"]/);
   assert.match(source,/['\"]--entrypoint['\"],['\"]\/app\/SimulationCraft\/simc['\"]/);
-  assert.match(source,/['\"]\/work\/loot\.simc['\"]/);
+  assert.match(source,/inside=`\/work\/\$\{basename\(input\)\}`/);
   assert.doesNotMatch(source,/['\"]-w['\"],['\"]\/work['\"],worker\.imageTag/);
 });
