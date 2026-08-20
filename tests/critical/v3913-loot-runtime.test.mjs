@@ -5,25 +5,29 @@ import vm from 'node:vm';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
 
-test('Loot is wired after the operational runtime with profile bridge and its own CSS',async()=>{
+test('Loot is wired after the operational runtime without replacing the golden shell',async()=>{
   const index=await read('index.html');
   assert.match(index,/raidops-v3913-loot\.css\?v=3\.9\.13\.0/);
   assert.match(index,/loot-profile-bridge-v3913\.js\?v=3\.9\.13\.0/);
-  assert.match(index,/loot-runtime-v3913\.js\?v=3\.9\.13\.1/);
+  assert.match(index,/loot-runtime-v39132\.js\?v=3\.9\.13\.2/);
   assert.ok(index.indexOf('avoid-operational-ui-v3912.js')<index.indexOf('loot-profile-bridge-v3913.js'));
-  assert.ok(index.indexOf('loot-profile-bridge-v3913.js')<index.indexOf('loot-runtime-v3913.js'));
+  assert.ok(index.indexOf('loot-profile-bridge-v3913.js')<index.indexOf('loot-runtime-v39132.js'));
 });
 
-test('Loot remains raid-only, evidence-based, and never auto-awards',async()=>{
-  const [runtime,runner,service]=await Promise.all([read('public/loot-runtime-v39137.js'),read('server/loot/simc-runner-v1.mjs'),read('server/services/loot-service.mjs')]);
+test('Loot remains raid-only, evidence-based, uses ST plus MT5, and never auto-awards',async()=>{
+  const [runtime,runner,matrix,service]=await Promise.all([read('public/loot-runtime-v39137.js'),read('server/loot/simc-runner-v1.mjs'),read('server/loot/simc-matrix-v1.mjs'),read('server/services/loot-service.mjs')]);
   new vm.Script(runtime,{filename:'loot-runtime-v39137.js'});
   assert.match(runtime,/SIM is per raider/);
+  assert.match(runtime,/ST 1T · MT 5T · MIX 50\/50/);
   assert.doesNotMatch(runtime,/LIVE_PULLS_MOCK|PLAYER_RELIABILITY_MOCK|Math\.random\(\).*gain/i);
-  assert.match(runner,/fight_style=Patchwerk/);
-  assert.match(runner,/scenario!=='raid_st'/);
+  assert.match(runner,/fightStyle:'Patchwerk'/);
+  assert.match(runner,/desiredTargets:1/);
+  assert.match(runner,/desiredTargets:5/);
   assert.doesNotMatch(runner,/DungeonSlice/i);
+  assert.match(matrix,/mixGainPct/);
   assert.match(service,/automaticAward:false/);
   assert.match(service,/healerAndTankRaidValueNotFabricated:true/);
+  assert.match(service,/mixIsNeutralEqualWeightNotBossTruth:true/);
 });
 
 test('Loot prefers observed WCL CombatantInfo and materializes Armory only as fallback',async()=>{
@@ -59,10 +63,10 @@ test('Loot is inserted below Composition and does not globally filter the app',a
   assert.doesNotMatch(runtime,/location\.assign|location\.reload/);
 });
 
-test('server-side active-spec eligibility produces the only list sent to SimulationCraft',async()=>{
+test('server-side active-spec eligibility produces the only list sent to the ST MT simulation matrix',async()=>{
   const service=await read('server/services/loot-service.mjs');
   assert.match(service,/eligibility=players\.map/);
   assert.match(service,/eligibility\.simEligible===true/);
-  assert.match(service,/simulateLootRaidV1\(\{players:eligible/);
+  assert.match(service,/simulateLootRaidMatrixV1\(\{players:eligible/);
   assert.match(service,/physicalEligibilitySeparateFromSpecFit:true/);
 });
