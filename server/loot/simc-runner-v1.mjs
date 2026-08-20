@@ -6,13 +6,14 @@ import { simcSlotsForItemV1 } from './eligibility-v1.mjs';
 import { dockerSimcCurrentV1, simcDockerFreshnessV1 } from './simc-docker-manager-v1.mjs';
 import { shouldRetryWindowsShellLaunchV1 } from './simc-manager-v1.mjs';
 
-export const LOOT_SIMC_RUNNER_VERSION='loot-simc-runner-v1.9';
+export const LOOT_SIMC_RUNNER_VERSION='loot-simc-runner-v1.10';
 
 const clean=value=>String(value||'').trim();
 const safeToken=value=>clean(value).toLowerCase().normalize('NFKD').replace(/[^a-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'');
-const finite=value=>Number.isFinite(Number(value))?Number(value):null;
-const metricMean=row=>finite(row?.mean??row?.dps?.mean??row?.metric?.mean??row?.data?.mean);
-const metricError=row=>finite(row?.mean_std_dev??row?.mean_stddev??row?.stddev??row?.dps?.mean_std_dev??row?.dps?.mean_stddev);
+const finite=value=>value===null||value===undefined||value===''?null:Number.isFinite(Number(value))?Number(value):null;
+const metricNode=row=>Array.isArray(row?.metrics)?(row.metrics.find(metric=>safeToken(metric?.metric)==='dps')||row.metrics[0]||null):row;
+const metricMean=row=>{const node=metricNode(row);return finite(node?.mean??node?.dps?.mean??node?.metric?.mean??node?.data?.mean);};
+const metricError=row=>{const node=metricNode(row);return finite(node?.mean_std_dev??node?.mean_stddev??node?.stddev??node?.dps?.mean_std_dev??node?.dps?.mean_stddev);};
 const CLASS_TOKEN={deathknight:'death_knight',demonhunter:'demon_hunter',druid:'druid',evoker:'evoker',hunter:'hunter',mage:'mage',monk:'monk',paladin:'paladin',priest:'priest',rogue:'rogue',shaman:'shaman',warlock:'warlock',warrior:'warrior'};
 const WCL_SLOT={head:'head',neck:'neck',shoulders:'shoulder',shoulder:'shoulder',back:'back',chest:'chest',waist:'waist',legs:'legs',feet:'feet',wrists:'wrist',wrist:'wrist',hands:'hands','ring 1':'finger1','ring 2':'finger2',trinket1:'trinket1',trinket2:'trinket2','trinket 1':'trinket1','trinket 2':'trinket2','main hand':'main_hand','off hand':'off_hand'};
 const TANK_SPECS=new Set(['blood','protection','guardian','brewmaster','vengeance']);
@@ -41,7 +42,6 @@ export async function simcWorkerStatusV1(){
   return{version:LOOT_SIMC_RUNNER_VERSION,...resolved,managedFreshness:resolved.source==='MANAGED_DOCKER'?{lastCheckedAt:freshness.lastCheckedAt,lastBuildError:freshness.lastBuildError,previousCommit:freshness.previous?.commit||null,docker:freshness.docker}:null};
 }
 
-// SimC item syntax requires a comma before id when no item-name token is supplied: slot=,id=123.
 function gearOption(row){
   const parts=[`id=${Number(row.id)}`];
   if(finite(row.itemLevel))parts.push(`ilevel=${Number(row.itemLevel)}`);
@@ -89,7 +89,7 @@ function profileText({profile,item,itemLevel,slots,iterations=1000,scenario='rai
 
 function jsonDiagnostics(raw){
   const player=raw?.sim?.players?.[0]||{},collected=player?.collected_data||{},profilesets=raw?.profilesets||raw?.sim?.profilesets||null,results=Array.isArray(profilesets?.results)?profilesets.results:[];
-  return{rootKeys:Object.keys(raw||{}).slice(0,30),simKeys:Object.keys(raw?.sim||{}).slice(0,30),playerKeys:Object.keys(player).slice(0,30),collectedKeys:Object.keys(collected).slice(0,30),profilesetKeys:Object.keys(profilesets||{}).slice(0,30),profilesetCount:results.length,firstProfileset:results[0]?{name:results[0].name||results[0].profileset||null,keys:Object.keys(results[0]).slice(0,20),mean:metricMean(results[0])}:null};
+  return{rootKeys:Object.keys(raw||{}).slice(0,30),simKeys:Object.keys(raw?.sim||{}).slice(0,30),playerKeys:Object.keys(player).slice(0,30),collectedKeys:Object.keys(collected).slice(0,30),profilesetKeys:Object.keys(profilesets||{}).slice(0,30),profilesetCount:results.length,firstProfileset:results[0]?{name:results[0].name||results[0].profileset||null,keys:Object.keys(results[0]).slice(0,20),mean:metricMean(results[0]),metrics:Array.isArray(results[0].metrics)?results[0].metrics.slice(0,5).map(metric=>({metric:metric.metric,mean:metric.mean,mean_stddev:metric.mean_stddev,stddev:metric.stddev})):null}:null};
 }
 
 function parseResult(raw,{player,item,slots}){
@@ -119,7 +119,7 @@ async function materializeArmoryProfile({worker,player,dir,timeoutMs}){
   const execution=await runWorker(worker,{dir,input,timeoutMs});
   if(!await exists(saved)){const error=new Error(`SimulationCraft imported ${player.name} but did not materialize base.simc`);error.code='SIMC_ARMORY_SAVE_MISSING';throw error;}
   const savedText=await readFile(saved,'utf8'),savedIdentity=savedProfileIdentity(savedText);let raw=null;try{raw=JSON.parse(await readFile(output,'utf8'));}catch{}
-  const identity={...savedIdentity,...(raw?rawIdentity(raw,player):{}),specialization:rawIdentity(raw||{},player).specialization||savedIdentity.specialization,role:rawIdentity(raw||{},player).role||savedIdentity.role};
+  const imported=rawIdentity(raw||{},player),identity={specialization:imported.specialization||savedIdentity.specialization,role:imported.role||savedIdentity.role};
   return{profile:{lines:['base.simc'],source:'battle-net-armory-materialized',profileCompleteness:{...source.profileCompleteness,materializedProfile:true},importedSpecialization:identity.specialization,importedRole:identity.role},identity,execution};
 }
 
