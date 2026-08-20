@@ -1,6 +1,6 @@
 import { corpusGet,corpusList } from './storage.mjs';
-import { corpusAliasKey,corpusId,deepProfileKey } from './keys.mjs';
-import { bossKnowledgeScope } from '../knowledge/scopes.mjs';
+import { corpusAliasKey,corpusId } from './keys.mjs';
+import { bossKnowledgeScope,classifyGlobalBossSourceProfile } from '../knowledge/scopes.mjs';
 import { buildBalancedBossSample,CANONICAL_SOURCE_CAPS } from './sampling-v2.mjs';
 
 export const GLOBAL_OBSERVATIONAL_BENCHMARK_VERSION='global-observational-benchmark-v3';
@@ -19,10 +19,8 @@ function nameOf(profiles,id){for(const p of profiles){const n=p?.abilityStats?.[
 function abilityRows(profiles){const ids=new Set();for(const p of profiles)for(const id of Object.keys(p?.abilityStats||{})){const n=Number(id);if(Number.isInteger(n)&&n>0)ids.add(n);}return[...ids].sort((a,b)=>a-b).map(id=>({abilityId:id,name:nameOf(profiles,id),metrics:Object.fromEntries(['damageHits','damageOccurrences','casts','deathLinks'].map(metric=>[metric,{kill:metricDistribution(profiles,id,'kill',metric),wipe:metricDistribution(profiles,id,'wipe',metric)}]))}));}
 export async function loadDescriptiveGlobalBenchmarkV1(input={}){
   const args=await resolve(input);if(!args)return null;const scope=bossKnowledgeScope(args),prefix=`deep/${corpusId(args)}/`,keys=await corpusList(prefix);if(!keys.length)return null;
-  const cached=(await Promise.all(keys.map(key=>corpusGet(key).catch(()=>null)))).filter(p=>p&&complete(p));
-  const sample=buildBalancedBossSample(cached,{scope,targetPulls:Number.POSITIVE_INFINITY,targetReports:Number.POSITIVE_INFINITY,mode:'deep',sourceCaps:CANONICAL_SOURCE_CAPS.deep});
-  if(Number(sample?.excluded?.wrongScope||0)>0||Number(sample?.excluded?.homeSource||0)>0||Number(sample?.excluded?.missingSource||0)>0){/* excluded rows are expected and stay out; selected rows below are fail-closed */}
-  const profiles=sample.selected||[],reports=Number(sample.stats?.reports||0),sources=Number(sample.stats?.sources||0);if(reports<GLOBAL_DESCRIPTIVE_MIN_REPORTS||sources<GLOBAL_DESCRIPTIVE_MIN_SOURCES)return null;
+  const cached=(await Promise.all(keys.map(key=>corpusGet(key).catch(()=>null)))).filter(p=>p&&complete(p)&&classifyGlobalBossSourceProfile(p).eligible===true);
+  const sample=buildBalancedBossSample(cached,{scope,targetPulls:Number.POSITIVE_INFINITY,targetReports:Number.POSITIVE_INFINITY,mode:'deep',sourceCaps:CANONICAL_SOURCE_CAPS.deep}),profiles=sample.selected||[],reports=Number(sample.stats?.reports||0),sources=Number(sample.stats?.sources||0);if(reports<GLOBAL_DESCRIPTIVE_MIN_REPORTS||sources<GLOBAL_DESCRIPTIVE_MIN_SOURCES)return null;
   const killPulls=profiles.reduce((s,p)=>s+fights(p,'kill').length,0),wipePulls=profiles.reduce((s,p)=>s+fights(p,'wipe').length,0);
-  return{version:GLOBAL_OBSERVATIONAL_BENCHMARK_VERSION,status:'descriptive-only',scope:{encounterId:args.encounterId,difficulty:args.difficulty,partition:args.partition},source:'canonical-balanced-deep-cache',evidence:{reports,pulls:Number(sample.stats?.pulls||0),sources,killPulls,wipePulls,selectedCodes:sample.selectedCodes},abilities:abilityRows(profiles),contract:{sameDifficultyOnly:true,homeExcluded:true,sourceBalanced:true,descriptiveOnly:true,doesNotSatisfyDataReady:true,doesNotSatisfyLiveReady:true,doesNotPromote:true,killPrimaryUnit:'per-pull',wipePrimaryUnit:'per-minute',percentilesRequireReports:GLOBAL_DESCRIPTIVE_MIN_REPORTS}};
+  return{version:GLOBAL_OBSERVATIONAL_BENCHMARK_VERSION,status:'descriptive-only',scope:{encounterId:args.encounterId,difficulty:args.difficulty,partition:args.partition},source:'canonical-balanced-deep-cache',evidence:{reports,pulls:Number(sample.stats?.pulls||0),sources,killPulls,wipePulls,selectedCodes:sample.selectedCodes},abilities:abilityRows(profiles),contract:{sameDifficultyOnly:true,homeExcluded:true,sourceIndependenceFailClosed:true,sourceBalanced:true,descriptiveOnly:true,doesNotSatisfyDataReady:true,doesNotSatisfyLiveReady:true,doesNotPromote:true,killPrimaryUnit:'per-pull',wipePrimaryUnit:'per-minute',percentilesRequireReports:GLOBAL_DESCRIPTIVE_MIN_REPORTS}};
 }
