@@ -193,7 +193,7 @@ export function analyzeEncounterMechanics({pack,fights=[],damageEvents=[],castEv
         const groups=clusterPlayerDamage(hits,{gapMs:2200,maxDurationMs:12000});
         for(const group of groups){
           agg.observedIncidents++;
-          if(!periodicEvidence(group))continue; // direct hit alone is normal; periodic aura is the wrong-colour signal.
+          if(!periodicEvidence(group))continue;
           const ref=occurrenceRef(fight,m,opportunities,group.startTs,{maxDelayMs:m.occurrenceWindowMs||12000,fallbackBucketMs:1500});
           const c=colorAt(colorTimeline,group.actorId,group.startTs);
           addFailureRecord({failures,agg,mechanic:m,event:group.first,fight,actorId:group.actorId,
@@ -237,10 +237,19 @@ export function analyzeEncounterMechanics({pack,fights=[],damageEvents=[],castEv
         const impacts=clusterRaidDamage(hits,{gapMs:180});
         agg.observedIncidents+=impacts.length;
         agg.maxAffectedPlayers=Math.max(Number(agg.maxAffectedPlayers)||0,...impacts.map(x=>x.actors.size),0);
-        // Mythic Quill damage splashes around the interceptor. Damage recipients
-        // are therefore evidence of impact, not proof that each recipient failed.
-      }else if(m.inference==='phase-transition-observed'||m.inference==='phase-boundary-observed'||m.inference==='pressure-window'||m.inference==='damage-distribution-only'||m.inference==='stateful-impact-observed'||m.inference==='stateful-cast-observed'||m.inference==='wipe-associated-cast'||m.inference==='duration-analysis'||m.inference==='stack-count'){
-        // Observational mechanics intentionally produce no failure records here.
+      }else if(m.inference==='pressure-window'||m.inference==='damage-distribution-only'||m.inference==='stateful-impact-observed'){
+        const ids=[...(m.damageIds||[]),...(m.failureDamageIds||[])];
+        const impacts=clusterRaidDamage(fd.filter(e=>abilityMatches(e,ids)),{gapMs:300});
+        agg.observedIncidents+=impacts.length;
+        // Observational evidence proves that the mechanic occurred. It is deliberately
+        // not converted into a player/raid failure and never contributes to accuracy.
+      }else if(m.inference==='phase-transition-observed'||m.inference==='phase-boundary-observed'||m.inference==='stateful-cast-observed'||m.inference==='wipe-associated-cast'){
+        // Cast opportunities were recorded above. Preserve them as observation-only;
+        // no failure record is produced for an observational inference.
+        agg.observedIncidents+=opportunities.length;
+      }else if(m.inference==='duration-analysis'||m.inference==='stack-count'){
+        // These legacy observational types require their specialised inputs. They remain
+        // observation-only and are never fabricated from unrelated event streams.
       }
     }
   }
@@ -249,7 +258,7 @@ export function analyzeEncounterMechanics({pack,fights=[],damageEvents=[],castEv
     const agg=ensureAgg(perMechanic,m);
     agg.opportunities=agg._opportunityKeys.size;
     agg.failedOccurrences=agg._failedOccurrenceKeys.size;
-    agg.failures=agg.failedOccurrences; // backwards-compatible UI field; now occurrence-normalized.
+    agg.failures=agg.failedOccurrences;
     agg.playerExposures=agg._playerExposureKeys.size;
     agg.evidenceCount=failures.filter(f=>f.mechanicKey===m.key).length;
     const mechFailures=failures.filter(f=>f.mechanicKey===m.key);
